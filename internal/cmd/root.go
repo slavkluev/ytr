@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/cmd/auth"
+	"github.com/slavkluev/ytr/internal/cmd/issue"
 	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
 	versioncmd "github.com/slavkluev/ytr/internal/cmd/version"
 	"github.com/slavkluev/ytr/internal/output"
@@ -83,6 +84,7 @@ func registerSubcommands() {
 	addGroupedCommand(versioncmd.NewCmd(), groupSystem)
 
 	addGroupedCommand(auth.NewCmd(), groupAccount)
+	addGroupedCommand(issue.NewCmd(), groupIssueTracking)
 }
 
 // Execute runs the root command and returns the appropriate exit code.
