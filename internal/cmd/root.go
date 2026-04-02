@@ -8,6 +8,7 @@ import (
 
 	"github.com/slavkluev/ytr/internal/cmd/auth"
 	"github.com/slavkluev/ytr/internal/cmd/issue"
+	"github.com/slavkluev/ytr/internal/cmd/comment"
 	"github.com/slavkluev/ytr/internal/cmd/queue"
 	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
 	versioncmd "github.com/slavkluev/ytr/internal/cmd/version"
@@ -86,6 +87,7 @@ func registerSubcommands() {
 
 	addGroupedCommand(auth.NewCmd(), groupAccount)
 	addGroupedCommand(issue.NewCmd(), groupIssueTracking)
+	addGroupedCommand(comment.NewCmd(), groupIssueTracking)
 	addGroupedCommand(queue.NewCmd(), groupOrganization)
 }
 
