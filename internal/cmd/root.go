@@ -7,22 +7,23 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/cmd/auth"
-	"github.com/slavkluev/ytr/internal/cmd/issue"
-	"github.com/slavkluev/ytr/internal/cmd/comment"
-	"github.com/slavkluev/ytr/internal/cmd/link"
-	"github.com/slavkluev/ytr/internal/cmd/worklog"
+	"github.com/slavkluev/ytr/internal/cmd/bulk"
 	"github.com/slavkluev/ytr/internal/cmd/checklist"
-	"github.com/slavkluev/ytr/internal/cmd/queue"
-	"github.com/slavkluev/ytr/internal/cmd/component"
+	"github.com/slavkluev/ytr/internal/cmd/comment"
 	"github.com/slavkluev/ytr/internal/cmd/completion"
-	"github.com/slavkluev/ytr/internal/cmd/status"
-	"github.com/slavkluev/ytr/internal/cmd/priority"
-	"github.com/slavkluev/ytr/internal/cmd/resolution"
-	"github.com/slavkluev/ytr/internal/cmd/issuetype"
+	"github.com/slavkluev/ytr/internal/cmd/component"
 	"github.com/slavkluev/ytr/internal/cmd/field"
-	"github.com/slavkluev/ytr/internal/cmd/user"
+	"github.com/slavkluev/ytr/internal/cmd/issue"
+	"github.com/slavkluev/ytr/internal/cmd/issuetype"
 	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/link"
+	"github.com/slavkluev/ytr/internal/cmd/priority"
+	"github.com/slavkluev/ytr/internal/cmd/queue"
+	"github.com/slavkluev/ytr/internal/cmd/resolution"
+	"github.com/slavkluev/ytr/internal/cmd/status"
+	"github.com/slavkluev/ytr/internal/cmd/user"
 	versioncmd "github.com/slavkluev/ytr/internal/cmd/version"
+	"github.com/slavkluev/ytr/internal/cmd/worklog"
 	"github.com/slavkluev/ytr/internal/output"
 )
 
@@ -93,24 +94,35 @@ func addGroupedCommand(cmd *cobra.Command, groupID string) {
 
 // registerSubcommands adds all subcommands to the root command with GroupID per D-01.
 func registerSubcommands() {
-	// System group.
-	addGroupedCommand(versioncmd.NewCmd(), groupSystem)
-
-	addGroupedCommand(auth.NewCmd(), groupAccount)
+	// Issue Tracking group.
 	addGroupedCommand(issue.NewCmd(), groupIssueTracking)
 	addGroupedCommand(comment.NewCmd(), groupIssueTracking)
 	addGroupedCommand(link.NewCmd(), groupIssueTracking)
 	addGroupedCommand(worklog.NewCmd(), groupIssueTracking)
 	addGroupedCommand(checklist.NewCmd(), groupIssueTracking)
-	addGroupedCommand(queue.NewCmd(), groupOrganization)
-	addGroupedCommand(component.NewCmd(), groupOrganization)
-	addGroupedCommand(completion.NewCmd(rootCmd), groupSystem)
+	addGroupedCommand(bulk.NewCmd(), groupIssueTracking)
+
+	// Reference Data group.
 	addGroupedCommand(status.NewCmd(), groupReferenceData)
 	addGroupedCommand(priority.NewCmd(), groupReferenceData)
 	addGroupedCommand(resolution.NewCmd(), groupReferenceData)
 	addGroupedCommand(issuetype.NewCmd(), groupReferenceData)
 	addGroupedCommand(field.NewCmd(), groupReferenceData)
+
+	// Organization group.
+	addGroupedCommand(queue.NewCmd(), groupOrganization)
+	addGroupedCommand(component.NewCmd(), groupOrganization)
+
+	// Account group.
 	addGroupedCommand(user.NewCmd(), groupAccount)
+	addGroupedCommand(auth.NewCmd(), groupAccount)
+
+	// System group.
+	addGroupedCommand(versioncmd.NewCmd(), groupSystem)
+
+	// D-03: completion stays visible, assigned to System group.
+	// D-05 (Pitfall 5): Custom completion command needs GroupID set manually.
+	addGroupedCommand(completion.NewCmd(rootCmd), groupSystem)
 }
 
 // Execute runs the root command and returns the appropriate exit code.
