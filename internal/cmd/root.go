@@ -11,6 +11,10 @@ import (
 	"github.com/slavkluev/ytr/internal/cmd/comment"
 	"github.com/slavkluev/ytr/internal/cmd/queue"
 	"github.com/slavkluev/ytr/internal/cmd/completion"
+	"github.com/slavkluev/ytr/internal/cmd/status"
+	"github.com/slavkluev/ytr/internal/cmd/priority"
+	"github.com/slavkluev/ytr/internal/cmd/resolution"
+	"github.com/slavkluev/ytr/internal/cmd/issuetype"
 	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
 	versioncmd "github.com/slavkluev/ytr/internal/cmd/version"
 	"github.com/slavkluev/ytr/internal/output"
@@ -91,6 +95,10 @@ func registerSubcommands() {
 	addGroupedCommand(comment.NewCmd(), groupIssueTracking)
 	addGroupedCommand(queue.NewCmd(), groupOrganization)
 	addGroupedCommand(completion.NewCmd(rootCmd), groupSystem)
+	addGroupedCommand(status.NewCmd(), groupReferenceData)
+	addGroupedCommand(priority.NewCmd(), groupReferenceData)
+	addGroupedCommand(resolution.NewCmd(), groupReferenceData)
+	addGroupedCommand(issuetype.NewCmd(), groupReferenceData)
 }
 
 // Execute runs the root command and returns the appropriate exit code.
