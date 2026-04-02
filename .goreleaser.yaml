@@ -1,0 +1,59 @@
+version: 2
+
+builds:
+  - main: ./cmd/ytr
+    binary: ytr
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/slavkluev/ytr/internal/version.Version={{.Version}}
+      - -X github.com/slavkluev/ytr/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/slavkluev/ytr/internal/version.Date={{.Date}}
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+brews:
+  - name: ytr
+    repository:
+      owner: slavkluev
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/slavkluev/ytr"
+    description: "Yandex Tracker CLI for humans and LLM agents"
+    license: "MIT"
+    install: |
+      bin.install "ytr"
+    test: |
+      system "#{bin}/ytr", "version"
+    commit_author:
+      name: goreleaserbot
+      email: goreleaserbot@users.noreply.github.com

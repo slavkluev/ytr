@@ -1,0 +1,178 @@
+version: "2"
+
+formatters:
+  enable:
+    - goimports
+    - golines
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/slavkluev/ytr
+    golines:
+      max-len: 120
+
+linters:
+  default: none
+  enable:
+    # Safety (Tier 1)
+    - errcheck
+    - govet
+    - staticcheck
+    - gosec
+    - bodyclose
+    - nilerr
+    - exhaustive
+    # Bug detection
+    - asasalint
+    - asciicheck
+    - bidichk
+    - copyloopvar
+    - durationcheck
+    - errorlint
+    - exptostd
+    - fatcontext
+    - intrange
+    - loggercheck
+    - makezero
+    - musttag
+    - nilnesserr
+    - nilnil
+    - noctx
+    - reassign
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - wastedassign
+    # Style
+    - canonicalheader
+    - dupword
+    - errname
+    - gocheckcompilerdirectives
+    - gochecksumtype
+    - goconst
+    - gocritic
+    - godot
+    - goprintffuncname
+    - iface
+    - mirror
+    - nakedret
+    - nestif
+    - nolintlint
+    - nonamedreturns
+    - nosprintfhostport
+    - perfsprint
+    - predeclared
+    - promlinter
+    - protogetter
+    - recvcheck
+    - revive
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - whitespace
+    # Complexity
+    - cyclop
+    - funlen
+    - gocognit
+    - gocyclo
+    # Other from maratori
+    - depguard
+    - dupl
+    - embeddedstructfieldcheck
+    - forbidigo
+    - gomoddirectives
+    - ineffassign
+    - iotamixing
+    - mnd
+    - modernize
+    - testableexamples
+    - testifylint
+    - tparallel
+    - unused
+    - usetesting
+  disable:
+    # D-06: Permanently excluded with documented rationale.
+    - gochecknoglobals   # Factory vars (newSearcher, newGetter) are the testability mechanism
+    - gochecknoinits     # init() in root.go is idiomatic Cobra
+    - testpackage        # White-box testing by design -- tests access factory vars from same package
+    # Not applicable to this project or impractical.
+    - exhaustruct        # Tracker SDK types use *string/*int everywhere; requiring all fields is impractical
+    - wrapcheck          # ytr wraps errors at MapAPIError boundary, not every call site
+
+  settings:
+    cyclop:
+      max-complexity: 30
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: "math/rand$"
+              desc: "Use math/rand/v2 instead"
+            - pkg: "log$"
+              desc: "Use log/slog instead"
+    errcheck:
+      check-type-assertions: true
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    exhaustive:
+      check:
+        - switch
+        - map
+    funlen:
+      lines: 100
+      statements: 50
+    gocognit:
+      min-complexity: 20
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment  # Too noisy, low value
+    mnd:
+      ignored-functions:
+        - "os.Exit"
+        - "cobra.ExactArgs"
+        - "cobra.MinimumNArgs"
+        - "cobra.MaximumNArgs"
+        - "cobra.RangeArgs"
+      ignored-numbers:
+        - "0"
+        - "1"
+        - "2"
+    nakedret:
+      max-func-lines: 0
+    nestif:
+      min-complexity: 5
+    revive:
+      rules:
+        - name: unexported-return
+          disabled: true
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # Test file exclusions (from maratori).
+      - path: '_test\.go'
+        linters:
+          - bodyclose
+          - dupl
+          - errcheck
+          - funlen
+          - gocognit
+          - goconst
+          - gosec
+          - mnd
+          - modernize
+          - noctx
+          - wrapcheck
+      # main.go is trivial -- exclude complexity linters.
+      - path: 'cmd/ytr/main\.go'
+        linters:
+          - gochecknoglobals
