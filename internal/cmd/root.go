@@ -10,6 +10,7 @@ import (
 	"github.com/slavkluev/ytr/internal/cmd/issue"
 	"github.com/slavkluev/ytr/internal/cmd/comment"
 	"github.com/slavkluev/ytr/internal/cmd/link"
+	"github.com/slavkluev/ytr/internal/cmd/worklog"
 	"github.com/slavkluev/ytr/internal/cmd/queue"
 	"github.com/slavkluev/ytr/internal/cmd/component"
 	"github.com/slavkluev/ytr/internal/cmd/completion"
@@ -98,6 +99,7 @@ func registerSubcommands() {
 	addGroupedCommand(issue.NewCmd(), groupIssueTracking)
 	addGroupedCommand(comment.NewCmd(), groupIssueTracking)
 	addGroupedCommand(link.NewCmd(), groupIssueTracking)
+	addGroupedCommand(worklog.NewCmd(), groupIssueTracking)
 	addGroupedCommand(queue.NewCmd(), groupOrganization)
 	addGroupedCommand(component.NewCmd(), groupOrganization)
 	addGroupedCommand(completion.NewCmd(rootCmd), groupSystem)
