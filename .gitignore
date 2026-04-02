@@ -1,0 +1,12 @@
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+
+# Coverage artifacts
+coverage.out
+
+# Binary
+/ytr
