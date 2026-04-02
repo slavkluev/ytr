@@ -8,6 +8,7 @@ import (
 
 	"github.com/slavkluev/ytr/internal/cmd/auth"
 	"github.com/slavkluev/ytr/internal/cmd/issue"
+	"github.com/slavkluev/ytr/internal/cmd/queue"
 	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
 	versioncmd "github.com/slavkluev/ytr/internal/cmd/version"
 	"github.com/slavkluev/ytr/internal/output"
@@ -85,6 +86,7 @@ func registerSubcommands() {
 
 	addGroupedCommand(auth.NewCmd(), groupAccount)
 	addGroupedCommand(issue.NewCmd(), groupIssueTracking)
+	addGroupedCommand(queue.NewCmd(), groupOrganization)
 }
 
 // Execute runs the root command and returns the appropriate exit code.
