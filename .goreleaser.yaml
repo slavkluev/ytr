@@ -52,6 +52,7 @@ brews:
     license: "MIT"
     install: |
       bin.install "ytr"
+      generate_completions_from_executable(bin/"ytr", "completion")
     test: |
       system "#{bin}/ytr", "version"
     commit_author:
