@@ -232,6 +232,25 @@ func TestListFilterAssignee(t *testing.T) {
 	}
 }
 
+func TestListAssigneeMeShorthand(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockSearcher{
+		issues: []*tracker.Issue{},
+		resp:   &tracker.Response{},
+	}
+
+	_, _ = setupListCmd(t, mock, []string{"--assignee", "me"})
+
+	if len(mock.calls) == 0 {
+		t.Fatal("no search calls made")
+	}
+	filter := mock.calls[0].req.Filter
+	if v, ok := filter["assignee"]; !ok || v != "me()" {
+		t.Errorf("expected filter[assignee]=me(), got %v", filter)
+	}
+}
+
 func TestListLimit(t *testing.T) {
 	testutil.ResetOutputFlags(t)
 

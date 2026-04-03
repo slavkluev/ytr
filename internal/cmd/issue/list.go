@@ -181,6 +181,9 @@ func buildFilter(queue, status, assignee string) map[string]any {
 		}
 	}
 	if assignee != "" {
+		if assignee == "me" {
+			assignee = "me()"
+		}
 		filter["assignee"] = assignee
 	}
 	return filter
