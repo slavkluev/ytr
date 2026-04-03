@@ -90,12 +90,10 @@ SEE ALSO
 
 // runEdit executes the comment edit logic.
 func runEdit(cmd *cobra.Command, issueKey string, commentID string, body, fromJSON string) error {
-	// Handle --json field hint (no fields specified, D-10).
 	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "comment edit", CommentFields)
 	}
 
-	// If --jq without --json: auto-populate all fields (Pitfall 5).
 	if output.JQFilter != "" && !output.HasFieldSelection() {
 		output.JSONFields = CommentFields
 	}

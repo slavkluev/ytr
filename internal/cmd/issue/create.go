@@ -114,12 +114,10 @@ func validateCreateFlags(cmd *cobra.Command) error {
 // runCreate executes the issue create logic.
 func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) error {
-	// Handle --json field hint (no fields specified, D-10).
 	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue create", IssueDetailFields)
 	}
 
-	// If --jq without --json: auto-populate all fields (Pitfall 5).
 	if output.JQFilter != "" && !output.HasFieldSelection() {
 		output.JSONFields = IssueDetailFields
 	}

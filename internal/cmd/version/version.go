@@ -49,12 +49,10 @@ SEE ALSO
 func runVersion(cmd *cobra.Command, _ []string) error {
 	info := ver.Get()
 
-	// Handle --json field hint (no fields specified, D-10).
 	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "version", VersionFields)
 	}
 
-	// If --jq without --json: auto-populate all fields (Pitfall 5).
 	if output.JQFilter != "" && !output.HasFieldSelection() {
 		output.JSONFields = VersionFields
 	}

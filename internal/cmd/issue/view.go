@@ -105,12 +105,10 @@ SEE ALSO
 
 // runView executes the issue view logic.
 func runView(cmd *cobra.Command, args []string) error {
-	// Handle --json field hint (no fields specified, D-10).
 	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue view", IssueDetailFields)
 	}
 
-	// If --jq without --json: auto-populate all fields (Pitfall 5).
 	if output.JQFilter != "" && !output.HasFieldSelection() {
 		output.JSONFields = IssueDetailFields
 	}

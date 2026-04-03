@@ -113,12 +113,10 @@ SEE ALSO
 
 // runGet executes the field get logic.
 func runGet(cmd *cobra.Command, fieldKey, queueFlag string) error {
-	// Handle --json field hint (no fields specified, D-10).
 	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "field get", FieldGetFields)
 	}
 
-	// If --jq without --json: auto-populate all fields (Pitfall 5).
 	if output.JQFilter != "" && !output.HasFieldSelection() {
 		output.JSONFields = FieldGetFields
 	}

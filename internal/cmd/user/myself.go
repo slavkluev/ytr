@@ -83,12 +83,10 @@ SEE ALSO
 
 // runMyself executes the user myself logic.
 func runMyself(cmd *cobra.Command) error {
-	// Handle --json field hint (no fields specified, D-10).
 	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "user myself", UserDetailFields)
 	}
 
-	// If --jq without --json: auto-populate all fields (Pitfall 5).
 	if output.JQFilter != "" && !output.HasFieldSelection() {
 		output.JSONFields = UserDetailFields
 	}

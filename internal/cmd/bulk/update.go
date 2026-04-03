@@ -97,12 +97,10 @@ func runUpdate(
 	fromJSON string,
 	timeout time.Duration,
 ) error {
-	// Handle --json field hint (no fields specified, D-10).
 	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "bulk update", BulkStatusFields)
 	}
 
-	// If --jq without --json: auto-populate all fields (Pitfall 5).
 	if output.JQFilter != "" && !output.HasFieldSelection() {
 		output.JSONFields = BulkStatusFields
 	}

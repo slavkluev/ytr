@@ -58,7 +58,7 @@ func runDelete(cmd *cobra.Command, issueKey, itemID string) error {
 
 	deleter := newChecklistDeleter(auth)
 
-	// API returns (*Issue, *Response, error) but per D-07 we ignore the
+	// API returns (*Issue, *Response, error) but we ignore the
 	// returned *Issue and use the itemID from args for the confirmation.
 	_, _, err = deleter.DeleteChecklistItem(cmd.Context(), issueKey, itemID)
 	if err != nil {

@@ -106,12 +106,10 @@ func runEdit(
 	checkedFlag bool,
 	assigneeFlag, fromJSON string,
 ) error {
-	// Handle --json field hint (no fields specified, D-10).
 	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "checklist edit", ChecklistFields)
 	}
 
-	// If --jq without --json: auto-populate all fields (Pitfall 5).
 	if output.JQFilter != "" && !output.HasFieldSelection() {
 		output.JSONFields = ChecklistFields
 	}
@@ -160,7 +158,7 @@ func runEdit(
 		return api.MapAPIError(err)
 	}
 
-	// Extract edited item from Issue.ChecklistItems per D-07.
+	// Extract edited item from Issue.ChecklistItems.
 	edited := extractEditedItem(issue, itemID)
 	if edited == nil {
 		return fmt.Errorf("unexpected: edited item %s not found in API response", itemID)

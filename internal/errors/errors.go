@@ -26,10 +26,10 @@ type ExitError struct {
 	// Code is the machine-readable error code (e.g., "auth_error", "not_found").
 	Code string
 
-	// Message is the human-readable error message, always in English per D-05.
+	// Message is the human-readable error message, always in English.
 	Message string
 
-	// Suggestion is a copy-paste-ready recovery hint per D-04.
+	// Suggestion is a copy-paste-ready recovery hint.
 	// May be empty if no specific recovery action is available.
 	Suggestion string
 }

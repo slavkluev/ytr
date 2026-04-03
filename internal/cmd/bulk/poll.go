@@ -37,8 +37,8 @@ var stdinFile *os.File = os.Stdin
 var stderrFile *os.File = os.Stderr
 
 // readIssueKeys reads issue keys from positional args or stdin pipe.
-// Positional args take priority over stdin (D-01). Each key is validated
-// via ValidateIssueKey (D-02). Blank lines in stdin are skipped.
+// Positional args take priority over stdin. Each key is validated
+// via ValidateIssueKey. Blank lines in stdin are skipped.
 func readIssueKeys(args []string) ([]string, error) {
 	if len(args) > 0 {
 		for _, key := range args {
@@ -116,7 +116,7 @@ func isStderrTTY() bool {
 	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
-// showProgress displays an updating progress line on stderr (D-06).
+// showProgress displays an updating progress line on stderr.
 // Only outputs when stderr is a TTY; silent for non-TTY (agents).
 func showProgress(w io.Writer, bc *tracker.BulkChange) {
 	if !isStderrTTY() {
@@ -131,7 +131,7 @@ func showProgress(w io.Writer, bc *tracker.BulkChange) {
 		fmt.Sprintf("Bulk operation: %d/%d issues (%d%%)", done, total, pct))
 }
 
-// clearProgress clears the progress line on stderr (D-06).
+// clearProgress clears the progress line on stderr.
 // Only outputs when stderr is a TTY.
 func clearProgress(w io.Writer) {
 	if !isStderrTTY() {
@@ -142,7 +142,7 @@ func clearProgress(w io.Writer) {
 }
 
 // pollUntilDone polls a bulk operation until it reaches a terminal status
-// (COMPLETED or FAILED) using exponential backoff (D-03, D-04, D-05).
+// (COMPLETED or FAILED) using exponential backoff.
 // Returns the final BulkChange or a context error on timeout.
 func pollUntilDone(
 	ctx context.Context,
@@ -179,7 +179,7 @@ func pollUntilDone(
 	}
 }
 
-// renderBulkOutput renders a BulkChange in the appropriate output mode (D-07).
+// renderBulkOutput renders a BulkChange in the appropriate output mode.
 // Used by bulk status and by mutation commands after polling completes.
 func renderBulkOutput(cmd *cobra.Command, bc *tracker.BulkChange) error {
 	w := cmd.OutOrStdout()

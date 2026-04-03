@@ -7,7 +7,7 @@ import (
 	"github.com/jedib0t/go-pretty/v6/text"
 )
 
-// StyleGH is a gh-CLI-inspired borderless table style per D-01.
+// StyleGH is a gh-CLI-inspired borderless table style.
 // Produces compact output with space-aligned columns and no borders.
 var StyleGH = table.Style{
 	Name: "ytr-gh",

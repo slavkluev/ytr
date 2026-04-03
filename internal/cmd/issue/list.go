@@ -106,12 +106,10 @@ type issueSearchResult struct {
 
 // runList executes the issue list logic.
 func runList(cmd *cobra.Command, queue, status, assignee string, limit int, cursor string, all bool) error {
-	// Handle --json field hint (no fields specified, D-10).
 	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue list", IssueListFields)
 	}
 
-	// If --jq without --json: auto-populate all fields (Pitfall 5).
 	if output.JQFilter != "" && !output.HasFieldSelection() {
 		output.JSONFields = IssueListFields
 	}

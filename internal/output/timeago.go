@@ -14,7 +14,7 @@ const (
 // TimeAgo formats a time.Time as a human-readable relative duration for table output.
 // Returns "just now" for <1 minute, "Xm ago" for <1 hour, "Xh ago" for <24 hours,
 // "Xd ago" for <7 days, "Jan 2" for <365 days, and "Jan 2, 2006" for older dates.
-// JSON output always uses ISO 8601; this function is for table rendering only per D-11.
+// JSON output always uses ISO 8601; this function is for table rendering only.
 func TimeAgo(t time.Time) string {
 	elapsed := time.Since(t)
 

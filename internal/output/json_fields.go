@@ -13,7 +13,7 @@ import (
 )
 
 // ValidateFields checks requested fields against allowed fields.
-// Case-insensitive comparison per D-13.
+// Case-insensitive comparison.
 func ValidateFields(requested, allowed []string) error {
 	for _, f := range requested {
 		found := false
@@ -72,7 +72,7 @@ func FilterFields(data any, fields []string) map[string]any {
 }
 
 // PrintFieldHint outputs available fields as a formatted list to the writer
-// and returns an ExitError with exit code 1. Per D-10.
+// and returns an ExitError with exit code 1.
 func PrintFieldHint(w io.Writer, commandName string, fields []string) error {
 	_, _ = fmt.Fprintf(w, "Specify one or more comma-separated field names for JSON output.\n\n")
 	_, _ = fmt.Fprintf(w, "Available fields for %s:\n", commandName)
