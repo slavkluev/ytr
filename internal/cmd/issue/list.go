@@ -14,6 +14,7 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
 	"github.com/slavkluev/ytr/internal/config"
+	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -49,12 +50,13 @@ type issueListItem struct {
 // newListCmd creates the "issue list" command with filters and pagination.
 func newListCmd() *cobra.Command {
 	var (
-		queue    string
-		status   string
-		assignee string
-		limit    int
-		cursor   string
-		all      bool
+		query       string
+		filterFlags []string
+		orderBy     string
+		orderAsc    bool
+		limit       int
+		cursor      string
+		all         bool
 	)
 
 	cmd := &cobra.Command{
@@ -62,31 +64,50 @@ func newListCmd() *cobra.Command {
 		Short: "List issues",
 		Long: `Search and list Yandex Tracker issues with filtering and pagination.
 
+Supports two search modes:
+  - Structured filters: use --filter key=value (repeatable) for field filtering
+  - Query language: use --query for full Tracker query language expressions
+
+The two modes are mutually exclusive: --query cannot be combined with --filter.
+
 JSON FIELDS
   key, summary, status, priority, type, assignee, createdAt, updatedAt
 
 SEE ALSO
   ytr issue view      - View issue details
   ytr issue create    - Create a new issue`,
-		Example: `  # List all issues in a queue
-  ytr issue list --queue PROJ
+		Example: `  # Filter by queue
+  ytr issue list --filter queue=PROJ
 
-  # List open issues assigned to me
-  ytr issue list --queue PROJ --status open --assignee me
+  # Multiple filters
+  ytr issue list --filter queue=PROJ --filter status=open --filter assignee=me()
+
+  # Search with Tracker query language
+  ytr issue list --query 'Queue: PROJ AND Status: open "Sort By": Updated DESC'
+
+  # Filter by priority
+  ytr issue list --filter queue=PROJ --filter priority=critical
+
+  # Sort results (descending by default)
+  ytr issue list --filter queue=PROJ --order-by updatedAt
+
+  # Sort ascending
+  ytr issue list --filter queue=PROJ --order-by createdAt --order-asc
 
   # Get issue keys and statuses as JSON
-  ytr issue list --queue PROJ --json key,summary,status
+  ytr issue list --filter queue=PROJ --json key,summary,status
 
   # Extract just keys with jq
-  ytr issue list --queue PROJ --json key --jq '.items[].key'`,
+  ytr issue list --filter queue=PROJ --json key --jq '.items[].key'`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(cmd, queue, status, assignee, limit, cursor, all)
+			return runList(cmd, query, filterFlags, orderBy, orderAsc, limit, cursor, all)
 		},
 	}
 
-	cmd.Flags().StringVar(&queue, "queue", "", "Filter by queue key")
-	cmd.Flags().StringVar(&status, "status", "", "Filter by status (comma-separated)")
-	cmd.Flags().StringVar(&assignee, "assignee", "", "Filter by assignee")
+	cmd.Flags().StringVar(&query, "query", "", "Search using Tracker query language (mutually exclusive with --filter)")
+	cmd.Flags().StringArrayVar(&filterFlags, "filter", nil, "Filter by field (key=value, repeatable)")
+	cmd.Flags().StringVar(&orderBy, "order-by", "", "Sort by field name (e.g., updated, created, priority)")
+	cmd.Flags().BoolVar(&orderAsc, "order-asc", false, "Sort ascending (default: descending)")
 	cmd.Flags().IntVar(&limit, "limit", defaultLimit, "Maximum number of results per page (max 1000)")
 	cmd.Flags().StringVar(&cursor, "cursor", "", "Page number for pagination")
 	cmd.Flags().BoolVar(&all, "all", false, "Fetch all pages automatically")
@@ -105,7 +126,12 @@ type issueSearchResult struct {
 }
 
 // runList executes the issue list logic.
-func runList(cmd *cobra.Command, queue, status, assignee string, limit int, cursor string, all bool) error {
+func runList(cmd *cobra.Command, query string, filterFlags []string, orderBy string, orderAsc bool, limit int, cursor string, all bool) error {
+	// Validate flag conflicts before any API work.
+	if err := validateSearchFlags(cmd); err != nil {
+		return err
+	}
+
 	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue list", IssueListFields)
 	}
@@ -134,9 +160,6 @@ func runList(cmd *cobra.Command, queue, status, assignee string, limit int, curs
 
 	searcher := newSearcher(auth)
 
-	// Build filter map.
-	filter := buildFilter(queue, status, assignee)
-
 	// Validate and cap limit.
 	if limit < 1 {
 		limit = defaultLimit
@@ -151,7 +174,29 @@ func runList(cmd *cobra.Command, queue, status, assignee string, limit int, curs
 		return err
 	}
 
-	searchReq := &tracker.IssueSearchRequest{Filter: filter}
+	// Build the search request.
+	searchReq := &tracker.IssueSearchRequest{}
+
+	if query != "" {
+		// Query mode: set Query field only.
+		searchReq.Query = tracker.Ptr(query)
+	} else if len(filterFlags) > 0 {
+		// Filter mode: parse --filter key=value entries.
+		filter, err := parseFilterFlags(filterFlags)
+		if err != nil {
+			return err
+		}
+		searchReq.Filter = filter
+	}
+
+	// Apply ordering.
+	if orderBy != "" {
+		prefix := "-"
+		if orderAsc {
+			prefix = "+"
+		}
+		searchReq.Order = tracker.Ptr(prefix + orderBy)
+	}
 
 	result, err := fetchIssues(cmd, searcher, searchReq, limit, page, all)
 	if err != nil {
@@ -161,31 +206,69 @@ func runList(cmd *cobra.Command, queue, status, assignee string, limit int, curs
 	return renderListOutput(cmd.OutOrStdout(), result)
 }
 
-// buildFilter constructs the issue search filter map from flag values.
-func buildFilter(queue, status, assignee string) map[string]any {
-	filter := map[string]any{}
-	if queue != "" {
-		filter["queue"] = queue
+// validateSearchFlags checks for mutually exclusive flag combinations.
+func validateSearchFlags(cmd *cobra.Command) error {
+	queryChanged := cmd.Flags().Changed("query")
+	orderByChanged := cmd.Flags().Changed("order-by")
+
+	if queryChanged && cmd.Flags().Changed("filter") {
+		return ytrerrors.NewUserError(
+			"cannot combine --query with --filter",
+			"Use --query for Tracker query language, or --filter for structured search, but not both",
+		)
 	}
-	if status != "" {
-		parts := strings.Split(status, ",")
-		for i := range parts {
-			parts[i] = strings.TrimSpace(parts[i])
-		}
-		if len(parts) == 1 {
-			filter["status"] = parts[0]
-		} else {
-			filter["status"] = parts
-		}
+
+	if orderByChanged && queryChanged {
+		return ytrerrors.NewUserError(
+			"--order-by cannot be used with --query",
+			`Include sorting in the query string: '"Sort By": fieldName ASC'`,
+		)
 	}
-	if assignee != "" {
-		if assignee == "me" {
-			assignee = "me()"
-		}
-		filter["assignee"] = assignee
+
+	if cmd.Flags().Changed("order-asc") && !orderByChanged {
+		return ytrerrors.NewUserError(
+			"--order-asc requires --order-by",
+			"Use --order-by to specify the sort field (e.g., --order-by updated --order-asc)",
+		)
 	}
-	return filter
+
+	return nil
 }
+
+// parseFilterFlags parses --filter key=value flags into a map.
+// Splits on the first = sign only, so values may contain =.
+// Duplicate keys accumulate into []string slices.
+func parseFilterFlags(flags []string) (map[string]any, error) {
+	result := make(map[string]any, len(flags))
+
+	for _, f := range flags {
+		idx := strings.Index(f, "=")
+		if idx < 1 {
+			return nil, ytrerrors.NewUserError(
+				fmt.Sprintf("invalid filter format %q: expected key=value", f),
+				"Use --filter key=value (e.g., --filter priority=critical)",
+			)
+		}
+
+		key := f[:idx]
+		val := f[idx+1:]
+
+		existing, exists := result[key]
+		if !exists {
+			result[key] = val
+		} else {
+			switch ev := existing.(type) {
+			case string:
+				result[key] = []string{ev, val}
+			case []string:
+				result[key] = append(ev, val)
+			}
+		}
+	}
+
+	return result, nil
+}
+
 
 // fetchIssues retrieves issues with optional auto-pagination.
 func fetchIssues(cmd *cobra.Command, searcher issueSearcher, searchReq *tracker.IssueSearchRequest,

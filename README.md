@@ -45,7 +45,7 @@ export YTR_ORG_TYPE="360"  # or "cloud"
 
 # Issue management
 ytr issue create --queue PROJ --summary "New task"
-ytr issue list --queue PROJ --json key,summary,status
+ytr issue list --filter queue=PROJ --json key,summary,status
 ytr issue transition PROJ-123 --to "In Progress"
 
 # Comments and worklogs
@@ -61,7 +61,7 @@ ytr status list --json key,name
 ytr field list --queue PROJ
 
 # JSON output with jq
-ytr issue list --queue PROJ --jq '.items[].key'
+ytr issue list --filter queue=PROJ --jq '.items[].key'
 ```
 
 ## Authentication

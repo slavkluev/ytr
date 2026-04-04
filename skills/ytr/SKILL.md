@@ -1,14 +1,14 @@
 ---
 name: ytr
 description: >-
-  Yandex Tracker CLI aligned with the current repository implementation.
-  Covers issues, comments, links, worklogs, checklists, bulk operations,
-  reference data, users, components, auth, and JSON output conventions.
+  Yandex Tracker CLI for managing issues, comments, worklogs, and more.
+  Use when the user needs to interact with Yandex Tracker: search/filter
+  issues, create or update tasks, manage worklogs, bulk operations, etc.
 license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "1.0"
+  version: "2.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -50,7 +50,7 @@ Notes:
 | Command | Description | Key Flags |
 |---------|-------------|-----------|
 | `ytr issue create` | Create an issue | `--queue`, `--summary`, `--description`, `--from-json` |
-| `ytr issue list` | List issues | `--queue`, `--status`, `--assignee`, `--limit`, `--all`, `--cursor` |
+| `ytr issue list` | List issues | `--query`, `--filter`, `--order-by`, `--order-asc`, `--limit`, `--all`, `--cursor` |
 | `ytr issue view ISSUE-KEY` | View issue details | |
 | `ytr issue update ISSUE-KEY` | Update an issue | `--summary`, `--description`, `--type`, `--priority`, `--assignee`, `--parent`, `--from-json` |
 | `ytr issue transition ISSUE-KEY` | Transition issue status | `--to` |
@@ -119,6 +119,41 @@ Notes:
 
 ## Workflow Examples
 
+### Issue Search
+
+Two modes (mutually exclusive):
+- `--filter key=value` — structured filters, repeatable, best for programmatic use
+- `--query '...'` — Tracker query language, for complex boolean/date logic
+
+**Query language reference:** See [query-language.md](query-language.md) for fields, operators, functions, and sort syntax.
+
+Common `--filter` keys (camelCase, from API JSON field names):
+`queue`, `status`, `assignee`, `priority`, `type`, `createdBy`,
+`createdAt`, `updatedAt`, `resolvedAt`, `deadline`, `components`,
+`tags`, `sprint`, `storyPoints`, `parent`, `summary`
+
+Note: `--filter` uses camelCase API field names (`createdBy`, `createdAt`), while `--query` uses Title Case display names (`Author`, `Created`). See [query-language.md](query-language.md) for query syntax.
+
+Special value: `me()` for current user (e.g., `--filter assignee=me()`).
+Discover all fields: `ytr field list --queue QUEUE --json id,name,type`.
+
+```bash
+# Search with Tracker query language (complex boolean/date queries)
+ytr issue list --query 'Queue: PROJ AND Status: open "Sort By": Updated DESC'
+
+# Filter by key=value fields (repeatable)
+ytr issue list --filter queue=PROJ --filter priority=critical
+
+# Multiple filters
+ytr issue list --filter queue=PROJ --filter status=open --filter assignee=me()
+
+# Sort by field (descending by default)
+ytr issue list --filter queue=PROJ --order-by updatedAt
+
+# Sort ascending
+ytr issue list --filter queue=PROJ --order-by createdAt --order-asc
+```
+
 ### Issue Lifecycle
 
 ```bash
@@ -126,7 +161,7 @@ Notes:
 ytr issue create --queue PROJ --summary "Implement login" --json key --jq '.key'
 
 # List issues in a queue
-ytr issue list --queue PROJ --json key,summary,status
+ytr issue list --filter queue=PROJ --json key,summary,status
 
 # Transition to in-progress
 ytr issue transition PROJ-123 --to "In Progress"
@@ -191,14 +226,14 @@ ytr field get assignee --json key,name,type
 
 ```bash
 # Paginated list commands return {"items":[...],"pagination":{...}}
-ytr issue list --queue PROJ --json key,summary,status
-ytr issue list --queue PROJ --jq '.items[].key'
+ytr issue list --filter queue=PROJ --json key,summary,status
+ytr issue list --filter queue=PROJ --jq '.items[].key'
 
 # Non-paginated sub-resource lists return arrays
 ytr comment list PROJ-123 --json body --jq '.[].body'
 
 # Quiet mode for identifiers only
-ytr issue list --queue PROJ --quiet
+ytr issue list --filter queue=PROJ --quiet
 ```
 
 ## JSON Output
@@ -215,13 +250,13 @@ Exceptions:
 
 ```bash
 # Filter paginated issue-list output
-ytr issue list --queue PROJ --json key --jq '.items[].key'
+ytr issue list --filter queue=PROJ --json key --jq '.items[].key'
 
 # Filter sub-resource array output
 ytr comment list PROJ-123 --json body --jq '.[].body'
 
 # Quiet mode: just identifiers
-ytr issue list --queue PROJ --quiet
+ytr issue list --filter queue=PROJ --quiet
 ```
 
 ## Error Recovery
@@ -247,6 +282,10 @@ ytr issue list --queue PROJ --quiet
 | `--org-id` | Global auth override | Override organization ID |
 | `--org-type` | Global auth override | Override organization type: `360` or `cloud` |
 | `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin) |
+| `--query` | `issue list` | Search using Tracker query language; mutually exclusive with `--filter` and `--order-by` |
+| `--filter k=v` | `issue list` | Filter by field (repeatable); mutually exclusive with `--query` |
+| `--order-by` | `issue list` | Sort by field (descending by default); cannot be used with `--query` |
+| `--order-asc` | `issue list` | Sort ascending; requires `--order-by` |
 | `--limit N` | Paginated list commands | Results per page (default 50, max 1000) |
 | `--all` | Paginated list commands | Fetch all pages automatically |
 | `--cursor N` | Paginated list commands | Page cursor for pagination |

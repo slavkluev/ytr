@@ -105,7 +105,7 @@ func TestListTable(t *testing.T) {
 		resp:   &tracker.Response{TotalCount: 2},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"--queue", "PROJ"})
+	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestListJSON(t *testing.T) {
 		resp:   &tracker.Response{TotalCount: 2},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"--queue", "PROJ"})
+	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestListQuiet(t *testing.T) {
 		resp:   &tracker.Response{TotalCount: 2},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"--queue", "PROJ"})
+	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -171,85 +171,6 @@ func TestListQuiet(t *testing.T) {
 	}
 }
 
-func TestListFilterQueue(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
-	mock := &mockSearcher{
-		issues: []*tracker.Issue{},
-		resp:   &tracker.Response{},
-	}
-
-	_, _ = setupListCmd(t, mock, []string{"--queue", "MYQUEUE"})
-
-	if len(mock.calls) == 0 {
-		t.Fatal("no search calls made")
-	}
-	filter := mock.calls[0].req.Filter
-	if v, ok := filter["queue"]; !ok || v != "MYQUEUE" {
-		t.Errorf("expected filter[queue]=MYQUEUE, got %v", filter)
-	}
-}
-
-func TestListFilterStatus(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
-	mock := &mockSearcher{
-		issues: []*tracker.Issue{},
-		resp:   &tracker.Response{},
-	}
-
-	_, _ = setupListCmd(t, mock, []string{"--status", "open,inProgress"})
-
-	if len(mock.calls) == 0 {
-		t.Fatal("no search calls made")
-	}
-	filter := mock.calls[0].req.Filter
-	statuses, ok := filter["status"].([]string)
-	if !ok || len(statuses) != 2 {
-		t.Fatalf("expected []string{open, inProgress}, got %v (type %T)", filter["status"], filter["status"])
-	}
-	if statuses[0] != "open" || statuses[1] != "inProgress" {
-		t.Errorf("expected [open inProgress], got %v", statuses)
-	}
-}
-
-func TestListFilterAssignee(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
-	mock := &mockSearcher{
-		issues: []*tracker.Issue{},
-		resp:   &tracker.Response{},
-	}
-
-	_, _ = setupListCmd(t, mock, []string{"--assignee", "user1"})
-
-	if len(mock.calls) == 0 {
-		t.Fatal("no search calls made")
-	}
-	filter := mock.calls[0].req.Filter
-	if v, ok := filter["assignee"]; !ok || v != "user1" {
-		t.Errorf("expected filter[assignee]=user1, got %v", filter)
-	}
-}
-
-func TestListAssigneeMeShorthand(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
-	mock := &mockSearcher{
-		issues: []*tracker.Issue{},
-		resp:   &tracker.Response{},
-	}
-
-	_, _ = setupListCmd(t, mock, []string{"--assignee", "me"})
-
-	if len(mock.calls) == 0 {
-		t.Fatal("no search calls made")
-	}
-	filter := mock.calls[0].req.Filter
-	if v, ok := filter["assignee"]; !ok || v != "me()" {
-		t.Errorf("expected filter[assignee]=me(), got %v", filter)
-	}
-}
 
 func TestListLimit(t *testing.T) {
 	testutil.ResetOutputFlags(t)
@@ -469,5 +390,217 @@ func TestList_RegisteredAsSubcommand(t *testing.T) {
 	}
 	if !found {
 		t.Error("'list' not registered as subcommand of 'issue'")
+	}
+}
+
+func TestListQuery_SetsQueryField(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.QuietFlag = true
+
+	mock := &mockSearcher{
+		issues: []*tracker.Issue{},
+		resp:   &tracker.Response{},
+	}
+
+	_, err := setupListCmd(t, mock, []string{"--query", "Queue: PROJ AND Status: open"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(mock.calls) == 0 {
+		t.Fatal("no search calls made")
+	}
+	req := mock.calls[0].req
+	if req.Query == nil {
+		t.Fatal("expected Query to be set, got nil")
+	}
+	if *req.Query != "Queue: PROJ AND Status: open" {
+		t.Errorf("expected Query=%q, got %q", "Queue: PROJ AND Status: open", *req.Query)
+	}
+	if req.Filter != nil && len(req.Filter) > 0 {
+		t.Errorf("expected Filter to be nil/empty when --query is set, got %v", req.Filter)
+	}
+}
+
+func TestListFilter_SetsFilterEntry(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.QuietFlag = true
+
+	mock := &mockSearcher{
+		issues: []*tracker.Issue{},
+		resp:   &tracker.Response{},
+	}
+
+	_, err := setupListCmd(t, mock, []string{"--filter", "priority=critical"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(mock.calls) == 0 {
+		t.Fatal("no search calls made")
+	}
+	filter := mock.calls[0].req.Filter
+	if v, ok := filter["priority"]; !ok || v != "critical" {
+		t.Errorf("expected filter[priority]=critical, got %v", filter)
+	}
+}
+
+func TestListFilter_DuplicateKeysAccumulateIntoSlice(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.QuietFlag = true
+
+	mock := &mockSearcher{
+		issues: []*tracker.Issue{},
+		resp:   &tracker.Response{},
+	}
+
+	_, err := setupListCmd(t, mock, []string{"--filter", "status=open", "--filter", "status=closed"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(mock.calls) == 0 {
+		t.Fatal("no search calls made")
+	}
+	filter := mock.calls[0].req.Filter
+	statuses, ok := filter["status"].([]string)
+	if !ok {
+		t.Fatalf("expected []string for duplicate filter keys, got %T: %v", filter["status"], filter["status"])
+	}
+	if len(statuses) != 2 || statuses[0] != "open" || statuses[1] != "closed" {
+		t.Errorf("expected [open closed], got %v", statuses)
+	}
+}
+
+func TestListFilter_InvalidFormat_ReturnsUserError(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockSearcher{
+		issues: []*tracker.Issue{},
+		resp:   &tracker.Response{},
+	}
+
+	_, err := setupListCmd(t, mock, []string{"--filter", "noequalssign"})
+	if err == nil {
+		t.Fatal("expected error for invalid filter format, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid filter format") {
+		t.Errorf("expected 'invalid filter format' in error, got: %v", err)
+	}
+	if len(mock.calls) != 0 {
+		t.Errorf("expected no API calls, got %d", len(mock.calls))
+	}
+}
+
+func TestListQuery_ConflictWithFilter_ReturnsUserError(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockSearcher{
+		issues: []*tracker.Issue{},
+		resp:   &tracker.Response{},
+	}
+
+	_, err := setupListCmd(t, mock, []string{"--query", "Queue: PROJ", "--filter", "priority=critical"})
+	if err == nil {
+		t.Fatal("expected error for --query + --filter conflict, got nil")
+	}
+	if !strings.Contains(err.Error(), "cannot combine --query with --filter") {
+		t.Errorf("expected mutual exclusion error, got: %v", err)
+	}
+	if len(mock.calls) != 0 {
+		t.Errorf("expected no API calls, got %d", len(mock.calls))
+	}
+}
+
+func TestListOrderBy_ConflictWithQuery_ReturnsUserError(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockSearcher{
+		issues: []*tracker.Issue{},
+		resp:   &tracker.Response{},
+	}
+
+	_, err := setupListCmd(t, mock, []string{"--query", "Queue: PROJ", "--order-by", "updated"})
+	if err == nil {
+		t.Fatal("expected error for --order-by + --query conflict, got nil")
+	}
+	if !strings.Contains(err.Error(), "--order-by cannot be used with --query") {
+		t.Errorf("expected order-by/query conflict error, got: %v", err)
+	}
+	if len(mock.calls) != 0 {
+		t.Errorf("expected no API calls, got %d", len(mock.calls))
+	}
+}
+
+func TestListOrderBy_SetsOrderDescending(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.QuietFlag = true
+
+	mock := &mockSearcher{
+		issues: []*tracker.Issue{},
+		resp:   &tracker.Response{},
+	}
+
+	_, err := setupListCmd(t, mock, []string{"--order-by", "updated"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(mock.calls) == 0 {
+		t.Fatal("no search calls made")
+	}
+	req := mock.calls[0].req
+	if req.Order == nil {
+		t.Fatal("expected Order to be set, got nil")
+	}
+	if *req.Order != "-updated" {
+		t.Errorf("expected Order=-updated, got %q", *req.Order)
+	}
+}
+
+func TestListOrderBy_WithOrderAsc_SetsOrderAscending(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.QuietFlag = true
+
+	mock := &mockSearcher{
+		issues: []*tracker.Issue{},
+		resp:   &tracker.Response{},
+	}
+
+	_, err := setupListCmd(t, mock, []string{"--order-by", "created", "--order-asc"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(mock.calls) == 0 {
+		t.Fatal("no search calls made")
+	}
+	req := mock.calls[0].req
+	if req.Order == nil {
+		t.Fatal("expected Order to be set, got nil")
+	}
+	if *req.Order != "+created" {
+		t.Errorf("expected Order=+created, got %q", *req.Order)
+	}
+}
+
+
+func TestListOrderAsc_WithoutOrderBy_ReturnsUserError(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockSearcher{
+		issues: []*tracker.Issue{},
+		resp:   &tracker.Response{},
+	}
+
+	_, err := setupListCmd(t, mock, []string{"--order-asc"})
+	if err == nil {
+		t.Fatal("expected error for --order-asc without --order-by, got nil")
+	}
+	if !strings.Contains(err.Error(), "--order-asc requires --order-by") {
+		t.Errorf("expected '--order-asc requires --order-by' error, got: %v", err)
+	}
+	if len(mock.calls) != 0 {
+		t.Errorf("expected no API calls, got %d", len(mock.calls))
 	}
 }
