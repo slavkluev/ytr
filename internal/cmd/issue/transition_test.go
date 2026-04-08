@@ -221,7 +221,7 @@ func TestTransitionInvalidKey(t *testing.T) {
 
 func TestTransitionJSON(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	output.JSONFields = TransitionFields
+	output.JSONFields = IssueTransitionFields
 
 	mock := &mockTransitioner{
 		transitions: sampleTransitions(),

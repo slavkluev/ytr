@@ -16,8 +16,8 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// TransitionFields lists the available JSON field names for issue transition output.
-var TransitionFields = []string{"key", "transition"}
+// IssueTransitionFields lists the available JSON field names for issue transition output.
+var IssueTransitionFields = []string{"key", "transition"}
 
 // transitionResult is a clean struct for JSON output of a successful transition.
 type transitionResult struct {
@@ -63,7 +63,7 @@ SEE ALSO
 	cmd.Flags().StringVar(&toFlag, "to", "", "Target status key or display name (required)")
 	cmd.MarkFlagRequired("to") //nolint:errcheck // Cobra flag is known to exist
 
-	jsonfields.Register("ytr issue transition", TransitionFields)
+	jsonfields.Register("ytr issue transition", IssueTransitionFields)
 
 	return cmd
 }
@@ -71,19 +71,19 @@ SEE ALSO
 // runTransition executes the issue transition logic.
 func runTransition(cmd *cobra.Command, issueKey, toFlag string) error {
 	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue transition", TransitionFields)
+		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue transition", IssueTransitionFields)
 	}
 
 	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = TransitionFields
+		output.JSONFields = IssueTransitionFields
 	}
 
 	// Validate requested fields.
 	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, TransitionFields); err != nil {
+		if err := output.ValidateFields(output.JSONFields, IssueTransitionFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, TransitionFields)
+		output.JSONFields = output.NormalizeFields(output.JSONFields, IssueTransitionFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")

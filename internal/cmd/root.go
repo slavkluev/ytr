@@ -50,7 +50,7 @@ func init() {
 	rootCmd.PersistentFlags().
 		StringVar(&output.JQFilter, "jq", "", "Filter JSON output with a jq expression (implies --json)")
 	rootCmd.PersistentFlags().
-		BoolVar(&output.QuietFlag, "quiet", false, "Output only primary identifiers, one per line")
+		BoolVar(&output.QuietFlag, "quiet", false, "Output minimal text, one item per line")
 	rootCmd.PersistentFlags().
 		BoolVar(&output.DebugFlag, "debug", false, "Emit sanitized debug diagnostics to stderr")
 

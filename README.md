@@ -6,7 +6,7 @@ A command-line client for [Yandex Tracker](https://tracker.yandex.ru/) — Yande
 
 ## Features
 
-- Issue management (create, list, view, update, transition)
+- Issue management (create, list, view, update, transition, changelog)
 - Comments, links, worklogs, checklists as sub-resources
 - Bulk operations (move, update, transition) with async polling
 - Reference data (statuses, priorities, resolutions, issue types)

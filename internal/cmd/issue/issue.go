@@ -76,6 +76,20 @@ var newTransitioner = func(auth *config.ResolvedAuth) issueTransitioner {
 	return api.NewClient(auth).Issues
 }
 
+// changelogGetter abstracts changelog retrieval for testability.
+type changelogGetter interface {
+	GetChangelog(
+		ctx context.Context,
+		issueKey string,
+		opts *tracker.ChangelogOptions,
+	) ([]*tracker.Changelog, *tracker.Response, error)
+}
+
+// newChangelogGetter creates a changelogGetter from resolved auth. Replaceable for testing.
+var newChangelogGetter = func(auth *config.ResolvedAuth) changelogGetter {
+	return api.NewClient(auth).Issues
+}
+
 // NewCmd creates the parent "issue" command with list and view subcommands.
 func NewCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -89,6 +103,7 @@ func NewCmd() *cobra.Command {
 	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newUpdateCmd())
 	cmd.AddCommand(newTransitionCmd())
+	cmd.AddCommand(newChangelogCmd())
 
 	return cmd
 }

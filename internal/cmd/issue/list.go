@@ -126,7 +126,16 @@ type issueSearchResult struct {
 }
 
 // runList executes the issue list logic.
-func runList(cmd *cobra.Command, query string, filterFlags []string, orderBy string, orderAsc bool, limit int, cursor string, all bool) error {
+func runList(
+	cmd *cobra.Command,
+	query string,
+	filterFlags []string,
+	orderBy string,
+	orderAsc bool,
+	limit int,
+	cursor string,
+	all bool,
+) error {
 	// Validate flag conflicts before any API work.
 	if err := validateSearchFlags(cmd); err != nil {
 		return err
@@ -179,12 +188,12 @@ func runList(cmd *cobra.Command, query string, filterFlags []string, orderBy str
 
 	if query != "" {
 		// Query mode: set Query field only.
-		searchReq.Query = tracker.Ptr(query)
+		searchReq.Query = &query
 	} else if len(filterFlags) > 0 {
 		// Filter mode: parse --filter key=value entries.
-		filter, err := parseFilterFlags(filterFlags)
-		if err != nil {
-			return err
+		filter, parseErr := parseFilterFlags(filterFlags)
+		if parseErr != nil {
+			return parseErr
 		}
 		searchReq.Filter = filter
 	}
@@ -195,7 +204,8 @@ func runList(cmd *cobra.Command, query string, filterFlags []string, orderBy str
 		if orderAsc {
 			prefix = "+"
 		}
-		searchReq.Order = tracker.Ptr(prefix + orderBy)
+		order := prefix + orderBy
+		searchReq.Order = &order
 	}
 
 	result, err := fetchIssues(cmd, searcher, searchReq, limit, page, all)
@@ -268,7 +278,6 @@ func parseFilterFlags(flags []string) (map[string]any, error) {
 
 	return result, nil
 }
-
 
 // fetchIssues retrieves issues with optional auto-pagination.
 func fetchIssues(cmd *cobra.Command, searcher issueSearcher, searchReq *tracker.IssueSearchRequest,

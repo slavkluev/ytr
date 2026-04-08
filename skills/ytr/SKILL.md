@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "2.0"
+  version: "3.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -54,6 +54,7 @@ Notes:
 | `ytr issue view ISSUE-KEY` | View issue details | |
 | `ytr issue update ISSUE-KEY` | Update an issue | `--summary`, `--description`, `--type`, `--priority`, `--assignee`, `--parent`, `--from-json` |
 | `ytr issue transition ISSUE-KEY` | Transition issue status | `--to` |
+| `ytr issue changelog ISSUE-KEY` | Show issue change history | `--field`, `--type`, `--limit`, `--cursor`, `--all` |
 | `ytr comment create ISSUE-KEY` | Add comment to issue | `--body` |
 | `ytr comment edit ISSUE-KEY COMMENT-ID` | Edit a comment | `--body`, `--from-json` |
 | `ytr comment delete ISSUE-KEY COMMENT-ID` | Delete a comment | |
@@ -166,6 +167,9 @@ ytr issue list --filter queue=PROJ --json key,summary,status
 # Transition to in-progress
 ytr issue transition PROJ-123 --to "In Progress"
 
+# Check how the issue moved through statuses
+ytr issue changelog PROJ-123 --field status --json date,type,fields
+
 # Add a comment
 ytr comment create PROJ-123 --body "Started implementation"
 
@@ -190,6 +194,28 @@ ytr bulk transition PROJ-1 PROJ-2 --transition close --timeout 10m
 
 # Check bulk operation status
 ytr bulk status 6543210abcdef
+```
+
+### Issue History
+
+```bash
+# Show all changes for an issue
+ytr issue changelog PROJ-123
+
+# Filter to only status transitions
+ytr issue changelog PROJ-123 --field status
+
+# Filter by change type (e.g., workflow transitions only)
+ytr issue changelog PROJ-123 --type IssueWorkflow
+
+# JSON output with specific fields (per-entry structure)
+ytr issue changelog PROJ-123 --json date,author,type,fields,comments,links
+
+# Extract status transitions using jq
+ytr issue changelog PROJ-123 --json date,type,fields --jq '.items[] | select(.type=="IssueWorkflow")'
+
+# Fetch all pages automatically
+ytr issue changelog PROJ-123 --all
 ```
 
 ### Sub-resources
@@ -229,11 +255,19 @@ ytr field get assignee --json key,name,type
 ytr issue list --filter queue=PROJ --json key,summary,status
 ytr issue list --filter queue=PROJ --jq '.items[].key'
 
+# Changelog returns per-entry structured items: {date, author, type, fields, comments, links, ...}
+ytr issue changelog PROJ-123 --json date,author,type,fields,comments,links
+ytr issue changelog PROJ-123 --json date,type,fields --jq '.items[] | select(.type=="IssueWorkflow")'
+
 # Non-paginated sub-resource lists return arrays
 ytr comment list PROJ-123 --json body --jq '.[].body'
 
-# Quiet mode for identifiers only
+# Quiet mode: minimal text, one item per line
 ytr issue list --filter queue=PROJ --quiet
+
+# Quiet mode for changelog outputs "category: from -> to" per line
+# Categories: field names (status, assignee), comment, link, attachment, worklog, reaction, relatedResolution
+ytr issue changelog PROJ-123 --quiet --field status
 ```
 
 ## JSON Output
@@ -245,7 +279,7 @@ the available field names for that command.
 Exceptions:
 
 - Delete commands return fixed confirmation objects such as `{ "id": "...", "deleted": true }`.
-- Paginated list commands such as `issue list`, `queue list`, and `user list` return an object with `items` and `pagination`.
+- Paginated list commands such as `issue list`, `issue changelog`, `queue list`, and `user list` return an object with `items` and `pagination`.
 - Non-paginated sub-resource list commands such as `comment list`, `link list`, `worklog list`, and `checklist list` return arrays.
 
 ```bash
@@ -255,7 +289,7 @@ ytr issue list --filter queue=PROJ --json key --jq '.items[].key'
 # Filter sub-resource array output
 ytr comment list PROJ-123 --json body --jq '.[].body'
 
-# Quiet mode: just identifiers
+# Quiet mode: minimal text, one item per line
 ytr issue list --filter queue=PROJ --quiet
 ```
 
@@ -276,7 +310,7 @@ ytr issue list --filter queue=PROJ --quiet
 |------|-------|-------------|
 | `--json f1,f2` | Global on most commands | Output JSON with selected fields |
 | `--jq expr` | Global | Filter JSON output with a jq expression; implies JSON |
-| `--quiet` | Global | Output only primary identifiers; mutually exclusive with `--json` and `--jq` |
+| `--quiet` | Global | Output minimal text, one item per line; mutually exclusive with `--json` and `--jq` |
 | `--debug` | Global | Emit sanitized debug diagnostics to stderr |
 | `--token` | Global auth override | Override auth token |
 | `--org-id` | Global auth override | Override organization ID |
@@ -286,7 +320,9 @@ ytr issue list --filter queue=PROJ --quiet
 | `--filter k=v` | `issue list` | Filter by field (repeatable); mutually exclusive with `--query` |
 | `--order-by` | `issue list` | Sort by field (descending by default); cannot be used with `--query` |
 | `--order-asc` | `issue list` | Sort ascending; requires `--order-by` |
+| `--field` | `issue changelog` | Filter changes by field name (case-insensitive) |
+| `--type` | `issue changelog` | Filter by change type (e.g., IssueWorkflow, IssueCommentAdded) |
 | `--limit N` | Paginated list commands | Results per page (default 50, max 1000) |
 | `--all` | Paginated list commands | Fetch all pages automatically |
-| `--cursor N` | Paginated list commands | Page cursor for pagination |
+| `--cursor` | Paginated list commands | Pagination cursor (pass the `pagination.cursor` value from the previous response) |
 | `--timeout` | Bulk commands | Max wait time (default 5m) |

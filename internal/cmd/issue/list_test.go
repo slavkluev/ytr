@@ -171,7 +171,6 @@ func TestListQuiet(t *testing.T) {
 	}
 }
 
-
 func TestListLimit(t *testing.T) {
 	testutil.ResetOutputFlags(t)
 
@@ -417,7 +416,7 @@ func TestListQuery_SetsQueryField(t *testing.T) {
 	if *req.Query != "Queue: PROJ AND Status: open" {
 		t.Errorf("expected Query=%q, got %q", "Queue: PROJ AND Status: open", *req.Query)
 	}
-	if req.Filter != nil && len(req.Filter) > 0 {
+	if len(req.Filter) > 0 {
 		t.Errorf("expected Filter to be nil/empty when --query is set, got %v", req.Filter)
 	}
 }
@@ -583,7 +582,6 @@ func TestListOrderBy_WithOrderAsc_SetsOrderAscending(t *testing.T) {
 		t.Errorf("expected Order=+created, got %q", *req.Order)
 	}
 }
-
 
 func TestListOrderAsc_WithoutOrderBy_ReturnsUserError(t *testing.T) {
 	testutil.ResetOutputFlags(t)
