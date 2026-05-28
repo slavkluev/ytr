@@ -91,6 +91,61 @@ func TestSave_CreatesDir(t *testing.T) {
 	}
 }
 
+func TestSave_SecuresExistingLooseDir(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "cfg")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Force loose perms regardless of umask.
+	if err := os.Chmod(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("YTR_CONFIG_DIR", dir)
+
+	cfg := &config.Config{Token: "t", OrgID: "o", OrgType: config.OrgType360}
+	if err := config.Save(cfg); err != nil {
+		t.Fatalf("Save() returned error: %v", err)
+	}
+
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o700 {
+		t.Errorf("existing dir perm after Save = %o, want %o", perm, 0o700)
+	}
+}
+
+func TestSave_OverwritesLooseTempFile(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("YTR_CONFIG_DIR", dir)
+
+	// Simulate a stale, world-readable temp file from an interrupted write.
+	tmp := filepath.Join(dir, "config.yaml.tmp")
+	if err := os.WriteFile(tmp, []byte("stale"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(tmp, 0o666); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{Token: "secret", OrgID: "o", OrgType: config.OrgType360}
+	if err := config.Save(cfg); err != nil {
+		t.Fatalf("Save() returned error: %v", err)
+	}
+
+	info, err := os.Stat(filepath.Join(dir, "config.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Errorf("file perm after stale-temp Save = %o, want %o", perm, 0o600)
+	}
+	if _, statErr := os.Stat(tmp); !os.IsNotExist(statErr) {
+		t.Error("temp file should not remain after successful Save")
+	}
+}
+
 func TestSave_WritesYAML(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("YTR_CONFIG_DIR", dir)

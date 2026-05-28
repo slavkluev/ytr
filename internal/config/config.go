@@ -105,6 +105,13 @@ func Save(cfg *Config) error {
 		return fmt.Errorf("failed to create config directory: %w", mkdirErr)
 	}
 
+	// MkdirAll leaves an existing directory's permissions untouched, so a
+	// pre-existing config dir (e.g. via YTR_CONFIG_DIR created at 0755) would
+	// keep looser permissions on the token store. Enforce 0700 on the leaf.
+	if chmodErr := os.Chmod(dir, dirPermissions); chmodErr != nil {
+		return fmt.Errorf("failed to secure config directory: %w", chmodErr)
+	}
+
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
@@ -117,9 +124,23 @@ func Save(cfg *Config) error {
 
 	tmpPath := path + ".tmp"
 
-	if err := os.WriteFile(tmpPath, data, filePermissions); err != nil {
+	// Remove any stale temp file so the new one is created fresh with 0600.
+	// os.WriteFile does not re-apply permissions to a pre-existing file, which
+	// could leave the OAuth token in a world/group-readable file. O_EXCL then
+	// guarantees we create it ourselves (no clobber, no symlink follow).
+	_ = os.Remove(tmpPath)
+	f, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, filePermissions)
+	if err != nil {
+		return fmt.Errorf("failed to create config temp file: %w", err)
+	}
+	if _, writeErr := f.Write(data); writeErr != nil {
+		_ = f.Close()
 		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to write config: %w", err)
+		return fmt.Errorf("failed to write config: %w", writeErr)
+	}
+	if closeErr := f.Close(); closeErr != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to write config: %w", closeErr)
 	}
 
 	if err := os.Rename(tmpPath, path); err != nil {
