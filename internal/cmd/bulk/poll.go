@@ -179,6 +179,65 @@ func pollUntilDone(
 	}
 }
 
+// awaitBulkCompletion extracts the operation ID from a freshly-created bulk
+// change, polls until the operation reaches a terminal state, renders the
+// result, and surfaces a non-zero exit code when the operation FAILED.
+//
+// It is used by bulk move/update/transition. The empty-ID guard prevents
+// polling the collection endpoint with no ID (which produced a misleading
+// "operation ID: " message).
+func awaitBulkCompletion(
+	cmd *cobra.Command,
+	getter bulkStatusGetter,
+	bc *tracker.BulkChange,
+	timeout time.Duration,
+) error {
+	operationID := api.DerefFlexString(bc.ID, "")
+	if operationID == "" {
+		return &ytrerrors.ExitError{
+			ExitCode: ytrerrors.ExitUserError,
+			Code:     "bulk_no_operation_id",
+			Message:  "bulk operation was created but the API returned no operation ID",
+			Suggestion: "Retry the command; if it persists, verify the request and " +
+				"check the operation in the Tracker UI",
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
+	defer cancel()
+
+	result, err := pollUntilDone(ctx, getter, operationID, cmd.ErrOrStderr())
+	if err != nil {
+		return handlePollError(ctx, err, timeout, operationID)
+	}
+
+	return finalizeBulkResult(cmd, result, operationID)
+}
+
+// finalizeBulkResult renders a terminal BulkChange and returns a non-zero
+// ExitError when the operation finished in the FAILED state, so the process
+// exit code honors the "success == 0" contract relied on by scripts and agents.
+// Output details are still rendered for both COMPLETED and FAILED.
+func finalizeBulkResult(cmd *cobra.Command, bc *tracker.BulkChange, operationID string) error {
+	if err := renderBulkOutput(cmd, bc); err != nil {
+		return err
+	}
+
+	if api.DerefString(bc.Status, "") == bulkStatusFail {
+		msg := fmt.Sprintf("bulk operation %s failed", operationID)
+		if statusText := api.DerefString(bc.StatusText, ""); statusText != "" {
+			msg = fmt.Sprintf("%s: %s", msg, statusText)
+		}
+		return &ytrerrors.ExitError{
+			ExitCode: ytrerrors.ExitUserError,
+			Code:     "bulk_failed",
+			Message:  msg,
+		}
+	}
+
+	return nil
+}
+
 // renderBulkOutput renders a BulkChange in the appropriate output mode.
 // Used by bulk status and by mutation commands after polling completes.
 func renderBulkOutput(cmd *cobra.Command, bc *tracker.BulkChange) error {

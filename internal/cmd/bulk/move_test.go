@@ -13,6 +13,7 @@ import (
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 
 	"github.com/slavkluev/ytr/internal/config"
+	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/testutil"
 )
@@ -72,6 +73,19 @@ func makeCompletedBulkChange(id string) *tracker.BulkChange {
 		ExecutionChunkPercent: testutil.IntPtr(100),
 		CreatedBy:             &tracker.User{Display: testutil.StrPtr("testuser")},
 		CreatedAt:             &ts,
+	}
+}
+
+// makeFailedBulkChange creates a BulkChange with FAILED status.
+func makeFailedBulkChange(id string) *tracker.BulkChange {
+	return &tracker.BulkChange{
+		ID:                    testutil.FlexStringPtr(id),
+		Status:                testutil.StrPtr("FAILED"),
+		StatusText:            testutil.StrPtr("Operation FAILED"),
+		TotalIssues:           testutil.IntPtr(2),
+		TotalCompletedIssues:  testutil.IntPtr(0),
+		ExecutionIssuePercent: testutil.IntPtr(0),
+		ExecutionChunkPercent: testutil.IntPtr(0),
 	}
 }
 
@@ -338,6 +352,58 @@ func TestMoveNoKeys(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "no issue keys provided") {
 		t.Errorf("expected 'no issue keys provided' in error, got: %v", err)
+	}
+}
+
+func TestMoveFailedStatusExitsNonZero(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	bc := makeFailedBulkChange("move-fail-1")
+	mover := &mockBulkMover{bc: bc}
+	poll := &mockPollGetter{bc: bc}
+
+	out, err := setupMoveCmd(t, mover, poll,
+		[]string{"PROJ-1", "PROJ-2", "--queue", "TARGET"})
+	if err == nil {
+		t.Fatal("expected non-nil error for FAILED bulk operation, got nil")
+	}
+
+	var exitErr *ytrerrors.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("expected *ExitError, got %T: %v", err, err)
+	}
+	if exitErr.ExitCode == ytrerrors.ExitSuccess {
+		t.Errorf("expected non-zero exit code for FAILED operation, got %d", exitErr.ExitCode)
+	}
+	if exitErr.Code != "bulk_failed" {
+		t.Errorf("expected code=bulk_failed, got %q", exitErr.Code)
+	}
+	if !strings.Contains(exitErr.Message, "Operation FAILED") {
+		t.Errorf("expected statusText in error message, got: %q", exitErr.Message)
+	}
+
+	// Details must still be rendered (review: "оставив вывод деталей").
+	if !strings.Contains(out, "FAILED") {
+		t.Errorf("expected FAILED details rendered, got: %s", out)
+	}
+}
+
+func TestMoveEmptyOperationID(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	// API returns a BulkChange with no ID — must fail loudly, not poll a
+	// collection endpoint with an empty operation ID.
+	bc := &tracker.BulkChange{Status: testutil.StrPtr("CREATED")}
+	mover := &mockBulkMover{bc: bc}
+	poll := &mockPollGetter{bc: bc}
+
+	_, err := setupMoveCmd(t, mover, poll,
+		[]string{"PROJ-1", "--queue", "TARGET"})
+	if err == nil {
+		t.Fatal("expected error for empty operation ID, got nil")
+	}
+	if !strings.Contains(err.Error(), "no operation ID") {
+		t.Errorf("expected 'no operation ID' in error, got: %v", err)
 	}
 }
 

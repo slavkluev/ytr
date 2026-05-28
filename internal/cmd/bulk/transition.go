@@ -1,7 +1,6 @@
 package bulk
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -140,17 +139,7 @@ func runTransition(
 		return api.MapAPIError(err)
 	}
 
-	operationID := api.DerefFlexString(bc.ID, "")
-
-	ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
-	defer cancel()
-
-	result, err := pollUntilDone(ctx, newBulkStatusGetter(auth), operationID, cmd.ErrOrStderr())
-	if err != nil {
-		return handlePollError(ctx, err, timeout, operationID)
-	}
-
-	return renderBulkOutput(cmd, result)
+	return awaitBulkCompletion(cmd, newBulkStatusGetter(auth), bc, timeout)
 }
 
 // buildTransitionRequest builds a BulkTransitionRequest from flags or JSON input.

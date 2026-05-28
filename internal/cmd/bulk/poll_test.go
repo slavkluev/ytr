@@ -327,6 +327,11 @@ func TestPollUntilDone_CompletesAfterPolling(t *testing.T) {
 	}
 }
 
+// TestPollUntilDone_FailedStatus documents that pollUntilDone returns the
+// terminal BulkChange with NO poll error once a FAILED status is reached — its
+// only job is to poll until a terminal state. The "FAILED ⇒ non-zero exit
+// code" contract is enforced one layer up, in finalizeBulkResult, and is
+// covered by TestMoveFailedStatusExitsNonZero.
 func TestPollUntilDone_FailedStatus(t *testing.T) {
 	mock := &mockBulkStatusGetter{
 		responses: []*tracker.BulkChange{
