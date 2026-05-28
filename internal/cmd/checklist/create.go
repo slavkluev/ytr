@@ -91,7 +91,7 @@ SEE ALSO
 
 // runCreate executes the checklist create logic.
 func runCreate(cmd *cobra.Command, issueKey, textFlag, assigneeFlag, fromJSON string) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "checklist create", ChecklistFields)
 	}
 

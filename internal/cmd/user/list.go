@@ -92,7 +92,7 @@ type userSearchResult struct {
 
 // runList executes the user list logic.
 func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "user list", UserListFields)
 	}
 

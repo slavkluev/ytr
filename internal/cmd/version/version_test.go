@@ -78,6 +78,33 @@ func TestVersionJSON(t *testing.T) {
 	}
 }
 
+// TestVersionJSONEmptyShowsFieldHint covers Info #4: `version --json=` (an
+// explicit empty value) must show the available-fields hint, not fall through
+// to table output with exit 0. Detection relies on cmd.Flags().Changed("json"),
+// so the test wires a --json flag mirroring the root persistent flag.
+func TestVersionJSONEmptyShowsFieldHint(t *testing.T) {
+	output.ResetFlags()
+	defer output.ResetFlags()
+
+	cmd := version.NewCmd()
+	cmd.PersistentFlags().StringSliceVar(&output.JSONFields, "json", nil, "")
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetArgs([]string{"--json="})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected a field-hint error for `version --json=`, got nil")
+	}
+	if !strings.Contains(buf.String(), "Available fields for version") {
+		t.Errorf("expected available-fields hint, got:\n%s", buf.String())
+	}
+}
+
 func TestVersionNoArgs(t *testing.T) {
 	cmd := version.NewCmd()
 	cmd.SetArgs([]string{"extra-arg"})

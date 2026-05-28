@@ -73,7 +73,7 @@ SEE ALSO
 
 // runList executes the comment list logic.
 func runList(cmd *cobra.Command, issueKey string) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "comment list", CommentFields)
 	}
 

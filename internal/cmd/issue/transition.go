@@ -70,7 +70,7 @@ SEE ALSO
 
 // runTransition executes the issue transition logic.
 func runTransition(cmd *cobra.Command, issueKey, toFlag string) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue transition", IssueTransitionFields)
 	}
 

@@ -99,7 +99,7 @@ func runEdit(
 	cmd *cobra.Command,
 	issueKey, worklogID, durationFlag, commentFlag, startFlag, fromJSON string,
 ) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "worklog edit", WorklogFields)
 	}
 

@@ -82,7 +82,7 @@ type queueSearchResult struct {
 
 // runList executes the queue list logic.
 func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "queue list", QueueListFields)
 	}
 

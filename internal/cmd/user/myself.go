@@ -83,7 +83,7 @@ SEE ALSO
 
 // runMyself executes the user myself logic.
 func runMyself(cmd *cobra.Command) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "user myself", UserDetailFields)
 	}
 

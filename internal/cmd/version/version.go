@@ -49,7 +49,7 @@ SEE ALSO
 func runVersion(cmd *cobra.Command, _ []string) error {
 	info := ver.Get()
 
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "version", VersionFields)
 	}
 

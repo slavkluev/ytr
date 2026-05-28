@@ -48,6 +48,21 @@ func HasFieldSelection() bool {
 	return len(JSONFields) > 0
 }
 
+// WantsFieldHint reports whether a field-selecting command should print its
+// available-fields hint instead of producing output. This is the case when the
+// user asked for JSON via --json (including the empty form `--json=`, which
+// pflag parses to an empty slice) but named no concrete fields and gave no --jq
+// filter.
+//
+// jsonFlagChanged must be cmd.Flags().Changed("json"). It is required because
+// `--json=` and "no --json at all" both leave JSONFields empty, so JSONFields
+// alone cannot distinguish them — the same reason the auth commands key off
+// Changed("json"). (The previous predicate, IsJSON() && !HasFieldSelection(),
+// was unsatisfiable and the hint was dead code.)
+func WantsFieldHint(jsonFlagChanged bool) bool {
+	return jsonFlagChanged && !HasFieldSelection() && JQFilter == ""
+}
+
 // IsQuiet returns true when quiet output mode is active.
 func IsQuiet() bool {
 	return QuietFlag

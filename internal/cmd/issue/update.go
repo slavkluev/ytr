@@ -106,7 +106,7 @@ func validateUpdateFlags(cmd *cobra.Command, args []string) error {
 // runUpdate executes the issue update logic.
 func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue update", IssueDetailFields)
 	}
 

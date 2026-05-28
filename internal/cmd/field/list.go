@@ -78,7 +78,7 @@ SEE ALSO
 
 // runList executes the field list logic.
 func runList(cmd *cobra.Command, queueFlag string) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "field list", FieldListFields)
 	}
 

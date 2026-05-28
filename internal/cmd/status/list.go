@@ -55,7 +55,7 @@ SEE ALSO
 
 // runList executes the status list logic.
 func runList(cmd *cobra.Command) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "status list", StatusListFields)
 	}
 

@@ -106,7 +106,7 @@ func runEdit(
 	assignAutoFlag bool,
 	fromJSON string,
 ) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "component edit", ComponentListFields)
 	}
 

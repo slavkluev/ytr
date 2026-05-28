@@ -54,7 +54,7 @@ SEE ALSO
 
 // runStatus executes the bulk status logic.
 func runStatus(cmd *cobra.Command, operationID string) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(
 			cmd.ErrOrStderr(), "bulk status", BulkStatusFields,
 		)

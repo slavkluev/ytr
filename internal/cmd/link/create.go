@@ -98,7 +98,7 @@ SEE ALSO
 
 // runCreate executes the link create logic.
 func runCreate(cmd *cobra.Command, issueKey, typeFlag, issueFlag, fromJSON string) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "link create", LinkListFields)
 	}
 

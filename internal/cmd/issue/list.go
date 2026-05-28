@@ -141,7 +141,7 @@ func runList(
 		return err
 	}
 
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue list", IssueListFields)
 	}
 

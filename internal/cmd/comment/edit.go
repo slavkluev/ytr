@@ -90,7 +90,7 @@ SEE ALSO
 
 // runEdit executes the comment edit logic.
 func runEdit(cmd *cobra.Command, issueKey string, commentID string, body, fromJSON string) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "comment edit", CommentFields)
 	}
 

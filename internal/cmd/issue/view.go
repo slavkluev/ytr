@@ -105,7 +105,7 @@ SEE ALSO
 
 // runView executes the issue view logic.
 func runView(cmd *cobra.Command, args []string) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue view", IssueDetailFields)
 	}
 

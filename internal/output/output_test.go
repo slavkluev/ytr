@@ -259,6 +259,35 @@ func TestHandleError_ExitError_JSON(t *testing.T) {
 	}
 }
 
+func TestWantsFieldHint(t *testing.T) {
+	tests := []struct {
+		name           string
+		jsonFlagChanged bool
+		jsonFields     []string
+		jqFilter       string
+		want           bool
+	}{
+		{"no flags", false, nil, "", false},
+		{"bare --json= (empty slice, flag changed)", true, nil, "", true},
+		{"--json with fields", true, []string{"key"}, "", false},
+		{"--jq only (no --json)", false, nil, ".x", false},
+		{"--json fields + --jq", true, []string{"key"}, ".x", false},
+		{"--json= + --jq (jq wins, no hint)", true, nil, ".x", false},
+		{"fields set directly without flag (e.g. tests)", false, []string{"key"}, "", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			output.JSONFields = tc.jsonFields
+			output.JQFilter = tc.jqFilter
+			defer output.ResetFlags()
+
+			if got := output.WantsFieldHint(tc.jsonFlagChanged); got != tc.want {
+				t.Errorf("WantsFieldHint(%v) = %v, want %v", tc.jsonFlagChanged, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestHandleError_InvalidFieldError_JSON(t *testing.T) {
 	var buf bytes.Buffer
 	output.JSONFields = []string{"key"}

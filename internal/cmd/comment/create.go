@@ -55,7 +55,7 @@ SEE ALSO
 
 // runCreate executes the comment create logic.
 func runCreate(cmd *cobra.Command, issueKey, body string) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "comment create", CommentFields)
 	}
 

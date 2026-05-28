@@ -110,7 +110,7 @@ func runCreate(
 	cmd *cobra.Command,
 	issueKey, durationFlag, startFlag, commentFlag, fromJSON string,
 ) error {
-	if output.IsJSON() && !output.HasFieldSelection() && output.JQFilter == "" {
+	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "worklog create", WorklogFields)
 	}
 
