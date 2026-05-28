@@ -1,6 +1,7 @@
 package comment
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"time"
@@ -21,6 +22,10 @@ const (
 	commentTableReservedWidth = 44
 	// commentMinColumnWidth is the minimum width for truncated body column.
 	commentMinColumnWidth = 10
+	// commentPageSize is the per-page count used when auto-paginating comments.
+	// The server default is 50; comment list pages explicitly so all comments
+	// are returned instead of being silently truncated at the first page.
+	commentPageSize = 100
 )
 
 // CommentFields lists the available JSON field names for comment output.
@@ -101,12 +106,53 @@ func runList(cmd *cobra.Command, issueKey string) error {
 
 	lister := newCommentLister(auth)
 
-	comments, _, err := lister.ListComments(cmd.Context(), issueKey, nil)
+	comments, err := fetchAllComments(cmd.Context(), lister, issueKey)
 	if err != nil {
-		return api.MapAPIError(err)
+		return err
 	}
 
 	return renderListOutput(cmd.OutOrStdout(), comments)
+}
+
+// fetchAllComments retrieves every comment on an issue by following the
+// comment-ID cursor until a short (or empty) page is returned. The Tracker
+// list endpoint caps a single page at the server default (~50); without this
+// loop, issues with more comments lost the rest silently — breaking scripts
+// that count or aggregate comments.
+func fetchAllComments(
+	ctx context.Context,
+	lister commentLister,
+	issueKey string,
+) ([]*tracker.Comment, error) {
+	var all []*tracker.Comment
+	cursor := ""
+
+	for {
+		opts := &tracker.CommentListOptions{ID: cursor, PerPage: commentPageSize}
+		comments, _, err := lister.ListComments(ctx, issueKey, opts)
+		if err != nil {
+			return nil, api.MapAPIError(err)
+		}
+
+		if len(comments) == 0 {
+			break
+		}
+
+		all = append(all, comments...)
+
+		if len(comments) < commentPageSize {
+			break
+		}
+
+		lastID := api.DerefFlexString(comments[len(comments)-1].ID, "")
+		// Stop on a missing or non-advancing cursor to avoid looping forever.
+		if lastID == "" || lastID == cursor {
+			break
+		}
+		cursor = lastID
+	}
+
+	return all, nil
 }
 
 // renderListOutput handles JSON/quiet/table output for the comment list result.

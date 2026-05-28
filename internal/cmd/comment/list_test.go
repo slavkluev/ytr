@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -233,6 +234,71 @@ func TestListNilFields(t *testing.T) {
 	// Should render without crashing.
 	if out == "" {
 		t.Error("expected some output, got empty")
+	}
+}
+
+// mockPagingLister returns pre-canned pages keyed by the cursor (opts.ID),
+// letting us exercise auto-pagination.
+type mockPagingLister struct {
+	pages map[string][]*tracker.Comment
+	calls int
+}
+
+func (m *mockPagingLister) ListComments(
+	_ context.Context,
+	_ string,
+	opts *tracker.CommentListOptions,
+) ([]*tracker.Comment, *tracker.Response, error) {
+	m.calls++
+	cursor := ""
+	if opts != nil {
+		cursor = opts.ID
+	}
+	return m.pages[cursor], &tracker.Response{}, nil
+}
+
+func TestListAutoPaginates(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.QuietFlag = true
+
+	// A full first page (exactly commentPageSize) forces a follow-up fetch;
+	// the short second page ends pagination.
+	firstIDs := make([]string, commentPageSize)
+	for i := range firstIDs {
+		firstIDs[i] = "p1-" + strconv.Itoa(i)
+	}
+	lastID := firstIDs[commentPageSize-1]
+
+	mock := &mockPagingLister{
+		pages: map[string][]*tracker.Comment{
+			"":     makeComments(firstIDs...),
+			lastID: makeComments("p2-a", "p2-b"),
+		},
+	}
+
+	origLister := newCommentLister
+	newCommentLister = func(_ *config.ResolvedAuth) commentLister { return mock }
+	t.Cleanup(func() { newCommentLister = origLister })
+
+	buf := &bytes.Buffer{}
+	cmd := newListCmd()
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.PersistentFlags().String("token", "t", "")
+	cmd.PersistentFlags().String("org-id", "o", "")
+	cmd.PersistentFlags().String("org-type", "360", "")
+	cmd.SetArgs([]string{"PROJ-1"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if mock.calls != 2 {
+		t.Errorf("expected 2 paginated calls, got %d", mock.calls)
+	}
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != commentPageSize+2 {
+		t.Errorf("expected %d comment IDs across pages, got %d", commentPageSize+2, len(lines))
 	}
 }
 
