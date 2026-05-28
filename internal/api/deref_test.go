@@ -54,6 +54,32 @@ func TestDerefUser_LoginOnly(t *testing.T) {
 	}
 }
 
+func TestDerefUser_EmptyDisplayFallsThroughToLogin(t *testing.T) {
+	// An empty Display string must not win over a real Login.
+	user := &tracker.User{
+		Display: ptr(""),
+		Login:   ptr("johndoe"),
+	}
+	if got := api.DerefUser(user, "-"); got != "johndoe" {
+		t.Errorf("DerefUser(emptyDisplay+login, -) = %q, want %q", got, "johndoe")
+	}
+}
+
+func TestDerefUser_IDFallback(t *testing.T) {
+	// Embedded refs (Component.Lead, Queue.Lead) often carry only an ID.
+	id := tracker.FlexString("user-123")
+	user := &tracker.User{ID: &id}
+	if got := api.DerefUser(user, "-"); got != "user-123" {
+		t.Errorf("DerefUser(id-only, -) = %q, want %q", got, "user-123")
+	}
+
+	// Empty display + empty login should still fall through to the ID.
+	user2 := &tracker.User{Display: ptr(""), Login: ptr(""), ID: &id}
+	if got := api.DerefUser(user2, "-"); got != "user-123" {
+		t.Errorf("DerefUser(emptyDisplay+emptyLogin+id, -) = %q, want %q", got, "user-123")
+	}
+}
+
 func boolPtr(b bool) *bool { return &b }
 
 func TestDerefBool(t *testing.T) {
