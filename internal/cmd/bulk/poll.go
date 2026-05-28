@@ -46,7 +46,7 @@ func readIssueKeys(args []string) ([]string, error) {
 				return nil, err
 			}
 		}
-		return args, nil
+		return dedupeKeys(args), nil
 	}
 
 	fd := stdinFile.Fd()
@@ -85,7 +85,23 @@ func readIssueKeys(args []string) ([]string, error) {
 		}
 	}
 
-	return keys, nil
+	return dedupeKeys(keys), nil
+}
+
+// dedupeKeys removes duplicate issue keys while preserving first-seen order.
+// Bulk requests should not carry the same key twice (the API would process it
+// redundantly), and duplicates commonly arrive when piping unsorted output.
+func dedupeKeys(keys []string) []string {
+	seen := make(map[string]struct{}, len(keys))
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		out = append(out, k)
+	}
+	return out
 }
 
 // parseFieldFlags parses --field key=value flags into a map.

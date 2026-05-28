@@ -25,6 +25,46 @@ func TestReadIssueKeys_FromArgs(t *testing.T) {
 	}
 }
 
+func TestReadIssueKeys_DedupesArgs(t *testing.T) {
+	keys, err := readIssueKeys([]string{"PROJ-1", "PROJ-2", "PROJ-1", "PROJ-2", "PROJ-3"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := []string{"PROJ-1", "PROJ-2", "PROJ-3"}
+	if len(keys) != len(want) {
+		t.Fatalf("expected %v (deduped, order-preserving), got %v", want, keys)
+	}
+	for i, k := range want {
+		if keys[i] != k {
+			t.Errorf("position %d: expected %q, got %q (full: %v)", i, k, keys[i], keys)
+		}
+	}
+}
+
+func TestReadIssueKeys_DedupesStdin(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _ = w.WriteString("PROJ-1\nPROJ-1\nPROJ-2\nPROJ-1\n")
+	w.Close()
+
+	origStdin := stdinFile
+	stdinFile = r
+	t.Cleanup(func() { stdinFile = origStdin })
+
+	keys, err := readIssueKeys(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(keys) != 2 || keys[0] != "PROJ-1" || keys[1] != "PROJ-2" {
+		t.Errorf("expected [PROJ-1, PROJ-2] (deduped), got %v", keys)
+	}
+}
+
 func TestReadIssueKeys_FromStdin(t *testing.T) {
 	r, w, err := os.Pipe()
 	if err != nil {
