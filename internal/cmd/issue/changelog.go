@@ -533,18 +533,9 @@ func renderChangelogJSON(w io.Writer, entries []changelogEntry, hasMore bool, ne
 	if output.HasFieldSelection() {
 		filtered := make([]map[string]any, 0, len(entries))
 		for _, entry := range entries {
-			m := output.FilterFields(entry, output.JSONFields)
-			// Remove nil/empty slices that FilterFields includes but omitempty should skip.
-			for k, v := range m {
-				if v == nil {
-					delete(m, k)
-					continue
-				}
-				if isEmptySlice(v) {
-					delete(m, k)
-				}
-			}
-			filtered = append(filtered, m)
+			// FilterFields now honors omitempty, so empty sections are dropped
+			// here exactly as in the full-JSON output — no manual cleanup needed.
+			filtered = append(filtered, output.FilterFields(entry, output.JSONFields))
 		}
 		data = output.PaginatedResult{
 			Items: filtered,
@@ -567,28 +558,6 @@ func renderChangelogJSON(w io.Writer, entries []changelogEntry, hasMore bool, ne
 		return output.ApplyJQ(w, data, output.JQFilter)
 	}
 	return output.PrintJSON(w, data)
-}
-
-// isEmptySlice checks if v is a slice with length 0 via reflection-free type assertions.
-func isEmptySlice(v any) bool {
-	switch s := v.(type) {
-	case []any:
-		return len(s) == 0
-	case []fieldChange:
-		return len(s) == 0
-	case []commentChange:
-		return len(s) == 0
-	case []linkChange:
-		return len(s) == 0
-	case []attachmentChange:
-		return len(s) == 0
-	case []worklogChange:
-		return len(s) == 0
-	case []resolutionChange:
-		return len(s) == 0
-	default:
-		return false
-	}
 }
 
 // --- Table / quiet rendering (flat rows) ---

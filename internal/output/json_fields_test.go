@@ -53,6 +53,55 @@ func TestFilterFields_AllFields(t *testing.T) {
 	}
 }
 
+type omitemptyItem struct {
+	Key      string   `json:"key"`
+	Priority string   `json:"priority,omitempty"`
+	Options  []string `json:"options,omitempty"`
+	Count    int      `json:"count,omitempty"`
+}
+
+func TestFilterFields_OmitemptyDropsEmptyValues(t *testing.T) {
+	item := omitemptyItem{Key: "PROJ-1"} // Priority/Options/Count all zero
+	result := output.FilterFields(item, []string{"key", "priority", "options", "count"})
+
+	if result["key"] != "PROJ-1" {
+		t.Errorf("key = %v, want %q", result["key"], "PROJ-1")
+	}
+	// omitempty fields that are empty must be dropped, matching full JSON —
+	// not emitted as "", null, or 0.
+	for _, dropped := range []string{"priority", "options", "count"} {
+		if _, ok := result[dropped]; ok {
+			t.Errorf("expected omitempty field %q to be dropped when empty, got %v", dropped, result[dropped])
+		}
+	}
+}
+
+func TestFilterFields_OmitemptyKeepsNonEmptyValues(t *testing.T) {
+	item := omitemptyItem{Key: "PROJ-1", Priority: "high", Options: []string{"a"}, Count: 3}
+	result := output.FilterFields(item, []string{"priority", "options", "count"})
+
+	if result["priority"] != "high" {
+		t.Errorf("priority = %v, want %q", result["priority"], "high")
+	}
+	if _, ok := result["options"]; !ok {
+		t.Error("non-empty omitempty slice should be kept")
+	}
+	if result["count"] != 3 {
+		t.Errorf("count = %v, want 3", result["count"])
+	}
+}
+
+func TestFilterFields_NonStructDoesNotPanic(t *testing.T) {
+	// Pointer to struct is dereferenced; a non-struct yields an empty result.
+	ptr := output.FilterFields(&testItem{Key: "A"}, []string{"key"})
+	if ptr["key"] != "A" {
+		t.Errorf("pointer-to-struct: key = %v, want %q", ptr["key"], "A")
+	}
+	if got := output.FilterFields("not a struct", []string{"key"}); len(got) != 0 {
+		t.Errorf("non-struct input returned %v, want empty map", got)
+	}
+}
+
 func TestFilterFields_EmptyFields(t *testing.T) {
 	item := testItem{Key: "A", Name: "B", Status: "C"}
 	result := output.FilterFields(item, []string{})

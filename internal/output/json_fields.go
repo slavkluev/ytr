@@ -46,10 +46,22 @@ func NormalizeFields(requested, allowed []string) []string {
 }
 
 // FilterFields extracts only the requested fields from a struct using json tags.
-// The struct must have exported fields with json tags.
+//
+// Precondition: data must be a flat struct (or pointer to one) whose exported
+// fields carry json tags — the item structs each command builds for output. A
+// pointer is dereferenced; a non-struct yields an empty result rather than a
+// reflect panic.
+//
+// `omitempty` is honored so the filtered view matches the full-JSON contract:
+// an empty omitempty field is dropped (not emitted as "" or null), letting
+// agents distinguish "absent" from a real empty/null value.
 func FilterFields(data any, fields []string) map[string]any {
 	result := make(map[string]any, len(fields))
-	v := reflect.ValueOf(data)
+
+	v := reflect.Indirect(reflect.ValueOf(data))
+	if v.Kind() != reflect.Struct {
+		return result
+	}
 	t := v.Type()
 
 	requested := make(map[string]bool, len(fields))
@@ -63,12 +75,51 @@ func FilterFields(data any, fields []string) map[string]any {
 		if jsonTag == "" || jsonTag == "-" {
 			continue
 		}
-		name := strings.Split(jsonTag, ",")[0]
-		if requested[name] {
-			result[name] = v.Field(i).Interface()
+		parts := strings.Split(jsonTag, ",")
+		name := parts[0]
+		if name == "" {
+			name = field.Name
 		}
+		if !requested[name] {
+			continue
+		}
+		fv := v.Field(i)
+		if hasOmitempty(parts[1:]) && isEmptyValue(fv) {
+			continue
+		}
+		result[name] = fv.Interface()
 	}
 	return result
+}
+
+// hasOmitempty reports whether the json tag options contain "omitempty".
+func hasOmitempty(opts []string) bool {
+	for _, o := range opts {
+		if o == "omitempty" {
+			return true
+		}
+	}
+	return false
+}
+
+// isEmptyValue mirrors encoding/json's emptiness test used for omitempty, so
+// FilterFields drops exactly the values the full json.Marshal would.
+func isEmptyValue(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return v.Len() == 0
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.Interface, reflect.Pointer:
+		return v.IsNil()
+	}
+	return false
 }
 
 // PrintFieldHint outputs available fields as a formatted list to the writer

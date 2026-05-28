@@ -20,15 +20,17 @@ var FieldListFields = []string{"key", "name", "schema", "readonly"}
 type fieldItem struct {
 	Key      string `json:"key"`
 	Name     string `json:"name"`
-	Schema   string `json:"schema"`
+	Schema   string `json:"schema,omitempty"`
 	Readonly bool   `json:"readonly"`
 }
 
 // toFieldItem converts a tracker.Field to a clean JSON-serializable struct.
+// Schema is left empty (and omitted from JSON) when the field has no schema
+// type, matching `field get`; the "-" placeholder is a table-only convention.
 func toFieldItem(f *tracker.Field) fieldItem {
-	schema := "-"
+	schema := ""
 	if f.Schema != nil {
-		schema = api.DerefString(f.Schema.Type, "-")
+		schema = api.DerefString(f.Schema.Type, "")
 	}
 
 	return fieldItem{
