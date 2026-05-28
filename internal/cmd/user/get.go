@@ -7,6 +7,7 @@ import (
 	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
+	"github.com/slavkluev/ytr/internal/validate"
 )
 
 // newGetCmd creates the "user get" command for displaying user details by UID.
@@ -31,8 +32,13 @@ SEE ALSO
   # Get just the login
   ytr user get 12345 --json login --jq '.login'`,
 		Args: cobra.ExactArgs(1),
+		PreRunE: func(_ *cobra.Command, args []string) error {
+			_, err := validate.ValidateStringID(args[0], "user ID")
+			return err
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runGet(cmd, args[0])
+			uid, _ := validate.ValidateStringID(args[0], "user ID")
+			return runGet(cmd, uid)
 		},
 	}
 

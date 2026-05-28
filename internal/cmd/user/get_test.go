@@ -146,6 +146,20 @@ func TestGet(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "empty UID rejected before API call",
+			mock: &mockUserGetter{user: fullUser(), resp: &tracker.Response{}},
+			args: []string{""},
+			check: func(t *testing.T, _ string, err error) {
+				t.Helper()
+				if err == nil {
+					t.Fatal("expected validation error for empty UID, got nil")
+				}
+				if !strings.Contains(err.Error(), "user ID") {
+					t.Errorf("expected user-ID validation error, got: %v", err)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
