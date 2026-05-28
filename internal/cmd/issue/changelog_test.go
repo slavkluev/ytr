@@ -267,6 +267,148 @@ func TestChangelogFieldFilter(t *testing.T) {
 	}
 }
 
+func TestChangelog_NilElementsDoNotPanic(t *testing.T) {
+	// A null element anywhere in an API changelog array (entry, event, comment
+	// ref, link, attachment, worklog, resolution) must be skipped, not panic.
+	entries := []*tracker.Changelog{
+		nil,
+		{
+			Type: testutil.StrPtr("IssueWorkflow"),
+			Fields: []*tracker.ChangelogEvent{
+				nil,
+				{Field: fieldRef("status"), From: "open", To: "closed"},
+			},
+			Comments: &tracker.ChangelogComments{
+				Added:   []*tracker.CommentRef{nil},
+				Removed: []*tracker.CommentRef{nil},
+				Updated: []*tracker.CommentUpdate{nil},
+			},
+			Links:              []*tracker.ChangelogLink{nil},
+			Attachments:        &tracker.ChangelogAttachments{Added: []*tracker.AttachmentRef{nil}},
+			Worklog:            []*tracker.ChangelogWorklog{nil},
+			RelatedResolutions: []*tracker.RelatedResolution{nil},
+		},
+	}
+
+	normalized := normalizeChangelog(entries)
+	if len(normalized) != 1 {
+		t.Fatalf("expected 1 normalized entry (nil entry skipped), got %d", len(normalized))
+	}
+	if len(normalized[0].Fields) != 1 {
+		t.Errorf("expected 1 field (nil event skipped), got %d", len(normalized[0].Fields))
+	}
+
+	items := flattenChangelog(entries)
+	if len(items) != 1 {
+		t.Errorf("expected 1 flattened item (only the real field event), got %d: %+v", len(items), items)
+	}
+}
+
+func TestLastChangelogCursorID(t *testing.T) {
+	id1 := tracker.FlexString("cl-001")
+	id2 := tracker.FlexString("cl-002")
+
+	tests := []struct {
+		name    string
+		entries []*tracker.Changelog
+		want    string
+	}{
+		{"nil slice", nil, ""},
+		{"empty slice", []*tracker.Changelog{}, ""},
+		{"normal last", []*tracker.Changelog{{ID: &id1}, {ID: &id2}}, "cl-002"},
+		{"nil last element skipped", []*tracker.Changelog{{ID: &id1}, nil}, "cl-001"},
+		{"all nil", []*tracker.Changelog{nil, nil}, ""},
+		{"nil last id pointer", []*tracker.Changelog{{ID: &id1}, {ID: nil}}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := lastChangelogCursorID(tt.entries); got != tt.want {
+				t.Errorf("lastChangelogCursorID(%+v) = %q, want %q", tt.entries, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFetchChangelogPage_NullLastEntryNoPanic(t *testing.T) {
+	// A null element as the LAST entry of a full page must not panic during
+	// cursor extraction (regression for changelog.go:267, where the old code
+	// dereferenced entries[len-1].ID without a nil guard). The cursor should
+	// fall back to the last non-nil entry's ID.
+	id1 := tracker.FlexString("cl-001")
+	mock := &mockChangelogGetter{
+		entries: []*tracker.Changelog{{ID: &id1}, nil},
+	}
+
+	entries, hasMore, next, err := fetchChangelogPage(
+		context.Background(), mock, "PROJ-1", 2, "", false, "", "",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Errorf("expected 2 entries returned, got %d", len(entries))
+	}
+	if !hasMore {
+		t.Errorf("expected hasMore=true (full page of len==limit)")
+	}
+	if next != "cl-001" {
+		t.Errorf("expected next cursor %q (last non-nil entry), got %q", "cl-001", next)
+	}
+}
+
+// pagingChangelogGetter returns a fixed sequence of pages, one per call, so the
+// auto-pagination loop in fetchAllChangelog can be exercised across page
+// boundaries. It records the options received on each call.
+type pagingChangelogGetter struct {
+	pages [][]*tracker.Changelog
+	call  int
+	opts  []*tracker.ChangelogOptions
+}
+
+func (m *pagingChangelogGetter) GetChangelog(
+	_ context.Context,
+	_ string,
+	opts *tracker.ChangelogOptions,
+) ([]*tracker.Changelog, *tracker.Response, error) {
+	m.opts = append(m.opts, opts)
+	if m.call >= len(m.pages) {
+		return nil, nil, nil
+	}
+	page := m.pages[m.call]
+	m.call++
+	return page, nil, nil
+}
+
+func TestFetchAllChangelog_NullLastEntryNoPanic(t *testing.T) {
+	// A null element as the LAST entry of a full page must not panic when
+	// fetchAllChangelog extracts the next cursor (regression for
+	// changelog.go:926). The cursor must advance to the last non-nil ID so the
+	// loop makes progress and terminates.
+	id1 := tracker.FlexString("cl-001")
+	id3 := tracker.FlexString("cl-003")
+	mock := &pagingChangelogGetter{
+		pages: [][]*tracker.Changelog{
+			{{ID: &id1}, nil}, // full page (len==limit), last element nil
+			{{ID: &id3}},      // short page → terminates the loop
+		},
+	}
+
+	all, err := fetchAllChangelog(context.Background(), mock, "PROJ-1", 2, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(all) != 3 {
+		t.Fatalf("expected 3 accumulated entries (incl. the nil), got %d", len(all))
+	}
+	if len(mock.opts) != 2 {
+		t.Fatalf("expected 2 page requests, got %d", len(mock.opts))
+	}
+	if mock.opts[1].ID != "cl-001" {
+		t.Errorf("expected 2nd page cursor %q (last non-nil of page 1), got %q", "cl-001", mock.opts[1].ID)
+	}
+}
+
 func TestChangelogFieldFilterPreservesCase(t *testing.T) {
 	testutil.ResetOutputFlags(t)
 

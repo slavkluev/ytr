@@ -256,10 +256,23 @@ func fetchChangelogPage(
 
 	hasMore := len(entries) == limit
 	var next string
-	if hasMore && len(entries) > 0 {
-		next = api.DerefFlexString(entries[len(entries)-1].ID, "")
+	if hasMore {
+		next = lastChangelogCursorID(entries)
 	}
 	return entries, hasMore, next, nil
+}
+
+// lastChangelogCursorID returns the pagination cursor (ID) of the last non-nil
+// changelog entry, or "" when there is none. A null element in the API's JSON
+// array decodes to a nil *tracker.Changelog; reading .ID off it would panic, so
+// trailing nils are skipped — they carry no data and are dropped when rendered.
+func lastChangelogCursorID(entries []*tracker.Changelog) string {
+	for i := len(entries) - 1; i >= 0; i-- {
+		if e := entries[i]; e != nil {
+			return api.DerefFlexString(e.ID, "")
+		}
+	}
+	return ""
 }
 
 // --- JSON rendering (per-entry structured output) ---
@@ -268,6 +281,9 @@ func fetchChangelogPage(
 func normalizeChangelog(entries []*tracker.Changelog) []changelogEntry {
 	result := make([]changelogEntry, 0, len(entries))
 	for _, e := range entries {
+		if e == nil {
+			continue
+		}
 		entry := changelogEntry{
 			Author:    api.DerefUser(e.UpdatedBy, ""),
 			Type:      api.DerefString(e.Type, ""),
@@ -293,6 +309,9 @@ func normalizeFields(events []*tracker.ChangelogEvent) []fieldChange {
 	}
 	result := make([]fieldChange, 0, len(events))
 	for _, ev := range events {
+		if ev == nil {
+			continue
+		}
 		fc := fieldChange{
 			Field: changelogFieldName(ev.Field),
 			From:  stripSelfURLs(ev.From),
@@ -312,6 +331,9 @@ func normalizeComments(c *tracker.ChangelogComments) []commentChange {
 	}
 	var result []commentChange
 	for _, ref := range c.Added {
+		if ref == nil {
+			continue
+		}
 		result = append(result, commentChange{
 			Action: "added",
 			ID:     api.DerefFlexString(ref.ID, ""),
@@ -319,6 +341,9 @@ func normalizeComments(c *tracker.ChangelogComments) []commentChange {
 		})
 	}
 	for _, ref := range c.Removed {
+		if ref == nil {
+			continue
+		}
 		result = append(result, commentChange{
 			Action: "removed",
 			ID:     api.DerefFlexString(ref.ID, ""),
@@ -326,6 +351,9 @@ func normalizeComments(c *tracker.ChangelogComments) []commentChange {
 		})
 	}
 	for _, cu := range c.Updated {
+		if cu == nil {
+			continue
+		}
 		id := ""
 		if cu.Comment != nil {
 			id = api.DerefFlexString(cu.Comment.ID, "")
@@ -361,6 +389,9 @@ func normalizeLinks(links []*tracker.ChangelogLink) []linkChange {
 	}
 	result := make([]linkChange, 0, len(links))
 	for _, l := range links {
+		if l == nil {
+			continue
+		}
 		result = append(result, linkChange{
 			From: normalizeLinkValue(l.From),
 			To:   normalizeLinkValue(l.To),
@@ -409,6 +440,9 @@ func normalizeAttachments(a *tracker.ChangelogAttachments) []attachmentChange {
 	}
 	var result []attachmentChange
 	for _, ref := range a.Added {
+		if ref == nil {
+			continue
+		}
 		result = append(result, attachmentChange{
 			Action: "added",
 			ID:     api.DerefFlexString(ref.ID, ""),
@@ -416,6 +450,9 @@ func normalizeAttachments(a *tracker.ChangelogAttachments) []attachmentChange {
 		})
 	}
 	for _, ref := range a.Removed {
+		if ref == nil {
+			continue
+		}
 		result = append(result, attachmentChange{
 			Action: "removed",
 			ID:     api.DerefFlexString(ref.ID, ""),
@@ -431,6 +468,9 @@ func normalizeWorklog(wl []*tracker.ChangelogWorklog) []worklogChange {
 	}
 	result := make([]worklogChange, 0, len(wl))
 	for _, w := range wl {
+		if w == nil {
+			continue
+		}
 		wc := worklogChange{
 			From: normalizeWorklogValue(w.From),
 			To:   normalizeWorklogValue(w.To),
@@ -463,6 +503,9 @@ func normalizeRelatedResolutions(rr []*tracker.RelatedResolution) []resolutionCh
 	}
 	result := make([]resolutionChange, 0, len(rr))
 	for _, r := range rr {
+		if r == nil {
+			continue
+		}
 		rc := resolutionChange{
 			Direction: api.DerefString(r.Direction, ""),
 		}
@@ -568,6 +611,9 @@ func renderChangelogJSON(w io.Writer, entries []changelogEntry, hasMore bool, ne
 func flattenChangelog(entries []*tracker.Changelog) []changelogItem {
 	var items []changelogItem
 	for _, entry := range entries {
+		if entry == nil {
+			continue
+		}
 		var date string
 		if entry.UpdatedAt != nil {
 			date = entry.UpdatedAt.Format(time.RFC3339)
@@ -575,6 +621,9 @@ func flattenChangelog(entries []*tracker.Changelog) []changelogItem {
 		author := api.DerefUser(entry.UpdatedBy, "")
 
 		for _, event := range entry.Fields {
+			if event == nil {
+				continue
+			}
 			items = append(items, changelogItem{
 				Date: date, Author: author,
 				Field: changelogFieldName(event.Field),
@@ -598,6 +647,9 @@ func flattenCommentsToItems(
 		return items
 	}
 	for _, ref := range c.Added {
+		if ref == nil {
+			continue
+		}
 		items = append(items, changelogItem{
 			Date: date, Author: author,
 			Field: "comment",
@@ -605,6 +657,9 @@ func flattenCommentsToItems(
 		})
 	}
 	for _, ref := range c.Removed {
+		if ref == nil {
+			continue
+		}
 		items = append(items, changelogItem{
 			Date: date, Author: author,
 			Field: "comment",
@@ -612,6 +667,9 @@ func flattenCommentsToItems(
 		})
 	}
 	for _, cu := range c.Updated {
+		if cu == nil {
+			continue
+		}
 		switch {
 		case cu.AddedReaction != nil:
 			items = append(items, changelogItem{
@@ -641,6 +699,9 @@ func flattenLinksToItems(
 	items []changelogItem, date, author string, links []*tracker.ChangelogLink,
 ) []changelogItem {
 	for _, l := range links {
+		if l == nil {
+			continue
+		}
 		items = append(items, changelogItem{
 			Date: date, Author: author,
 			Field: "link",
@@ -658,6 +719,9 @@ func flattenAttachmentsToItems(
 		return items
 	}
 	for _, ref := range a.Added {
+		if ref == nil {
+			continue
+		}
 		items = append(items, changelogItem{
 			Date: date, Author: author,
 			Field: "attachment",
@@ -665,6 +729,9 @@ func flattenAttachmentsToItems(
 		})
 	}
 	for _, ref := range a.Removed {
+		if ref == nil {
+			continue
+		}
 		items = append(items, changelogItem{
 			Date: date, Author: author,
 			Field: "attachment",
@@ -678,6 +745,9 @@ func flattenWorklogToItems(
 	items []changelogItem, date, author string, wl []*tracker.ChangelogWorklog,
 ) []changelogItem {
 	for _, w := range wl {
+		if w == nil {
+			continue
+		}
 		items = append(items, changelogItem{
 			Date: date, Author: author,
 			Field: "worklog",
@@ -692,6 +762,9 @@ func flattenResolutionsToItems(
 	items []changelogItem, date, author string, rr []*tracker.RelatedResolution,
 ) []changelogItem {
 	for _, r := range rr {
+		if r == nil {
+			continue
+		}
 		items = append(items, changelogItem{
 			Date: date, Author: author,
 			Field: "relatedResolution",
@@ -856,7 +929,7 @@ func fetchAllChangelog(
 			break
 		}
 
-		lastID := api.DerefFlexString(entries[len(entries)-1].ID, "")
+		lastID := lastChangelogCursorID(entries)
 		if lastID == "" {
 			break
 		}
