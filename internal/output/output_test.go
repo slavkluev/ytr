@@ -259,6 +259,59 @@ func TestHandleError_ExitError_JSON(t *testing.T) {
 	}
 }
 
+func TestHandleError_InvalidFieldError_JSON(t *testing.T) {
+	var buf bytes.Buffer
+	output.JSONFields = []string{"key"}
+	defer output.ResetFlags()
+
+	err := ytrerrors.NewInvalidFieldError("bogus", []string{"key", "summary"})
+	code := output.HandleError(&buf, err)
+
+	if code != 1 {
+		t.Errorf("HandleError(InvalidFieldError) = %d, want 1", code)
+	}
+
+	var result map[string]any
+	if unmarshalErr := json.Unmarshal(buf.Bytes(), &result); unmarshalErr != nil {
+		t.Fatalf("HandleError JSON output is invalid: %v\nOutput: %q", unmarshalErr, buf.String())
+	}
+
+	// The structured invalid_field payload must survive — not be flattened to
+	// the generic user_error shape.
+	if result["code"] != "invalid_field" {
+		t.Errorf("JSON code = %v, want %q", result["code"], "invalid_field")
+	}
+	if result["invalidField"] != "bogus" {
+		t.Errorf("JSON invalidField = %v, want %q", result["invalidField"], "bogus")
+	}
+	valid, ok := result["validFields"].([]any)
+	if !ok || len(valid) != 2 {
+		t.Errorf("JSON validFields = %v, want [key summary]", result["validFields"])
+	}
+}
+
+func TestHandleError_InvalidFieldError_Human(t *testing.T) {
+	var buf bytes.Buffer
+	output.JSONFields = nil
+	defer output.ResetFlags()
+
+	err := ytrerrors.NewInvalidFieldError("bogus", []string{"key", "summary"})
+	code := output.HandleError(&buf, err)
+
+	if code != 1 {
+		t.Errorf("HandleError(InvalidFieldError) = %d, want 1", code)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "unknown field") {
+		t.Errorf("human output = %q, should contain %q", out, "unknown field")
+	}
+	// The "Valid fields: …" recovery hint must be shown.
+	if !strings.Contains(out, "Valid fields:") || !strings.Contains(out, "summary") {
+		t.Errorf("human output = %q, should contain valid-fields hint", out)
+	}
+}
+
 func TestHandleError_ExitError_JSON_DebugIsolation(t *testing.T) {
 	var stderrBuf bytes.Buffer
 	var jsonBuf bytes.Buffer

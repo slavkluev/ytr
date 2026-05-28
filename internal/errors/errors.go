@@ -102,6 +102,15 @@ type InvalidFieldError struct {
 	ValidFields  []string `json:"validFields"`
 }
 
+// Unwrap exposes the embedded ExitError so errors.As/Is can traverse the
+// chain. InvalidFieldError embeds ExitError by value, which on its own does
+// not satisfy errors.As(err, **ExitError); Unwrap makes the relationship
+// explicit. Callers that want the field-specific JSON must still match
+// *InvalidFieldError before the generic *ExitError.
+func (e *InvalidFieldError) Unwrap() error {
+	return &e.ExitError
+}
+
 // JSONError returns JSON with invalid_field code, the bad field, and valid field list.
 func (e *InvalidFieldError) JSONError() ([]byte, error) {
 	return json.Marshal(struct {

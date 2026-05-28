@@ -92,6 +92,22 @@ func HandleError(w io.Writer, err error) int {
 		Message:  err.Error(),
 	}
 
+	// Match *InvalidFieldError before the generic *ExitError: it embeds
+	// ExitError by value, so without this branch errors.As would route it to
+	// the generic handler and drop the structured invalidField/validFields
+	// payload (and the "Valid fields: …" hint in human mode).
+	var invalidFieldErr *ytrerrors.InvalidFieldError
+	if errors.As(err, &invalidFieldErr) {
+		if IsJSON() {
+			if data, jsonErr := invalidFieldErr.JSONError(); jsonErr == nil {
+				fmt.Fprintln(JSONErrorWriter(w), string(data))
+			}
+		} else {
+			ytrerrors.PrintHuman(w, &invalidFieldErr.ExitError, ColorsEnabled())
+		}
+		return invalidFieldErr.ExitCode
+	}
+
 	var exitErr *ytrerrors.ExitError
 	if errors.As(err, &exitErr) {
 		if IsJSON() {
