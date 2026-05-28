@@ -267,22 +267,25 @@ func TestChangelogFieldFilter(t *testing.T) {
 	}
 }
 
-func TestChangelogFieldFilterCaseInsensitive(t *testing.T) {
+func TestChangelogFieldFilterPreservesCase(t *testing.T) {
 	testutil.ResetOutputFlags(t)
 
+	// Tracker field IDs are case-sensitive and commonly camelCase
+	// (storyPoints, checklistItems, dueDate). The filter must be passed
+	// through verbatim — lowercasing it (the old behavior) made the API
+	// match nothing and silently returned zero changes.
 	mock := &mockChangelogGetter{
 		entries: sampleChangelog(),
 		resp:    &tracker.Response{},
 	}
 
-	// Use uppercase field name — should be lowercased for API.
-	_, err := setupChangelogCmd(t, mock, []string{"PROJ-123", "--field", "STATUS"})
+	_, err := setupChangelogCmd(t, mock, []string{"PROJ-123", "--field", "storyPoints"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if mock.lastOpts == nil || mock.lastOpts.Field != "status" {
-		t.Errorf("expected API field filter 'status' (lowercased), got opts: %+v", mock.lastOpts)
+	if mock.lastOpts == nil || mock.lastOpts.Field != "storyPoints" {
+		t.Errorf("expected API field filter 'storyPoints' (verbatim), got opts: %+v", mock.lastOpts)
 	}
 }
 

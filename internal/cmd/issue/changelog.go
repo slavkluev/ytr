@@ -153,7 +153,7 @@ SEE ALSO
 		},
 	}
 
-	cmd.Flags().StringVar(&fieldFilter, "field", "", "Filter changes by field name (case-insensitive)")
+	cmd.Flags().StringVar(&fieldFilter, "field", "", "Filter changes by field ID (case-sensitive, e.g. storyPoints)")
 	cmd.Flags().StringVar(&typeFilter, "type", "", "Filter by change type (e.g., IssueWorkflow, IssueCommentAdded)")
 	cmd.Flags().IntVar(&limit, "limit", defaultLimit, "Maximum number of changelog entries per page")
 	cmd.Flags().StringVar(&cursor, "cursor", "", "Cursor ID for pagination (from previous response)")
@@ -246,7 +246,7 @@ func fetchChangelogPage(
 	opts := &tracker.ChangelogOptions{
 		ID:      cursor,
 		PerPage: limit,
-		Field:   strings.ToLower(fieldFilter),
+		Field:   fieldFilter,
 		Type:    typeFilter,
 	}
 	entries, _, err := getter.GetChangelog(ctx, issueKey, opts)
@@ -838,7 +838,7 @@ func fetchAllChangelog(
 		opts := &tracker.ChangelogOptions{
 			ID:      currentCursor,
 			PerPage: limit,
-			Field:   strings.ToLower(fieldFilter),
+			Field:   fieldFilter,
 			Type:    typeFilter,
 		}
 		entries, _, err := getter.GetChangelog(ctx, issueKey, opts)
