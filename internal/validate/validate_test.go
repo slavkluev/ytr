@@ -262,3 +262,27 @@ func TestParsePageCursor(t *testing.T) {
 		})
 	}
 }
+
+func TestConflictingAllAndCursor(t *testing.T) {
+	tests := []struct {
+		name        string
+		all, cursor bool
+		wantErr     bool
+	}{
+		{"neither", false, false, false},
+		{"only --all", true, false, false},
+		{"only --cursor", false, true, false},
+		{"both conflict", true, true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ConflictingAllAndCursor(tt.all, tt.cursor)
+			if tt.wantErr && err == nil {
+				t.Error("expected an error when --all and --cursor are both set")
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}

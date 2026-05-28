@@ -242,7 +242,9 @@ func validateSearchFlags(cmd *cobra.Command) error {
 		)
 	}
 
-	return nil
+	return validate.ConflictingAllAndCursor(
+		cmd.Flags().Changed("all"), cmd.Flags().Changed("cursor"),
+	)
 }
 
 // parseFilterFlags parses --filter key=value flags into a map.

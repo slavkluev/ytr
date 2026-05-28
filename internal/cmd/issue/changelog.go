@@ -15,6 +15,7 @@ import (
 	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
+	"github.com/slavkluev/ytr/internal/validate"
 )
 
 // IssueChangelogFields lists the available JSON field names for changelog output.
@@ -175,6 +176,12 @@ func runChangelog(
 ) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue changelog", IssueChangelogFields)
+	}
+
+	if err := validate.ConflictingAllAndCursor(
+		cmd.Flags().Changed("all"), cmd.Flags().Changed("cursor"),
+	); err != nil {
+		return err
 	}
 
 	if output.JQFilter != "" && !output.HasFieldSelection() {

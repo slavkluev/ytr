@@ -96,6 +96,12 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "user list", UserListFields)
 	}
 
+	if err := validate.ConflictingAllAndCursor(
+		cmd.Flags().Changed("all"), cmd.Flags().Changed("cursor"),
+	); err != nil {
+		return err
+	}
+
 	if output.JQFilter != "" && !output.HasFieldSelection() {
 		output.JSONFields = UserListFields
 	}

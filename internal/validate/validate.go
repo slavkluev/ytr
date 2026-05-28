@@ -130,3 +130,17 @@ func ParsePageCursor(cursor string) (int, error) {
 
 	return page, nil
 }
+
+// ConflictingAllAndCursor returns an error when both --all and --cursor were
+// supplied. Fetching every page and requesting one specific page are mutually
+// exclusive; previously --all silently won and --cursor was ignored without
+// any warning. Callers pass cmd.Flags().Changed("all"/"cursor").
+func ConflictingAllAndCursor(allChanged, cursorChanged bool) error {
+	if allChanged && cursorChanged {
+		return errors.NewUserError(
+			"cannot combine --all with --cursor",
+			"Use --all to fetch every page, or --cursor to fetch a specific page — not both",
+		)
+	}
+	return nil
+}

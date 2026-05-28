@@ -86,6 +86,12 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "queue list", QueueListFields)
 	}
 
+	if err := validate.ConflictingAllAndCursor(
+		cmd.Flags().Changed("all"), cmd.Flags().Changed("cursor"),
+	); err != nil {
+		return err
+	}
+
 	if output.JQFilter != "" && !output.HasFieldSelection() {
 		output.JSONFields = QueueListFields
 	}
