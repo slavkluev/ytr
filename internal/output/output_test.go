@@ -261,11 +261,11 @@ func TestHandleError_ExitError_JSON(t *testing.T) {
 
 func TestWantsFieldHint(t *testing.T) {
 	tests := []struct {
-		name           string
+		name            string
 		jsonFlagChanged bool
-		jsonFields     []string
-		jqFilter       string
-		want           bool
+		jsonFields      []string
+		jqFilter        string
+		want            bool
 	}{
 		{"no flags", false, nil, "", false},
 		{"bare --json= (empty slice, flag changed)", true, nil, "", true},

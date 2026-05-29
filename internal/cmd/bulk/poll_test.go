@@ -48,7 +48,10 @@ func TestReadIssueKeys_DedupesStdin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _ = w.WriteString("PROJ-1\nPROJ-1\nPROJ-2\nPROJ-1\n")
+	// Intentional duplicate keys (PROJ-1 thrice) to exercise dedup.
+	for _, key := range []string{"PROJ-1", "PROJ-1", "PROJ-2", "PROJ-1"} {
+		_, _ = w.WriteString(key + "\n")
+	}
 	w.Close()
 
 	origStdin := stdinFile

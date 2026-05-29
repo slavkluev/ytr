@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/itchyny/gojq"
@@ -94,18 +95,13 @@ func FilterFields(data any, fields []string) map[string]any {
 
 // hasOmitempty reports whether the json tag options contain "omitempty".
 func hasOmitempty(opts []string) bool {
-	for _, o := range opts {
-		if o == "omitempty" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(opts, "omitempty")
 }
 
 // isEmptyValue mirrors encoding/json's emptiness test used for omitempty, so
 // FilterFields drops exactly the values the full json.Marshal would.
 func isEmptyValue(v reflect.Value) bool {
-	switch v.Kind() {
+	switch v.Kind() { //nolint:exhaustive // mirrors encoding/json: unlisted kinds are never empty
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
 	case reflect.Bool:
