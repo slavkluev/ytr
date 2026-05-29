@@ -30,12 +30,43 @@ func TestVersionHuman(t *testing.T) {
 	checks := []string{
 		"ytr version",
 		"commit:",
+		"date:",
 		"go:",
 		"os/arch:",
 	}
 	for _, want := range checks {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q, got:\n%s", want, out)
+		}
+	}
+}
+
+// TestVersionQuiet covers Info: `version --quiet` must print only the version
+// string (no commit/date/go/os-arch lines), so scripts can capture it cleanly.
+func TestVersionQuiet(t *testing.T) {
+	output.ResetFlags()
+	output.QuietFlag = true
+	defer output.ResetFlags()
+
+	cmd := version.NewCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	out := strings.TrimSpace(buf.String())
+	if out == "" {
+		t.Fatal("expected version string in quiet output, got empty")
+	}
+	if strings.Contains(out, "\n") {
+		t.Errorf("expected single-line quiet output, got: %q", out)
+	}
+	for _, unwanted := range []string{"commit:", "date:", "go:", "os/arch:"} {
+		if strings.Contains(out, unwanted) {
+			t.Errorf("quiet output must be version only, found %q in: %q", unwanted, out)
 		}
 	}
 }

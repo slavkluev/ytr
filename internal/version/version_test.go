@@ -68,6 +68,9 @@ func TestGet_ReturnsInfo(t *testing.T) {
 	if info.Commit == "" {
 		t.Error("Commit must not be empty")
 	}
+	if info.Date == "" {
+		t.Error("Date must not be empty")
+	}
 	if info.GoVersion == "" {
 		t.Error("GoVersion must not be empty")
 	}

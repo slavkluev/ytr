@@ -12,19 +12,19 @@ import (
 )
 
 // VersionFields lists the available JSON field names for version output.
-var VersionFields = []string{"version", "commit", "goVersion", "os", "arch"}
+var VersionFields = []string{"version", "commit", "date", "goVersion", "os", "arch"}
 
 // NewCmd creates the version command that displays build information.
 // In human mode it prints a multi-line summary; with --json it outputs
-// structured JSON with version, commit, goVersion, os, and arch fields.
+// structured JSON with version, commit, date, goVersion, os, and arch fields.
 func NewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Show ytr version information",
-		Long: `Display the version, commit hash, Go version, and platform of the ytr binary.
+		Long: `Display the version, commit hash, build date, Go version, and platform of the ytr binary.
 
 JSON FIELDS
-  version, commit, goVersion, os, arch
+  version, commit, date, goVersion, os, arch
 
 SEE ALSO
   ytr --help    - Show all available commands`,
@@ -80,8 +80,15 @@ func runVersion(cmd *cobra.Command, _ []string) error {
 	}
 
 	w := cmd.OutOrStdout()
+
+	if output.IsQuiet() {
+		output.PrintQuiet(w, info.Version)
+		return nil
+	}
+
 	_, _ = fmt.Fprintf(w, "ytr version %s\n", info.Version)
 	_, _ = fmt.Fprintf(w, "commit: %s\n", info.Commit)
+	_, _ = fmt.Fprintf(w, "date: %s\n", info.Date)
 	_, _ = fmt.Fprintf(w, "go: %s\n", info.GoVersion)
 	_, _ = fmt.Fprintf(w, "os/arch: %s/%s\n", info.OS, info.Arch)
 	return nil
