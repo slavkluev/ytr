@@ -2,7 +2,6 @@ package checklist
 
 import (
 	"encoding/json"
-	stdErrors "errors"
 	"fmt"
 	"io"
 
@@ -148,13 +147,15 @@ func runCreate(cmd *cobra.Command, issueKey, textFlag, assigneeFlag, fromJSON st
 		return api.MapAPIError(err)
 	}
 
-	// Extract created item from Issue.ChecklistItems.
-	created := extractCreatedItem(issue)
-	if created == nil {
-		return stdErrors.New("unexpected: created item not found in API response")
+	// The mutation already succeeded. Identify the created item by matching the
+	// requested text; if the response doesn't let us identify it, report a
+	// best-effort confirmation from the request rather than failing. A non-zero
+	// exit here would make agents retry and create duplicates (create isn't
+	// idempotent).
+	if created := extractCreatedItem(issue, req); created != nil {
+		return renderCreateOutput(cmd.OutOrStdout(), toChecklistItem(created), issueKey)
 	}
-
-	return renderCreateOutput(cmd.OutOrStdout(), toChecklistItem(created), issueKey)
+	return renderCreateOutput(cmd.OutOrStdout(), requestedChecklistItem(req), issueKey)
 }
 
 // renderCreateOutput handles JSON/quiet/table output for a checklist create result.
@@ -183,12 +184,41 @@ func renderCreateOutput(w io.Writer, item checklistItem, issueKey string) error 
 	return err
 }
 
-// extractCreatedItem returns the last element from Issue.ChecklistItems.
-// The API appends new items at the end, so the last element is the created item.
-// Returns nil if ChecklistItems is nil or empty.
-func extractCreatedItem(issue *tracker.Issue) *tracker.ChecklistItem {
-	if issue == nil || len(issue.ChecklistItems) == 0 {
+// extractCreatedItem returns the checklist item created by this request.
+// The API echoes the full checklist and item order is not guaranteed, so it
+// matches by the requested text (newest match wins on duplicates, since the API
+// appends). When the text is unknown (e.g. --from-json without a text field) it
+// falls back to the last non-nil item. Returns nil only when no item is present.
+func extractCreatedItem(issue *tracker.Issue, req *tracker.ChecklistItemRequest) *tracker.ChecklistItem {
+	if issue == nil {
 		return nil
 	}
-	return issue.ChecklistItems[len(issue.ChecklistItems)-1]
+	if req != nil && req.Text != nil && *req.Text != "" {
+		for i := len(issue.ChecklistItems) - 1; i >= 0; i-- {
+			if item := issue.ChecklistItems[i]; item != nil &&
+				api.DerefString(item.Text, "") == *req.Text {
+				return item
+			}
+		}
+	}
+	// API appends new items at the end; fall back to the last non-nil item.
+	for i := len(issue.ChecklistItems) - 1; i >= 0; i-- {
+		if item := issue.ChecklistItems[i]; item != nil {
+			return item
+		}
+	}
+	return nil
+}
+
+// requestedChecklistItem builds a best-effort checklistItem from the create
+// request, used when the API response doesn't let us identify the created item.
+func requestedChecklistItem(req *tracker.ChecklistItemRequest) checklistItem {
+	if req == nil {
+		return checklistItem{}
+	}
+	return checklistItem{
+		Text:     api.DerefString(req.Text, ""),
+		Checked:  api.DerefBool(req.Checked, false),
+		Assignee: api.DerefString(req.Assignee, ""),
+	}
 }

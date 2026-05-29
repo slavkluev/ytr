@@ -342,7 +342,11 @@ func TestEditAPIError(t *testing.T) {
 	}
 }
 
-func TestEditItemNotFound(t *testing.T) {
+// TestEditItemNotFoundBestEffort verifies that when the API response echoes a
+// different item than the one edited, the edit does NOT fail with a misleading
+// error. The mutation already succeeded, so the command reports a best-effort
+// confirmation carrying the requested item ID.
+func TestEditItemNotFoundBestEffort(t *testing.T) {
 	testutil.ResetOutputFlags(t)
 
 	// Mock returns Issue with different item IDs than requested.
@@ -357,13 +361,13 @@ func TestEditItemNotFound(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	_, err := setupEditCmd(t, mock, []string{"PROJ-1", "missing-item", "--text", "test"})
-	if err == nil {
-		t.Fatal("expected error for item not found, got nil")
+	out, err := setupEditCmd(t, mock, []string{"PROJ-1", "missing-item", "--text", "test"})
+	if err != nil {
+		t.Fatalf("expected no error (edit succeeded), got: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "edited item missing-item not found") {
-		t.Errorf("expected item not found error, got: %v", err)
+	if !strings.Contains(out, "Checklist item missing-item updated on PROJ-1") {
+		t.Errorf("expected best-effort confirmation with requested ID, got: %s", out)
 	}
 }
 

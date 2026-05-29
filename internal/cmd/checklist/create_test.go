@@ -255,8 +255,38 @@ func TestCreateAPIError(t *testing.T) {
 	}
 }
 
-func TestCreateEmptyChecklistItems(t *testing.T) {
+// TestCreateMatchesByText verifies the created item is identified by its text,
+// not by assuming it is the last element. The API does not guarantee item order.
+func TestCreateMatchesByText(t *testing.T) {
 	testutil.ResetOutputFlags(t)
+
+	// "Review PR" is NOT the last item; matching by text must still pick it.
+	mock := &mockChecklistCreator{
+		issue: makeIssueWithChecklist(
+			&tracker.ChecklistItem{ID: testutil.FlexStringPtr("item-old"), Text: testutil.StrPtr("Old task")},
+			&tracker.ChecklistItem{ID: testutil.FlexStringPtr("item-new"), Text: testutil.StrPtr("Review PR")},
+			&tracker.ChecklistItem{ID: testutil.FlexStringPtr("item-other"), Text: testutil.StrPtr("Another task")},
+		),
+		resp: &tracker.Response{},
+	}
+
+	out, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--text", "Review PR"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(out, "Checklist item item-new created on PROJ-1") {
+		t.Errorf("expected item-new (matched by text), got: %s", out)
+	}
+}
+
+// TestCreateEmptyChecklistItemsBestEffort verifies that a successful mutation
+// whose response carries no checklist items does NOT fail. A non-zero exit would
+// make agents retry and create duplicates (create isn't idempotent); instead the
+// command reports a best-effort confirmation built from the request.
+func TestCreateEmptyChecklistItemsBestEffort(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = ChecklistFields
 
 	mock := &mockChecklistCreator{
 		issue: &tracker.Issue{
@@ -265,13 +295,17 @@ func TestCreateEmptyChecklistItems(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--text", "test"})
-	if err == nil {
-		t.Fatal("expected error for empty ChecklistItems, got nil")
+	out, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--text", "test"})
+	if err != nil {
+		t.Fatalf("expected no error (mutation succeeded), got: %v", err)
 	}
 
-	if !strings.Contains(err.Error(), "created item not found") {
-		t.Errorf("expected extraction error, got: %v", err)
+	var item map[string]any
+	if err := json.Unmarshal([]byte(out), &item); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	if item["text"] != "test" {
+		t.Errorf("expected best-effort text='test' from request, got %v", item["text"])
 	}
 }
 

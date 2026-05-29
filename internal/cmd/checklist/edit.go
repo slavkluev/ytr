@@ -158,13 +158,13 @@ func runEdit(
 		return api.MapAPIError(err)
 	}
 
-	// Extract edited item from Issue.ChecklistItems.
-	edited := extractEditedItem(issue, itemID)
-	if edited == nil {
-		return fmt.Errorf("unexpected: edited item %s not found in API response", itemID)
+	// The edit already succeeded. If the response doesn't echo the item back by
+	// ID, report a best-effort confirmation from the request rather than failing
+	// with a misleading error (the item ID is known, so output still carries it).
+	if edited := extractEditedItem(issue, itemID); edited != nil {
+		return renderEditOutput(cmd.OutOrStdout(), toChecklistItem(edited), issueKey)
 	}
-
-	return renderEditOutput(cmd.OutOrStdout(), toChecklistItem(edited), issueKey)
+	return renderEditOutput(cmd.OutOrStdout(), editedChecklistItem(itemID, req), issueKey)
 }
 
 // renderEditOutput handles JSON/quiet/table output for a checklist edit result.
@@ -220,9 +220,25 @@ func extractEditedItem(issue *tracker.Issue, itemID string) *tracker.ChecklistIt
 		return nil
 	}
 	for _, item := range issue.ChecklistItems {
+		if item == nil {
+			continue
+		}
 		if api.DerefFlexString(item.ID, "") == itemID {
 			return item
 		}
 	}
 	return nil
+}
+
+// editedChecklistItem builds a best-effort checklistItem from the edit request,
+// used when the API response doesn't echo the edited item back by ID. The item
+// ID is known from the command arguments, so quiet/JSON output still carries it.
+func editedChecklistItem(itemID string, req *tracker.ChecklistItemRequest) checklistItem {
+	item := checklistItem{ID: itemID}
+	if req != nil {
+		item.Text = api.DerefString(req.Text, "")
+		item.Checked = api.DerefBool(req.Checked, false)
+		item.Assignee = api.DerefString(req.Assignee, "")
+	}
+	return item
 }
