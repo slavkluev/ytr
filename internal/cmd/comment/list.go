@@ -85,7 +85,7 @@ SEE ALSO
 
 	cmd.Flags().IntVar(&limit, "limit", defaultLimit, "Maximum number of comments per page")
 	cmd.Flags().StringVar(&cursor, "cursor", "", "Cursor ID for pagination (from previous response)")
-	cmd.Flags().BoolVar(&all, "all", false, "Fetch all pages automatically")
+	cmd.Flags().BoolVar(&all, "all", false, "Fetch all remaining pages automatically, starting from --cursor if set")
 
 	jsonfields.Register("ytr comment list", CommentFields)
 

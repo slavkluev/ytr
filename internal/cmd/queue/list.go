@@ -65,7 +65,7 @@ SEE ALSO
 
 	cmd.Flags().IntVar(&limit, "limit", defaultLimit, "Maximum number of results per page (max 1000)")
 	cmd.Flags().StringVar(&cursor, "cursor", "", "Page number for pagination")
-	cmd.Flags().BoolVar(&all, "all", false, "Fetch all pages automatically")
+	cmd.Flags().BoolVar(&all, "all", false, "Fetch all remaining pages automatically, starting from --cursor if set")
 
 	jsonfields.Register("ytr queue list", QueueListFields)
 
@@ -136,7 +136,7 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 func fetchQueues(cmd *cobra.Command, lister queueLister, limit, page int,
 	all bool) (*queueSearchResult, error) {
 	if all {
-		return fetchAllQueuePages(cmd, lister, limit)
+		return fetchAllQueuePages(cmd, lister, limit, page)
 	}
 
 	opts := &tracker.QueueListOptions{}
@@ -159,13 +159,13 @@ func fetchQueues(cmd *cobra.Command, lister queueLister, limit, page int,
 	return result, nil
 }
 
-// fetchAllQueuePages auto-paginates through all queue pages.
+// fetchAllQueuePages auto-paginates through all queue pages, starting from page.
 func fetchAllQueuePages(cmd *cobra.Command, lister queueLister,
-	limit int) (*queueSearchResult, error) {
+	limit, page int) (*queueSearchResult, error) {
 	var allQueues []*tracker.Queue
 	var totalCount int
 
-	currentPage := 1
+	currentPage := page
 	for {
 		opts := &tracker.QueueListOptions{}
 		opts.Page = currentPage

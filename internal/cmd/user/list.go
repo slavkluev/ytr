@@ -75,7 +75,7 @@ SEE ALSO
 
 	cmd.Flags().IntVar(&limit, "limit", defaultLimit, "Maximum number of results per page (max 1000)")
 	cmd.Flags().StringVar(&cursor, "cursor", "", "Page number for pagination")
-	cmd.Flags().BoolVar(&all, "all", false, "Fetch all pages automatically")
+	cmd.Flags().BoolVar(&all, "all", false, "Fetch all remaining pages automatically, starting from --cursor if set")
 
 	jsonfields.Register("ytr user list", UserListFields)
 
@@ -146,7 +146,7 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 func fetchUsers(cmd *cobra.Command, lister userLister, limit, page int,
 	all bool) (*userSearchResult, error) {
 	if all {
-		return fetchAllUserPages(cmd, lister, limit)
+		return fetchAllUserPages(cmd, lister, limit, page)
 	}
 
 	opts := &tracker.UserListOptions{}
@@ -169,13 +169,13 @@ func fetchUsers(cmd *cobra.Command, lister userLister, limit, page int,
 	return result, nil
 }
 
-// fetchAllUserPages auto-paginates through all user pages.
+// fetchAllUserPages auto-paginates through all user pages, starting from page.
 func fetchAllUserPages(cmd *cobra.Command, lister userLister,
-	limit int) (*userSearchResult, error) {
+	limit, page int) (*userSearchResult, error) {
 	var allUsers []*tracker.User
 	var totalCount int
 
-	currentPage := 1
+	currentPage := page
 	for {
 		opts := &tracker.UserListOptions{}
 		opts.Page = currentPage
