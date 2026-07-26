@@ -110,7 +110,7 @@ SEE ALSO
 	cmd.Flags().BoolVar(&orderAsc, "order-asc", false, "Sort ascending (default: descending)")
 	cmd.Flags().IntVar(&limit, "limit", defaultLimit, "Maximum number of results per page (max 1000)")
 	cmd.Flags().StringVar(&cursor, "cursor", "", "Page number for pagination")
-	cmd.Flags().BoolVar(&all, "all", false, "Fetch all remaining pages automatically, starting from --cursor if set")
+	cmd.Flags().BoolVar(&all, "all", false, "Fetch all pages automatically")
 
 	jsonfields.Register("ytr issue list", IssueListFields)
 
@@ -283,7 +283,7 @@ func parseFilterFlags(flags []string) (map[string]any, error) {
 func fetchIssues(cmd *cobra.Command, searcher issueSearcher, searchReq *tracker.IssueSearchRequest,
 	limit, page int, all bool) (*issueSearchResult, error) {
 	if all {
-		return fetchAllIssuePages(cmd, searcher, searchReq, limit, page)
+		return fetchAllIssuePages(cmd, searcher, searchReq, limit)
 	}
 
 	opts := &tracker.IssueSearchOptions{}
@@ -306,13 +306,13 @@ func fetchIssues(cmd *cobra.Command, searcher issueSearcher, searchReq *tracker.
 	return result, nil
 }
 
-// fetchAllIssuePages auto-paginates through all issue pages, starting from page.
+// fetchAllIssuePages auto-paginates through all issue pages.
 func fetchAllIssuePages(cmd *cobra.Command, searcher issueSearcher,
-	searchReq *tracker.IssueSearchRequest, limit, page int) (*issueSearchResult, error) {
+	searchReq *tracker.IssueSearchRequest, limit int) (*issueSearchResult, error) {
 	var allIssues []*tracker.Issue
 	var totalCount int
 
-	currentPage := page
+	currentPage := 1
 	for {
 		opts := &tracker.IssueSearchOptions{}
 		opts.Page = currentPage

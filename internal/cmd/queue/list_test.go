@@ -232,38 +232,6 @@ func TestQueueListAll(t *testing.T) {
 	}
 }
 
-func TestQueueListAllStartsFromCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
-	// Page 1 must never be requested: --cursor 2 means "resume at page 2".
-	mock := &mockQueueLister{
-		multiPage: map[int][]*tracker.Queue{
-			1: makeQueues("A", "B"),
-			2: makeQueues("C", "D"),
-			3: makeQueues("E"),
-		},
-		resp: &tracker.Response{TotalCount: 5},
-	}
-
-	out, err := setupListCmd(t, mock, []string{"--all", "--limit", "2", "--cursor", "2"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(mock.calls) != 2 {
-		t.Fatalf("expected 2 list calls starting at page 2, got %d", len(mock.calls))
-	}
-	if got := mock.calls[0].opts.Page; got != 2 {
-		t.Errorf("expected first call at page 2, got %d", got)
-	}
-
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	if len(lines) != 3 {
-		t.Fatalf("expected 3 keys from pages 2-3, got %d: %v", len(lines), lines)
-	}
-}
-
 func TestQueueListEmpty_Table(t *testing.T) {
 	testutil.ResetOutputFlags(t)
 

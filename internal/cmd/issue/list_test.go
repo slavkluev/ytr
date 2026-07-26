@@ -290,41 +290,6 @@ func TestListAll(t *testing.T) {
 	}
 }
 
-func TestListAllStartsFromCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
-	// Page 1 must never be requested: --cursor 2 means "resume at page 2".
-	mock := &mockSearcher{
-		multiPage: map[int][]*tracker.Issue{
-			1: makeIssues("A-1", "A-2"),
-			2: makeIssues("A-3", "A-4"),
-			3: makeIssues("A-5"),
-		},
-		resp: &tracker.Response{TotalCount: 5},
-	}
-
-	out, err := setupListCmd(t, mock, []string{"--all", "--limit", "2", "--cursor", "2"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(mock.calls) != 2 {
-		t.Fatalf("expected 2 search calls starting at page 2, got %d", len(mock.calls))
-	}
-	if got := mock.calls[0].opts.Page; got != 2 {
-		t.Errorf("expected first call at page 2, got %d", got)
-	}
-
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	if len(lines) != 3 {
-		t.Fatalf("expected 3 keys from pages 2-3, got %d: %v", len(lines), lines)
-	}
-	if strings.Contains(out, "A-1") {
-		t.Errorf("page 1 should have been skipped; got:\n%s", out)
-	}
-}
-
 func TestListEmpty_Table(t *testing.T) {
 	testutil.ResetOutputFlags(t)
 

@@ -157,7 +157,7 @@ SEE ALSO
 	cmd.Flags().StringVar(&typeFilter, "type", "", "Filter by change type (e.g., IssueWorkflow, IssueCommentAdded)")
 	cmd.Flags().IntVar(&limit, "limit", defaultLimit, "Maximum number of changelog entries per page")
 	cmd.Flags().StringVar(&cursor, "cursor", "", "Cursor ID for pagination (from previous response)")
-	cmd.Flags().BoolVar(&all, "all", false, "Fetch all remaining pages automatically, starting from --cursor if set")
+	cmd.Flags().BoolVar(&all, "all", false, "Fetch all pages automatically")
 
 	jsonfields.Register("ytr issue changelog", IssueChangelogFields)
 
@@ -239,7 +239,7 @@ func fetchChangelogPage(
 	typeFilter string,
 ) ([]*tracker.Changelog, bool, string, error) {
 	if all {
-		entries, err := fetchAllChangelog(ctx, getter, issueKey, limit, cursor, fieldFilter, typeFilter)
+		entries, err := fetchAllChangelog(ctx, getter, issueKey, limit, fieldFilter, typeFilter)
 		return entries, false, "", err
 	}
 
@@ -853,19 +853,17 @@ func normalizeChangeValue(v any) string {
 	}
 }
 
-// fetchAllChangelog auto-paginates through all changelog pages using cursor-based
-// pagination. When cursor is non-empty, paging resumes after that entry.
+// fetchAllChangelog auto-paginates through all changelog pages using cursor-based pagination.
 func fetchAllChangelog(
 	ctx context.Context,
 	getter changelogGetter,
 	issueKey string,
 	limit int,
-	cursor string,
 	fieldFilter string,
 	typeFilter string,
 ) ([]*tracker.Changelog, error) {
 	var all []*tracker.Changelog
-	currentCursor := cursor
+	currentCursor := ""
 
 	for {
 		opts := &tracker.ChangelogOptions{

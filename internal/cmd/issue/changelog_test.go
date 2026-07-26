@@ -505,69 +505,6 @@ func TestChangelogAll(t *testing.T) {
 	}
 }
 
-func TestChangelogAllStartsFromCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
-	id2 := tracker.FlexString("cursor-2")
-
-	// The "" page must never be requested: --cursor resumes after that entry.
-	mock := &paginatingChangelogMock{
-		pages: map[string][]*tracker.Changelog{
-			"": {
-				{
-					ID:        &id2,
-					UpdatedAt: &tracker.Timestamp{Time: time.Date(2024, 3, 15, 10, 0, 0, 0, time.UTC)},
-					UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-					Fields:    []*tracker.ChangelogEvent{{Field: fieldRef("status"), From: "open", To: "inProgress"}},
-				},
-			},
-			"cursor-1": {
-				{
-					ID:        &id2,
-					UpdatedAt: &tracker.Timestamp{Time: time.Date(2024, 3, 16, 14, 0, 0, 0, time.UTC)},
-					UpdatedBy: &tracker.User{Display: testutil.StrPtr("bob")},
-					Fields:    []*tracker.ChangelogEvent{{Field: fieldRef("status"), From: "inProgress", To: "done"}},
-				},
-			},
-			"cursor-2": {}, // empty → stop
-		},
-	}
-
-	origGetter := newChangelogGetter
-	newChangelogGetter = func(_ *config.ResolvedAuth) changelogGetter {
-		return mock
-	}
-	t.Cleanup(func() { newChangelogGetter = origGetter })
-
-	buf := &bytes.Buffer{}
-	cmd := newChangelogCmd()
-	cmd.SetOut(buf)
-	cmd.SetErr(buf)
-	cmd.PersistentFlags().String("token", "test-token", "")
-	cmd.PersistentFlags().String("org-id", "test-org", "")
-	cmd.PersistentFlags().String("org-type", "360", "")
-	cmd.SetArgs([]string{"PROJ-123", "--all", "--limit", "1", "--cursor", "cursor-1"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(mock.calls) != 2 {
-		t.Fatalf("expected 2 pagination calls, got %d: %v", len(mock.calls), mock.calls)
-	}
-	if mock.calls[0] != "cursor-1" {
-		t.Errorf("expected paging to resume at cursor-1, got %q", mock.calls[0])
-	}
-
-	out := buf.String()
-	if strings.Contains(out, "alice") {
-		t.Errorf("the first page should have been skipped; got:\n%s", out)
-	}
-	if !strings.Contains(out, "bob") {
-		t.Errorf("expected data from the resumed page; got:\n%s", out)
-	}
-}
-
 // sampleChangelogAllTypes returns entries covering all new event types.
 func sampleChangelogAllTypes() []*tracker.Changelog {
 	ts := tracker.Timestamp{Time: time.Date(2024, 3, 15, 10, 0, 0, 0, time.UTC)}
