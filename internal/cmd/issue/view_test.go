@@ -257,3 +257,46 @@ func TestViewTooManyArgs(t *testing.T) {
 		t.Fatal("expected error for too many args, got nil")
 	}
 }
+
+func TestViewNamesakesKeepDistinctUserIDs(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = IssueDetailFields
+
+	// Author and assignee are two different people sharing one display name.
+	mock := &mockGetter{
+		issue: &tracker.Issue{
+			Key:     testutil.StrPtr("PROJ-1"),
+			Summary: testutil.StrPtr("Summary"),
+			CreatedBy: &tracker.User{
+				Display: testutil.StrPtr("Иван Петров"),
+				ID:      testutil.FlexStringPtr("uid-author"),
+			},
+			Assignee: &tracker.User{
+				Display: testutil.StrPtr("Иван Петров"),
+				ID:      testutil.FlexStringPtr("uid-assignee"),
+			},
+		},
+		resp: &tracker.Response{},
+	}
+
+	out, err := setupViewCmd(t, mock, []string{"PROJ-1"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+
+	if result["author"] != result["assignee"] {
+		t.Fatalf("test premise broken: display names should collide, got %v and %v",
+			result["author"], result["assignee"])
+	}
+	if result["authorId"] != "uid-author" {
+		t.Errorf("expected authorId=uid-author, got %v", result["authorId"])
+	}
+	if result["assigneeId"] != "uid-assignee" {
+		t.Errorf("expected assigneeId=uid-assignee, got %v", result["assigneeId"])
+	}
+}

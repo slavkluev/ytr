@@ -221,3 +221,36 @@ func TestQueueViewNoArgs(t *testing.T) {
 		t.Fatal("expected error for no args, got nil")
 	}
 }
+
+func TestQueueViewExposesLeadID(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = QueueDetailFields
+
+	mock := &mockQueueGetter{
+		queue: &tracker.Queue{
+			Key:  testutil.StrPtr("PROJ"),
+			Name: testutil.StrPtr("Project"),
+			Lead: &tracker.User{
+				Display: testutil.StrPtr("Иван Петров"),
+				ID:      testutil.FlexStringPtr("uid-a"),
+			},
+		},
+		resp: &tracker.Response{},
+	}
+
+	out, err := setupViewCmd(t, mock, []string{"PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	if result["lead"] != "Иван Петров" {
+		t.Errorf("expected lead='Иван Петров', got %v", result["lead"])
+	}
+	if result["leadId"] != "uid-a" {
+		t.Errorf("expected leadId=uid-a, got %v", result["leadId"])
+	}
+}

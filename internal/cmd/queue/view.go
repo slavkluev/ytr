@@ -20,6 +20,7 @@ var QueueDetailFields = []string{
 	"name",
 	"description",
 	"lead",
+	"leadId",
 	"defaultType",
 	"defaultPriority",
 	"assignAuto",
@@ -33,6 +34,7 @@ type queueDetail struct {
 	Name            string `json:"name"`
 	Description     string `json:"description,omitempty"`
 	Lead            string `json:"lead,omitempty"`
+	LeadID          string `json:"leadId"`
 	DefaultType     string `json:"defaultType,omitempty"`
 	DefaultPriority string `json:"defaultPriority,omitempty"`
 	AssignAuto      bool   `json:"assignAuto"`
@@ -47,7 +49,7 @@ func newViewCmd() *cobra.Command {
 		Long: `Display detailed information about a Yandex Tracker queue.
 
 JSON FIELDS
-  key, name, description, lead, defaultType, defaultPriority, assignAuto, allowExternals
+  key, name, description, lead, leadId, defaultType, defaultPriority, assignAuto, allowExternals
 
 SEE ALSO
   ytr queue list    - List queues
@@ -126,6 +128,7 @@ func renderDetailJSON(w io.Writer, q *tracker.Queue) error {
 		Key:             api.DerefString(q.Key, ""),
 		Name:            api.DerefString(q.Name, ""),
 		Lead:            api.DerefUser(q.Lead, ""),
+		LeadID:          api.DerefUserID(q.Lead, ""),
 		DefaultType:     derefIssueType(q.DefaultType),
 		DefaultPriority: derefPriority(q.DefaultPriority),
 		AssignAuto:      derefBool(q.AssignAuto),

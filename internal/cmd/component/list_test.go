@@ -252,3 +252,46 @@ func TestList(t *testing.T) {
 		})
 	}
 }
+
+func TestListNamesakesKeepDistinctLeadIDs(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = ComponentListFields
+
+	namesake := func(componentID, userID string) *tracker.Component {
+		return &tracker.Component{
+			ID:   testutil.FlexStringPtr(componentID),
+			Name: testutil.StrPtr("Component " + componentID),
+			Lead: &tracker.User{
+				Display: testutil.StrPtr("Иван Петров"),
+				ID:      testutil.FlexStringPtr(userID),
+			},
+			AssignAuto: testutil.BoolPtr(false),
+		}
+	}
+
+	mock := &mockComponentLister{
+		components: []*tracker.Component{namesake("1", "uid-a"), namesake("2", "uid-b")},
+	}
+
+	out, err := setupListCmd(t, mock, []string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var items []map[string]any
+	if err := json.Unmarshal([]byte(out), &items); err != nil {
+		t.Fatalf("invalid JSON array: %v\nraw: %s", err, out)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+
+	if items[0]["lead"] != items[1]["lead"] {
+		t.Fatalf("test premise broken: display names should collide, got %v and %v",
+			items[0]["lead"], items[1]["lead"])
+	}
+	if items[0]["leadId"] != "uid-a" || items[1]["leadId"] != "uid-b" {
+		t.Errorf("expected leadIds uid-a and uid-b, got %v and %v",
+			items[0]["leadId"], items[1]["leadId"])
+	}
+}

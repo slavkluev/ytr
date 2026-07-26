@@ -602,3 +602,43 @@ func TestListOrderAsc_WithoutOrderBy_ReturnsUserError(t *testing.T) {
 		t.Errorf("expected no API calls, got %d", len(mock.calls))
 	}
 }
+
+func TestListNamesakesKeepDistinctAssigneeIDs(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = IssueListFields
+
+	issues := makeIssues("PROJ-1", "PROJ-2")
+	for i, uid := range []string{"uid-a", "uid-b"} {
+		issues[i].Assignee = &tracker.User{
+			Display: testutil.StrPtr("Иван Петров"),
+			ID:      testutil.FlexStringPtr(uid),
+		}
+	}
+
+	mock := &mockSearcher{issues: issues, resp: &tracker.Response{TotalCount: 2}}
+
+	out, err := setupListCmd(t, mock, []string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	items, ok := result["items"].([]any)
+	if !ok || len(items) != 2 {
+		t.Fatalf("expected 2 items, got %v", result["items"])
+	}
+
+	first, _ := items[0].(map[string]any)
+	second, _ := items[1].(map[string]any)
+	if first["assignee"] != second["assignee"] {
+		t.Fatalf("test premise broken: display names should collide, got %v and %v",
+			first["assignee"], second["assignee"])
+	}
+	if first["assigneeId"] != "uid-a" || second["assigneeId"] != "uid-b" {
+		t.Errorf("expected assigneeIds uid-a and uid-b, got %v and %v",
+			first["assigneeId"], second["assigneeId"])
+	}
+}

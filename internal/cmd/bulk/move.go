@@ -37,7 +37,7 @@ Issue keys can be provided as positional arguments or piped via stdin
 
 JSON FIELDS
   id, status, statusText, totalIssues, totalCompletedIssues,
-  executionIssuePercent, executionChunkPercent, createdBy, createdAt
+  executionIssuePercent, executionChunkPercent, createdBy, createdById, createdAt
 
 SEE ALSO
   ytr bulk status      - Show bulk operation status

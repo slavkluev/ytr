@@ -35,7 +35,7 @@ Deadline is supported only via --from-json (not as a separate flag).
 Use --checked to mark an item as done, --checked=false to unmark it.
 
 JSON FIELDS
-  id, text, checked, assignee
+  id, text, checked, assignee, assigneeId
 
 SEE ALSO
   ytr checklist list    - List checklist items on issue

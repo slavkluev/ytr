@@ -244,3 +244,50 @@ func TestListAPIError(t *testing.T) {
 		t.Errorf("expected mapped API error, got: %v", err)
 	}
 }
+
+func TestListNamesakesKeepDistinctAssigneeIDs(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = ChecklistFields
+
+	namesake := func(itemID, userID string) *tracker.ChecklistItem {
+		return &tracker.ChecklistItem{
+			ID:      testutil.FlexStringPtr(itemID),
+			Text:    testutil.StrPtr("Deploy service"),
+			Checked: testutil.BoolPtr(false),
+			Assignee: &tracker.User{
+				Display: testutil.StrPtr("Иван Петров"),
+				ID:      testutil.FlexStringPtr(userID),
+			},
+		}
+	}
+
+	mock := &mockChecklistLister{
+		items: []*tracker.ChecklistItem{
+			namesake("item-1", "uid-a"),
+			namesake("item-2", "uid-b"),
+		},
+		resp: &tracker.Response{},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var items []map[string]any
+	if err := json.Unmarshal([]byte(out), &items); err != nil {
+		t.Fatalf("invalid JSON array: %v\nraw: %s", err, out)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+
+	if items[0]["assignee"] != items[1]["assignee"] {
+		t.Fatalf("test premise broken: display names should collide, got %v and %v",
+			items[0]["assignee"], items[1]["assignee"])
+	}
+	if items[0]["assigneeId"] != "uid-a" || items[1]["assigneeId"] != "uid-b" {
+		t.Errorf("expected assigneeIds uid-a and uid-b, got %v and %v",
+			items[0]["assigneeId"], items[1]["assigneeId"])
+	}
+}

@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "3.0"
+  version: "4.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -275,6 +275,21 @@ ytr issue changelog PROJ-123 --quiet --field status
 Most resource commands support `--json field1,field2` field selection.
 Run `ytr <command> --help` and look for the `JSON FIELDS` section to see
 the available field names for that command.
+
+Every user-valued field ships with a paired `*Id` holding the Tracker user ID:
+`author`/`authorId`, `assignee`/`assigneeId`, `lead`/`leadId`,
+`createdBy`/`createdById`. Display names are not unique — two people can share
+one — so use the `*Id` field whenever identity matters, and feed it to
+`ytr user get` to resolve the person. The `*Id` key is always present, holding
+an empty string when the resource has no such user.
+
+```bash
+# Tell apart two commenters who share a display name
+ytr comment list PROJ-123 --json author,authorId
+
+# Resolve a comment author to a full user record
+ytr user get "$(ytr comment list PROJ-123 --json authorId --jq '.[0].authorId')"
+```
 
 Exceptions:
 

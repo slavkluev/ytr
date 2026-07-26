@@ -20,7 +20,7 @@ import (
 
 // IssueChangelogFields lists the available JSON field names for changelog output.
 var IssueChangelogFields = []string{
-	"date", "author", "type", "transport",
+	"date", "author", "authorId", "type", "transport",
 	"fields", "comments", "links", "attachments", "worklog", "relatedResolutions",
 }
 
@@ -29,6 +29,7 @@ var IssueChangelogFields = []string{
 type changelogEntry struct {
 	Date               string             `json:"date"`
 	Author             string             `json:"author"`
+	AuthorID           string             `json:"authorId"`
 	Type               string             `json:"type"`
 	Transport          string             `json:"transport,omitempty"`
 	Fields             []fieldChange      `json:"fields,omitempty"`
@@ -128,7 +129,7 @@ Each changelog entry represents an atomic event (field change, comment, link, et
 with the date, author, type, and structured details.
 
 JSON FIELDS
-  date, author, type, transport, fields, comments, links, attachments, worklog, relatedResolutions
+  date, author, authorId, type, transport, fields, comments, links, attachments, worklog, relatedResolutions
 
 SEE ALSO
   ytr issue view        - View issue details
@@ -293,6 +294,7 @@ func normalizeChangelog(entries []*tracker.Changelog) []changelogEntry {
 		}
 		entry := changelogEntry{
 			Author:    api.DerefUser(e.UpdatedBy, ""),
+			AuthorID:  api.DerefUserID(e.UpdatedBy, ""),
 			Type:      api.DerefString(e.Type, ""),
 			Transport: api.DerefString(e.Transport, ""),
 		}

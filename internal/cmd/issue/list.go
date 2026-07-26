@@ -31,20 +31,24 @@ const (
 )
 
 // IssueListFields lists the available JSON field names for issue list output.
-var IssueListFields = []string{"key", "summary", "status", "priority", "type", "assignee", "createdAt", "updatedAt"}
+var IssueListFields = []string{
+	"key", "summary", "status", "priority", "type",
+	"assignee", "assigneeId", "createdAt", "updatedAt",
+}
 
 // issueListItem is a clean struct for JSON serialization of issue list items.
 // Raw tracker.Issue fields are pointer types that produce nulls in JSON;
 // this struct uses value types with proper json tags.
 type issueListItem struct {
-	Key       string `json:"key"`
-	Summary   string `json:"summary"`
-	Status    string `json:"status"`
-	Priority  string `json:"priority,omitempty"`
-	Type      string `json:"type,omitempty"`
-	Assignee  string `json:"assignee,omitempty"`
-	CreatedAt string `json:"createdAt,omitempty"`
-	UpdatedAt string `json:"updatedAt,omitempty"`
+	Key        string `json:"key"`
+	Summary    string `json:"summary"`
+	Status     string `json:"status"`
+	Priority   string `json:"priority,omitempty"`
+	Type       string `json:"type,omitempty"`
+	Assignee   string `json:"assignee,omitempty"`
+	AssigneeID string `json:"assigneeId"`
+	CreatedAt  string `json:"createdAt,omitempty"`
+	UpdatedAt  string `json:"updatedAt,omitempty"`
 }
 
 // newListCmd creates the "issue list" command with filters and pagination.
@@ -71,7 +75,7 @@ Supports two search modes:
 The two modes are mutually exclusive: --query cannot be combined with --filter.
 
 JSON FIELDS
-  key, summary, status, priority, type, assignee, createdAt, updatedAt
+  key, summary, status, priority, type, assignee, assigneeId, createdAt, updatedAt
 
 SEE ALSO
   ytr issue view      - View issue details
@@ -426,10 +430,11 @@ func renderListTable(w io.Writer, issues []*tracker.Issue) error {
 // toListItem converts a tracker.Issue to a clean JSON-serializable struct.
 func toListItem(issue *tracker.Issue) issueListItem {
 	item := issueListItem{
-		Key:      api.DerefString(issue.Key, ""),
-		Summary:  api.DerefString(issue.Summary, ""),
-		Status:   issueStatusDisplay(issue),
-		Assignee: api.DerefUser(issue.Assignee, ""),
+		Key:        api.DerefString(issue.Key, ""),
+		Summary:    api.DerefString(issue.Summary, ""),
+		Status:     issueStatusDisplay(issue),
+		Assignee:   api.DerefUser(issue.Assignee, ""),
+		AssigneeID: api.DerefUserID(issue.Assignee, ""),
 	}
 
 	if issue.Priority != nil {

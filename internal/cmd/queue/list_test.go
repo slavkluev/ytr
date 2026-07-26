@@ -333,3 +333,43 @@ func TestQueueList_RegisteredAsSubcommand(t *testing.T) {
 		t.Error("'list' not registered as subcommand of 'queue'")
 	}
 }
+
+func TestQueueListNamesakesKeepDistinctLeadIDs(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = QueueListFields
+
+	queues := makeQueues("PROJ", "TEST")
+	for i, uid := range []string{"uid-a", "uid-b"} {
+		queues[i].Lead = &tracker.User{
+			Display: testutil.StrPtr("Иван Петров"),
+			ID:      testutil.FlexStringPtr(uid),
+		}
+	}
+
+	mock := &mockQueueLister{queues: queues, resp: &tracker.Response{TotalCount: 2}}
+
+	out, err := setupListCmd(t, mock, []string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	items, ok := result["items"].([]any)
+	if !ok || len(items) != 2 {
+		t.Fatalf("expected 2 items, got %v", result["items"])
+	}
+
+	first, _ := items[0].(map[string]any)
+	second, _ := items[1].(map[string]any)
+	if first["lead"] != second["lead"] {
+		t.Fatalf("test premise broken: display names should collide, got %v and %v",
+			first["lead"], second["lead"])
+	}
+	if first["leadId"] != "uid-a" || second["leadId"] != "uid-b" {
+		t.Errorf("expected leadIds uid-a and uid-b, got %v and %v",
+			first["leadId"], second["leadId"])
+	}
+}

@@ -16,13 +16,14 @@ import (
 )
 
 // WorklogFields lists the available JSON field names for worklog output.
-var WorklogFields = []string{"id", "author", "duration", "start", "comment"}
+var WorklogFields = []string{"id", "author", "authorId", "duration", "start", "comment"}
 
 // worklogItem is a clean struct for JSON serialization of worklog data.
 // Used by list, create, and edit commands.
 type worklogItem struct {
 	ID       string `json:"id"`
 	Author   string `json:"author"`
+	AuthorID string `json:"authorId"`
 	Duration string `json:"duration"`
 	Start    string `json:"start"`
 	Comment  string `json:"comment,omitempty"`
@@ -36,7 +37,7 @@ func newListCmd() *cobra.Command {
 		Long: `List all worklogs on a Yandex Tracker issue.
 
 JSON FIELDS
-  id, author, duration, start, comment
+  id, author, authorId, duration, start, comment
 
 SEE ALSO
   ytr worklog create  - Create a worklog
@@ -164,6 +165,7 @@ func toWorklogItem(wl *tracker.Worklog) worklogItem {
 	item := worklogItem{
 		ID:       api.DerefFlexString(wl.ID, ""),
 		Author:   api.DerefUser(wl.CreatedBy, ""),
+		AuthorID: api.DerefUserID(wl.CreatedBy, ""),
 		Duration: formatDuration(wl.Duration),
 		Comment:  api.DerefString(wl.Comment, ""),
 	}

@@ -319,3 +319,113 @@ func TestListRegistered(t *testing.T) {
 		t.Error("'list' not registered as subcommand of 'comment'")
 	}
 }
+
+// namesakeComment builds a comment whose author shares a display name with
+// every other namesake — only the user ID tells them apart.
+func namesakeComment(commentID, userID string) *tracker.Comment {
+	ts := tracker.Timestamp{Time: time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC)}
+	return &tracker.Comment{
+		ID:   testutil.FlexStringPtr(commentID),
+		Text: testutil.StrPtr("body"),
+		CreatedBy: &tracker.User{
+			Display: testutil.StrPtr("Иван Петров"),
+			ID:      testutil.FlexStringPtr(userID),
+		},
+		CreatedAt: &ts,
+	}
+}
+
+func TestListNamesakesKeepDistinctAuthorIDs(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = CommentFields
+
+	mock := &mockCommentLister{
+		comments: []*tracker.Comment{
+			namesakeComment("1", "uid-a"),
+			namesakeComment("2", "uid-b"),
+		},
+		resp: &tracker.Response{},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var items []map[string]any
+	if err := json.Unmarshal([]byte(out), &items); err != nil {
+		t.Fatalf("invalid JSON array: %v\nraw: %s", err, out)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+
+	if items[0]["author"] != items[1]["author"] {
+		t.Fatalf("test premise broken: display names should collide, got %v and %v",
+			items[0]["author"], items[1]["author"])
+	}
+	if items[0]["authorId"] != "uid-a" {
+		t.Errorf("expected authorId=uid-a, got %v", items[0]["authorId"])
+	}
+	if items[1]["authorId"] != "uid-b" {
+		t.Errorf("expected authorId=uid-b, got %v", items[1]["authorId"])
+	}
+}
+
+func TestListAuthorIDFieldSelection(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"authorId"}
+
+	mock := &mockCommentLister{
+		comments: []*tracker.Comment{namesakeComment("42", "uid-alice")},
+		resp:     &tracker.Response{},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var items []map[string]any
+	if err := json.Unmarshal([]byte(out), &items); err != nil {
+		t.Fatalf("invalid JSON array: %v\nraw: %s", err, out)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if len(items[0]) != 1 {
+		t.Errorf("expected only the selected field, got %v", items[0])
+	}
+	if items[0]["authorId"] != "uid-alice" {
+		t.Errorf("expected authorId=uid-alice, got %v", items[0]["authorId"])
+	}
+}
+
+func TestListNilAuthorYieldsEmptyAuthorID(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = CommentFields
+
+	mock := &mockCommentLister{
+		comments: []*tracker.Comment{{ID: testutil.FlexStringPtr("7")}},
+		resp:     &tracker.Response{},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var items []map[string]any
+	if err := json.Unmarshal([]byte(out), &items); err != nil {
+		t.Fatalf("invalid JSON array: %v\nraw: %s", err, out)
+	}
+	// The key must be present even with no author — that is why it carries no
+	// omitempty: consumers should not have to branch on a missing key.
+	authorID, ok := items[0]["authorId"]
+	if !ok {
+		t.Fatalf("authorId key missing from output: %v", items[0])
+	}
+	if authorID != "" {
+		t.Errorf("expected empty authorId, got %v", authorID)
+	}
+}

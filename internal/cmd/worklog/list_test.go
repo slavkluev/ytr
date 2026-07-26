@@ -236,3 +236,46 @@ func TestListAPIError(t *testing.T) {
 		t.Errorf("expected mapped API error, got: %v", err)
 	}
 }
+
+func TestListNamesakesKeepDistinctAuthorIDs(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = WorklogFields
+
+	first := makeWorklog("wl-1", "Review", 30)
+	first.CreatedBy = &tracker.User{
+		Display: testutil.StrPtr("Иван Петров"),
+		ID:      testutil.FlexStringPtr("uid-a"),
+	}
+	second := makeWorklog("wl-2", "Review", 45)
+	second.CreatedBy = &tracker.User{
+		Display: testutil.StrPtr("Иван Петров"),
+		ID:      testutil.FlexStringPtr("uid-b"),
+	}
+
+	mock := &mockWorklogLister{
+		worklogs: []*tracker.Worklog{first, second},
+		resp:     &tracker.Response{},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var items []map[string]any
+	if err := json.Unmarshal([]byte(out), &items); err != nil {
+		t.Fatalf("invalid JSON array: %v\nraw: %s", err, out)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+
+	if items[0]["author"] != items[1]["author"] {
+		t.Fatalf("test premise broken: display names should collide, got %v and %v",
+			items[0]["author"], items[1]["author"])
+	}
+	if items[0]["authorId"] != "uid-a" || items[1]["authorId"] != "uid-b" {
+		t.Errorf("expected authorIds uid-a and uid-b, got %v and %v",
+			items[0]["authorId"], items[1]["authorId"])
+	}
+}

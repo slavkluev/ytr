@@ -31,7 +31,7 @@ func newEditCmd() *cobra.Command {
 Provide the updated text via --body or full JSON via --from-json.
 
 JSON FIELDS
-  id, author, body, createdAt, updatedAt
+  id, author, authorId, body, createdAt, updatedAt
 
 SEE ALSO
   ytr comment list    - List comments on issue

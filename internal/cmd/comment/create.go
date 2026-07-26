@@ -23,7 +23,7 @@ func newCreateCmd() *cobra.Command {
 		Long: `Create a new comment on a Yandex Tracker issue.
 
 JSON FIELDS
-  id, author, body, createdAt, updatedAt
+  id, author, authorId, body, createdAt, updatedAt
 
 SEE ALSO
   ytr comment list  - List comments on issue

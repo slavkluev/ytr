@@ -1149,3 +1149,50 @@ func TestNormalizeChangeValue(t *testing.T) {
 		})
 	}
 }
+
+func TestChangelogNamesakesKeepDistinctAuthorIDs(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = IssueChangelogFields
+
+	entry := func(entryID, userID string) *tracker.Changelog {
+		return &tracker.Changelog{
+			ID:        testutil.FlexStringPtr(entryID),
+			UpdatedAt: makeTimestamp(time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC)),
+			UpdatedBy: &tracker.User{
+				Display: testutil.StrPtr("Иван Петров"),
+				ID:      testutil.FlexStringPtr(userID),
+			},
+			Type: testutil.StrPtr("IssueUpdated"),
+		}
+	}
+
+	mock := &mockChangelogGetter{
+		entries: []*tracker.Changelog{entry("cl-1", "uid-a"), entry("cl-2", "uid-b")},
+		resp:    &tracker.Response{},
+	}
+
+	out, err := setupChangelogCmd(t, mock, []string{"PROJ-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	items, ok := result["items"].([]any)
+	if !ok || len(items) != 2 {
+		t.Fatalf("expected 2 items, got %v", result["items"])
+	}
+
+	first, _ := items[0].(map[string]any)
+	second, _ := items[1].(map[string]any)
+	if first["author"] != second["author"] {
+		t.Fatalf("test premise broken: display names should collide, got %v and %v",
+			first["author"], second["author"])
+	}
+	if first["authorId"] != "uid-a" || second["authorId"] != "uid-b" {
+		t.Errorf("expected authorIds uid-a and uid-b, got %v and %v",
+			first["authorId"], second["authorId"])
+	}
+}

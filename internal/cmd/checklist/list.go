@@ -15,15 +15,16 @@ import (
 )
 
 // ChecklistFields lists the available JSON field names for checklist output.
-var ChecklistFields = []string{"id", "text", "checked", "assignee"}
+var ChecklistFields = []string{"id", "text", "checked", "assignee", "assigneeId"}
 
 // checklistItem is a clean struct for JSON serialization of checklist data.
 // Used by list, create, and edit commands.
 type checklistItem struct {
-	ID       string `json:"id"`
-	Text     string `json:"text"`
-	Checked  bool   `json:"checked"`
-	Assignee string `json:"assignee,omitempty"`
+	ID         string `json:"id"`
+	Text       string `json:"text"`
+	Checked    bool   `json:"checked"`
+	Assignee   string `json:"assignee,omitempty"`
+	AssigneeID string `json:"assigneeId"`
 }
 
 // newListCmd creates the "checklist list" command.
@@ -34,7 +35,7 @@ func newListCmd() *cobra.Command {
 		Long: `List all checklist items on a Yandex Tracker issue.
 
 JSON FIELDS
-  id, text, checked, assignee
+  id, text, checked, assignee, assigneeId
 
 SEE ALSO
   ytr checklist create  - Add checklist item to issue
@@ -154,10 +155,11 @@ func renderListOutput(w io.Writer, items []*tracker.ChecklistItem) error {
 // toChecklistItem converts a tracker.ChecklistItem to a clean JSON struct.
 func toChecklistItem(c *tracker.ChecklistItem) checklistItem {
 	return checklistItem{
-		ID:       api.DerefFlexString(c.ID, ""),
-		Text:     api.DerefString(c.Text, ""),
-		Checked:  api.DerefBool(c.Checked, false),
-		Assignee: api.DerefUser(c.Assignee, ""),
+		ID:         api.DerefFlexString(c.ID, ""),
+		Text:       api.DerefString(c.Text, ""),
+		Checked:    api.DerefBool(c.Checked, false),
+		Assignee:   api.DerefUser(c.Assignee, ""),
+		AssigneeID: api.DerefUserID(c.Assignee, ""),
 	}
 }
 

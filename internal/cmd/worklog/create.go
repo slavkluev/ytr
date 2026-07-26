@@ -37,7 +37,7 @@ P1DT2H (1 day 2 hours).
 Tracker requires both duration and start time when creating a worklog.
 
 JSON FIELDS
-  id, author, duration, start, comment
+  id, author, authorId, duration, start, comment
 
 SEE ALSO
   ytr worklog list    - List worklogs on issue

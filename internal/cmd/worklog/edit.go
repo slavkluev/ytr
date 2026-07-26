@@ -33,7 +33,7 @@ func newEditCmd() *cobra.Command {
 Provide one or more flags to update, or --from-json for full JSON input.
 
 JSON FIELDS
-  id, author, duration, start, comment
+  id, author, authorId, duration, start, comment
 
 SEE ALSO
   ytr worklog list    - List worklogs on issue

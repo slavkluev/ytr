@@ -16,7 +16,7 @@ import (
 )
 
 // ComponentGetFields lists the available JSON field names for component get output.
-var ComponentGetFields = []string{"id", "name", "queue", "lead", "description", "assignAuto"}
+var ComponentGetFields = []string{"id", "name", "queue", "lead", "leadId", "description", "assignAuto"}
 
 // componentDetail is a clean struct for JSON serialization of a single component.
 type componentDetail struct {
@@ -24,6 +24,7 @@ type componentDetail struct {
 	Name        string `json:"name"`
 	Queue       string `json:"queue,omitempty"`
 	Lead        string `json:"lead,omitempty"`
+	LeadID      string `json:"leadId"`
 	Description string `json:"description,omitempty"`
 	AssignAuto  bool   `json:"assignAuto"`
 }
@@ -40,6 +41,7 @@ func toComponentDetail(c *tracker.Component) componentDetail {
 		Name:        api.DerefString(c.Name, ""),
 		Queue:       queue,
 		Lead:        api.DerefUser(c.Lead, ""),
+		LeadID:      api.DerefUserID(c.Lead, ""),
 		Description: api.DerefString(c.Description, ""),
 		AssignAuto:  api.DerefBool(c.AssignAuto, false),
 	}
@@ -53,7 +55,7 @@ func newGetCmd() *cobra.Command {
 		Long: `Display detailed information about a Yandex Tracker component.
 
 JSON FIELDS
-  id, name, queue, lead, description, assignAuto
+  id, name, queue, lead, leadId, description, assignAuto
 
 SEE ALSO
   ytr component list    - List all components

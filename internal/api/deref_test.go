@@ -80,6 +80,52 @@ func TestDerefUser_IDFallback(t *testing.T) {
 	}
 }
 
+func TestDerefUserID(t *testing.T) {
+	numeric := tracker.FlexString("1120000000123456")
+	login := tracker.FlexString("johndoe")
+
+	tests := []struct {
+		name string
+		user *tracker.User
+		want string
+	}{
+		{name: "nil user", user: nil, want: "-"},
+		{name: "nil ID", user: &tracker.User{Display: ptr("John Doe")}, want: "-"},
+		{name: "numeric id (cloud org)", user: &tracker.User{ID: &numeric}, want: "1120000000123456"},
+		{name: "login-shaped id (360 org)", user: &tracker.User{ID: &login}, want: "johndoe"},
+		{
+			// Display must not shadow the ID the way DerefUser lets it.
+			name: "display present alongside id",
+			user: &tracker.User{Display: ptr("John Doe"), ID: &login},
+			want: "johndoe",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := api.DerefUserID(tt.user, "-"); got != tt.want {
+				t.Errorf("DerefUserID() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDerefUserIDSeparatesNamesakes(t *testing.T) {
+	// The defect this field exists to fix: two users share a display name,
+	// so DerefUser collapses them to the same string.
+	idA := tracker.FlexString("uid-a")
+	idB := tracker.FlexString("uid-b")
+	alice := &tracker.User{Display: ptr("Иван Петров"), ID: &idA}
+	bob := &tracker.User{Display: ptr("Иван Петров"), ID: &idB}
+
+	if api.DerefUser(alice, "") != api.DerefUser(bob, "") {
+		t.Fatal("test premise broken: display names should collide")
+	}
+	if api.DerefUserID(alice, "") == api.DerefUserID(bob, "") {
+		t.Error("DerefUserID returned the same ID for two distinct namesakes")
+	}
+}
+
 func boolPtr(b bool) *bool { return &b }
 
 func TestDerefBool(t *testing.T) {

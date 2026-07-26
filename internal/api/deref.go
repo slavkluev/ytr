@@ -60,3 +60,14 @@ func DerefUser(u *tracker.User, fallback string) string {
 	}
 	return fallback
 }
+
+// DerefUserID safely extracts the identifier from a *tracker.User pointer.
+// Embedded references carry only Self, ID, and Display, so the ID is the one
+// stable handle for telling apart users who share a display name — DerefUser
+// collapses those to the same string.
+func DerefUserID(u *tracker.User, fallback string) string {
+	if u == nil {
+		return fallback
+	}
+	return DerefFlexString(u.ID, fallback)
+}

@@ -21,15 +21,16 @@ const (
 )
 
 // QueueListFields lists the available JSON field names for queue list output.
-var QueueListFields = []string{"key", "name", "lead"}
+var QueueListFields = []string{"key", "name", "lead", "leadId"}
 
 // queueItem is a clean struct for JSON serialization of queue list items.
 // Raw tracker.Queue fields are pointer types that produce nulls in JSON;
 // this struct uses value types with proper json tags.
 type queueItem struct {
-	Key  string `json:"key"`
-	Name string `json:"name"`
-	Lead string `json:"lead,omitempty"`
+	Key    string `json:"key"`
+	Name   string `json:"name"`
+	Lead   string `json:"lead,omitempty"`
+	LeadID string `json:"leadId"`
 }
 
 // newListCmd creates the "queue list" command with pagination.
@@ -46,7 +47,7 @@ func newListCmd() *cobra.Command {
 		Long: `List Yandex Tracker queues with pagination.
 
 JSON FIELDS
-  key, name, lead
+  key, name, lead, leadId
 
 SEE ALSO
   ytr queue view    - View queue details`,
@@ -273,8 +274,9 @@ func renderListTable(w io.Writer, queues []*tracker.Queue) error {
 // toQueueItem converts a tracker.Queue to a clean JSON-serializable struct.
 func toQueueItem(q *tracker.Queue) queueItem {
 	return queueItem{
-		Key:  api.DerefString(q.Key, ""),
-		Name: api.DerefString(q.Name, ""),
-		Lead: api.DerefUser(q.Lead, ""),
+		Key:    api.DerefString(q.Key, ""),
+		Name:   api.DerefString(q.Name, ""),
+		Lead:   api.DerefUser(q.Lead, ""),
+		LeadID: api.DerefUserID(q.Lead, ""),
 	}
 }

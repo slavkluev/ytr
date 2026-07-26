@@ -74,6 +74,7 @@ var BulkStatusFields = []string{
 	"executionIssuePercent",
 	"executionChunkPercent",
 	"createdBy",
+	"createdById",
 	"createdAt",
 }
 
@@ -87,6 +88,7 @@ type bulkChangeDetail struct {
 	ExecutionIssuePercent int    `json:"executionIssuePercent"`
 	ExecutionChunkPercent int    `json:"executionChunkPercent"`
 	CreatedBy             string `json:"createdBy"`
+	CreatedByID           string `json:"createdById"`
 	CreatedAt             string `json:"createdAt"`
 }
 
@@ -101,6 +103,7 @@ func toBulkChangeDetail(bc *tracker.BulkChange) bulkChangeDetail {
 		ExecutionIssuePercent: api.DerefInt(bc.ExecutionIssuePercent, 0),
 		ExecutionChunkPercent: api.DerefInt(bc.ExecutionChunkPercent, 0),
 		CreatedBy:             api.DerefUser(bc.CreatedBy, ""),
+		CreatedByID:           api.DerefUserID(bc.CreatedBy, ""),
 	}
 
 	if bc.CreatedAt != nil {

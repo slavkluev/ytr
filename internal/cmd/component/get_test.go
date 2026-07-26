@@ -241,3 +241,36 @@ func TestGet(t *testing.T) {
 		})
 	}
 }
+
+func TestGetExposesLeadID(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = ComponentGetFields
+
+	mock := &mockComponentGetter{
+		component: &tracker.Component{
+			ID:   testutil.FlexStringPtr("42"),
+			Name: testutil.StrPtr("Backend"),
+			Lead: &tracker.User{
+				Display: testutil.StrPtr("Иван Петров"),
+				ID:      testutil.FlexStringPtr("uid-a"),
+			},
+			AssignAuto: testutil.BoolPtr(true),
+		},
+	}
+
+	out, err := setupGetCmd(t, mock, []string{"42"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	if result["lead"] != "Иван Петров" {
+		t.Errorf("expected lead='Иван Петров', got %v", result["lead"])
+	}
+	if result["leadId"] != "uid-a" {
+		t.Errorf("expected leadId=uid-a, got %v", result["leadId"])
+	}
+}

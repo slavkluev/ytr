@@ -24,7 +24,9 @@ var IssueDetailFields = []string{
 	"priority",
 	"type",
 	"author",
+	"authorId",
 	"assignee",
+	"assigneeId",
 	"createdAt",
 	"updatedAt",
 	"description",
@@ -39,7 +41,9 @@ type issueDetail struct {
 	Priority    string `json:"priority,omitempty"`
 	Type        string `json:"type,omitempty"`
 	Author      string `json:"author,omitempty"`
+	AuthorID    string `json:"authorId"`
 	Assignee    string `json:"assignee,omitempty"`
+	AssigneeID  string `json:"assigneeId"`
 	CreatedAt   string `json:"createdAt,omitempty"`
 	UpdatedAt   string `json:"updatedAt,omitempty"`
 	Description string `json:"description,omitempty"`
@@ -48,11 +52,13 @@ type issueDetail struct {
 // toIssueDetail converts a tracker.Issue into a clean issueDetail struct for JSON output.
 func toIssueDetail(issue *tracker.Issue) issueDetail {
 	detail := issueDetail{
-		Key:      api.DerefString(issue.Key, ""),
-		Summary:  api.DerefString(issue.Summary, ""),
-		Status:   issueStatusDisplay(issue),
-		Author:   api.DerefUser(issue.CreatedBy, ""),
-		Assignee: api.DerefUser(issue.Assignee, ""),
+		Key:        api.DerefString(issue.Key, ""),
+		Summary:    api.DerefString(issue.Summary, ""),
+		Status:     issueStatusDisplay(issue),
+		Author:     api.DerefUser(issue.CreatedBy, ""),
+		AuthorID:   api.DerefUserID(issue.CreatedBy, ""),
+		Assignee:   api.DerefUser(issue.Assignee, ""),
+		AssigneeID: api.DerefUserID(issue.Assignee, ""),
 	}
 	if issue.Priority != nil {
 		detail.Priority = api.DerefString(issue.Priority.Display, "")
@@ -80,7 +86,7 @@ func newViewCmd() *cobra.Command {
 		Long: `Display detailed information about a Yandex Tracker issue.
 
 JSON FIELDS
-  key, summary, status, priority, type, author, assignee, createdAt, updatedAt, description
+  key, summary, status, priority, type, author, authorId, assignee, assigneeId, createdAt, updatedAt, description
 
 SEE ALSO
   ytr issue list        - List issues

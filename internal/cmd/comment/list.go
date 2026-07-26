@@ -29,13 +29,14 @@ const (
 )
 
 // CommentFields lists the available JSON field names for comment output.
-var CommentFields = []string{"id", "author", "body", "createdAt", "updatedAt"}
+var CommentFields = []string{"id", "author", "authorId", "body", "createdAt", "updatedAt"}
 
 // commentItem is a clean struct for JSON serialization of comment data.
 // Used by both list and create commands.
 type commentItem struct {
 	ID        string `json:"id"`
 	Author    string `json:"author"`
+	AuthorID  string `json:"authorId"`
 	Body      string `json:"body"`
 	CreatedAt string `json:"createdAt"`
 	UpdatedAt string `json:"updatedAt,omitempty"`
@@ -49,7 +50,7 @@ func newListCmd() *cobra.Command {
 		Long: `List all comments on a Yandex Tracker issue.
 
 JSON FIELDS
-  id, author, body, createdAt, updatedAt
+  id, author, authorId, body, createdAt, updatedAt
 
 SEE ALSO
   ytr comment create  - Add comment to issue
@@ -218,9 +219,10 @@ func renderListOutput(w io.Writer, comments []*tracker.Comment) error {
 // toCommentItem converts a tracker.Comment to a clean JSON-serializable struct.
 func toCommentItem(c *tracker.Comment) commentItem {
 	item := commentItem{
-		ID:     api.DerefFlexString(c.ID, ""),
-		Author: api.DerefUser(c.CreatedBy, ""),
-		Body:   api.DerefString(c.Text, ""),
+		ID:       api.DerefFlexString(c.ID, ""),
+		Author:   api.DerefUser(c.CreatedBy, ""),
+		AuthorID: api.DerefUserID(c.CreatedBy, ""),
+		Body:     api.DerefString(c.Text, ""),
 	}
 
 	if c.CreatedAt != nil {

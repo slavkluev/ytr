@@ -35,7 +35,7 @@ func newCreateCmd() *cobra.Command {
 Provide --name and --queue for required fields, or --from-json for full JSON input.
 
 JSON FIELDS
-  id, name, queue, lead, description, assignAuto
+  id, name, queue, lead, leadId, description, assignAuto
 
 SEE ALSO
   ytr component list    - List all components

@@ -208,3 +208,39 @@ func TestStatus_RegisteredAsSubcommand(t *testing.T) {
 		t.Error("expected 'status' subcommand to be registered on bulk command")
 	}
 }
+
+func TestStatusExposesCreatedByID(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = BulkStatusFields
+
+	// Built inline rather than via makeBulkChange: only the author matters here,
+	// and a fourth caller passing the same status would pin that helper's
+	// status parameter to a constant.
+	mock := &mockStatusGetter{
+		bc: &tracker.BulkChange{
+			ID:         testutil.FlexStringPtr("op-1"),
+			Status:     testutil.StrPtr("COMPLETED"),
+			StatusText: testutil.StrPtr("Operation COMPLETED"),
+			CreatedBy: &tracker.User{
+				Display: testutil.StrPtr("Иван Петров"),
+				ID:      testutil.FlexStringPtr("uid-a"),
+			},
+		},
+	}
+
+	out, err := setupStatusCmd(t, mock, []string{"op-1"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var item map[string]any
+	if err := json.Unmarshal([]byte(out), &item); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	if item["createdBy"] != "Иван Петров" {
+		t.Errorf("expected createdBy='Иван Петров', got %v", item["createdBy"])
+	}
+	if item["createdById"] != "uid-a" {
+		t.Errorf("expected createdById=uid-a, got %v", item["createdById"])
+	}
+}

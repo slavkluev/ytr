@@ -35,7 +35,7 @@ func newEditCmd() *cobra.Command {
 Provide one or more flags to update, or --from-json for full JSON input.
 
 JSON FIELDS
-  id, name, queue, lead, description, assignAuto
+  id, name, queue, lead, leadId, description, assignAuto
 
 SEE ALSO
   ytr component list    - List all components
