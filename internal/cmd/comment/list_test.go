@@ -16,11 +16,8 @@ import (
 )
 
 // mockCommentLister implements commentLister for testing.
-// When pages is set, each call returns the next page (empty once exhausted);
-// otherwise every call returns comments.
 type mockCommentLister struct {
 	comments []*tracker.Comment
-	pages    [][]*tracker.Comment
 	resp     *tracker.Response
 	err      error
 	calls    []mockListCall
@@ -40,33 +37,7 @@ func (m *mockCommentLister) ListComments(
 	if m.err != nil {
 		return nil, nil, m.err
 	}
-	if m.pages != nil {
-		idx := len(m.calls) - 1
-		if idx >= len(m.pages) {
-			return nil, m.resp, nil
-		}
-		return m.pages[idx], m.resp, nil
-	}
 	return m.comments, m.resp, nil
-}
-
-// paginatedOutput mirrors the JSON envelope emitted by comment list.
-type paginatedOutput struct {
-	Items      []map[string]any `json:"items"`
-	Pagination struct {
-		Cursor  string `json:"cursor"`
-		HasMore bool   `json:"hasMore"`
-	} `json:"pagination"`
-}
-
-func decodePaginated(t *testing.T, out string) paginatedOutput {
-	t.Helper()
-
-	var result paginatedOutput
-	if err := json.Unmarshal([]byte(out), &result); err != nil {
-		t.Fatalf("invalid JSON envelope: %v\nraw: %s", err, out)
-	}
-	return result
 }
 
 func makeComments(ids ...string) []*tracker.Comment {
@@ -160,13 +131,16 @@ func TestListJSON(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	result := decodePaginated(t, out)
-
-	if len(result.Items) != 1 {
-		t.Fatalf("expected 1 item, got %d", len(result.Items))
+	var items []map[string]any
+	if err := json.Unmarshal([]byte(out), &items); err != nil {
+		t.Fatalf("invalid JSON array: %v\nraw: %s", err, out)
 	}
 
-	item := result.Items[0]
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+
+	item := items[0]
 	if item["id"] != "42" {
 		t.Errorf("expected id=42, got %v", item["id"])
 	}
@@ -259,219 +233,6 @@ func TestListNilFields(t *testing.T) {
 	// Should render without crashing.
 	if out == "" {
 		t.Error("expected some output, got empty")
-	}
-}
-
-func TestListPassesLimitAndCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
-	mock := &mockCommentLister{
-		comments: makeComments("101"),
-		resp:     &tracker.Response{},
-	}
-
-	if _, err := setupListCmd(t, mock, []string{"PROJ-1", "--limit", "10", "--cursor", "abc"}); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(mock.calls) != 1 {
-		t.Fatalf("expected 1 API call, got %d", len(mock.calls))
-	}
-	opts := mock.calls[0].opts
-	if opts == nil {
-		t.Fatal("expected non-nil CommentListOptions")
-	}
-	if opts.PerPage != 10 {
-		t.Errorf("expected PerPage=10, got %d", opts.PerPage)
-	}
-	if opts.ID != "abc" {
-		t.Errorf("expected ID=abc, got %q", opts.ID)
-	}
-}
-
-func TestListLimitClamped(t *testing.T) {
-	tests := []struct {
-		name  string
-		limit string
-		want  int
-	}{
-		{"zero falls back to default", "0", defaultLimit},
-		{"negative falls back to default", "-5", defaultLimit},
-		{"above max is capped", "5000", maxLimit},
-		{"in range is kept", "25", 25},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-
-			mock := &mockCommentLister{
-				comments: makeComments("1"),
-				resp:     &tracker.Response{},
-			}
-
-			if _, err := setupListCmd(t, mock, []string{"PROJ-1", "--limit", tt.limit}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if len(mock.calls) != 1 {
-				t.Fatalf("expected 1 API call, got %d", len(mock.calls))
-			}
-			if got := mock.calls[0].opts.PerPage; got != tt.want {
-				t.Errorf("expected PerPage=%d, got %d", tt.want, got)
-			}
-		})
-	}
-}
-
-func TestListJSONFullPageHasMore(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = CommentFields
-
-	mock := &mockCommentLister{
-		comments: makeComments("101", "202"),
-		resp:     &tracker.Response{},
-	}
-
-	out, err := setupListCmd(t, mock, []string{"PROJ-1", "--limit", "2"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	result := decodePaginated(t, out)
-	if !result.Pagination.HasMore {
-		t.Error("expected hasMore=true for a full page")
-	}
-	if result.Pagination.Cursor != "202" {
-		t.Errorf("expected cursor=202 (last comment ID), got %q", result.Pagination.Cursor)
-	}
-}
-
-func TestListJSONPartialPageHasNoMore(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = CommentFields
-
-	mock := &mockCommentLister{
-		comments: makeComments("101"),
-		resp:     &tracker.Response{},
-	}
-
-	out, err := setupListCmd(t, mock, []string{"PROJ-1", "--limit", "2"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	result := decodePaginated(t, out)
-	if result.Pagination.HasMore {
-		t.Error("expected hasMore=false for a partial page")
-	}
-	if result.Pagination.Cursor != "" {
-		t.Errorf("expected empty cursor, got %q", result.Pagination.Cursor)
-	}
-}
-
-func TestListAllFetchesEveryPage(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = CommentFields
-
-	mock := &mockCommentLister{
-		pages: [][]*tracker.Comment{
-			makeComments("1", "2"),
-			makeComments("3"),
-		},
-		resp: &tracker.Response{},
-	}
-
-	out, err := setupListCmd(t, mock, []string{"PROJ-1", "--limit", "2", "--all"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	result := decodePaginated(t, out)
-	if len(result.Items) != 3 {
-		t.Fatalf("expected 3 accumulated comments, got %d", len(result.Items))
-	}
-	if len(mock.calls) != 2 {
-		t.Fatalf("expected 2 API calls (stop on partial page), got %d", len(mock.calls))
-	}
-	if mock.calls[0].opts.ID != "" {
-		t.Errorf("expected first call without cursor, got %q", mock.calls[0].opts.ID)
-	}
-	if mock.calls[1].opts.ID != "2" {
-		t.Errorf("expected second call to resume after ID 2, got %q", mock.calls[1].opts.ID)
-	}
-	if result.Pagination.HasMore || result.Pagination.Cursor != "" {
-		t.Errorf("expected no pagination state with --all, got %+v", result.Pagination)
-	}
-}
-
-func TestListAllStartsFromCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
-	mock := &mockCommentLister{
-		pages: [][]*tracker.Comment{makeComments("9")},
-		resp:  &tracker.Response{},
-	}
-
-	if _, err := setupListCmd(t, mock, []string{"PROJ-1", "--limit", "2", "--all", "--cursor", "c0"}); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(mock.calls) == 0 {
-		t.Fatal("no API calls made")
-	}
-	if mock.calls[0].opts.ID != "c0" {
-		t.Errorf("expected --all to resume from cursor c0, got %q", mock.calls[0].opts.ID)
-	}
-}
-
-func TestListAllStopsOnEmptyPage(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = CommentFields
-
-	mock := &mockCommentLister{
-		pages: [][]*tracker.Comment{
-			makeComments("1", "2"),
-			{},
-		},
-		resp: &tracker.Response{},
-	}
-
-	out, err := setupListCmd(t, mock, []string{"PROJ-1", "--limit", "2", "--all"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	result := decodePaginated(t, out)
-	if len(result.Items) != 2 {
-		t.Fatalf("expected 2 comments, got %d", len(result.Items))
-	}
-	if len(mock.calls) != 2 {
-		t.Errorf("expected 2 API calls, got %d", len(mock.calls))
-	}
-}
-
-func TestListAllStopsOnMissingID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
-	// A full page whose last comment carries no ID leaves no cursor to advance
-	// to; paging must stop instead of refetching the same page forever.
-	mock := &mockCommentLister{
-		pages: [][]*tracker.Comment{
-			{
-				{ID: testutil.FlexStringPtr("1")},
-				{},
-			},
-		},
-		resp: &tracker.Response{},
-	}
-
-	if _, err := setupListCmd(t, mock, []string{"PROJ-1", "--limit", "2", "--all"}); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(mock.calls) != 1 {
-		t.Errorf("expected paging to stop after 1 call, got %d", len(mock.calls))
 	}
 }
 

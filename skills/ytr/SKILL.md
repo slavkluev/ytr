@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "4.0"
+  version: "3.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -58,7 +58,7 @@ Notes:
 | `ytr comment create ISSUE-KEY` | Add comment to issue | `--body` |
 | `ytr comment edit ISSUE-KEY COMMENT-ID` | Edit a comment | `--body`, `--from-json` |
 | `ytr comment delete ISSUE-KEY COMMENT-ID` | Delete a comment | |
-| `ytr comment list ISSUE-KEY` | List comments on an issue | `--limit`, `--cursor`, `--all` |
+| `ytr comment list ISSUE-KEY` | List comments on an issue | |
 | `ytr link create ISSUE-KEY` | Create a link to another issue | `--type`, `--issue`, `--from-json` |
 | `ytr link delete ISSUE-KEY LINK-ID` | Delete a link | |
 | `ytr link list ISSUE-KEY` | List links on an issue | |
@@ -259,12 +259,8 @@ ytr issue list --filter queue=PROJ --jq '.items[].key'
 ytr issue changelog PROJ-123 --json date,author,type,fields,comments,links
 ytr issue changelog PROJ-123 --json date,type,fields --jq '.items[] | select(.type=="IssueWorkflow")'
 
-# Comments are paginated as well: only the first page unless --all is given
-ytr comment list PROJ-123 --json body --jq '.items[].body'
-ytr comment list PROJ-123 --all --json body --jq '.items[].body'
-
 # Non-paginated sub-resource lists return arrays
-ytr link list PROJ-123 --json type --jq '.[].type'
+ytr comment list PROJ-123 --json body --jq '.[].body'
 
 # Quiet mode: minimal text, one item per line
 ytr issue list --filter queue=PROJ --quiet
@@ -283,15 +279,15 @@ the available field names for that command.
 Exceptions:
 
 - Delete commands return fixed confirmation objects such as `{ "id": "...", "deleted": true }`.
-- Paginated list commands such as `issue list`, `issue changelog`, `comment list`, `queue list`, and `user list` return an object with `items` and `pagination`. They return one page at a time; pass `--all` to fetch the rest, or follow `pagination.cursor`.
-- Non-paginated sub-resource list commands such as `link list`, `worklog list`, and `checklist list` return arrays.
+- Paginated list commands such as `issue list`, `issue changelog`, `queue list`, and `user list` return an object with `items` and `pagination`.
+- Non-paginated sub-resource list commands such as `comment list`, `link list`, `worklog list`, and `checklist list` return arrays.
 
 ```bash
 # Filter paginated issue-list output
 ytr issue list --filter queue=PROJ --json key --jq '.items[].key'
 
 # Filter sub-resource array output
-ytr link list PROJ-123 --json type --jq '.[].type'
+ytr comment list PROJ-123 --json body --jq '.[].body'
 
 # Quiet mode: minimal text, one item per line
 ytr issue list --filter queue=PROJ --quiet
@@ -327,6 +323,6 @@ ytr issue list --filter queue=PROJ --quiet
 | `--field` | `issue changelog` | Filter changes by field name (case-insensitive) |
 | `--type` | `issue changelog` | Filter by change type (e.g., IssueWorkflow, IssueCommentAdded) |
 | `--limit N` | Paginated list commands | Results per page (default 50, max 1000) |
-| `--all` | Paginated list commands | Fetch all remaining pages automatically, resuming from `--cursor` when one is set |
+| `--all` | Paginated list commands | Fetch all pages automatically |
 | `--cursor` | Paginated list commands | Pagination cursor (pass the `pagination.cursor` value from the previous response) |
 | `--timeout` | Bulk commands | Max wait time (default 5m) |
