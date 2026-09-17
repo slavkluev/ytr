@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
@@ -246,5 +247,49 @@ func TestPrintHuman_NoSuggestion(t *testing.T) {
 	want := "Error: bad input\n"
 	if got := buf.String(); got != want {
 		t.Errorf("PrintHuman() = %q, want %q", got, want)
+	}
+}
+
+func TestNewUnknownFieldsError(t *testing.T) {
+	err := ytrerrors.NewUnknownFieldsError(
+		[]string{"bogus", "size"},
+		[]string{"queue", "summary"},
+	)
+
+	if err.ExitCode != ytrerrors.ExitUserError {
+		t.Errorf("ExitCode = %d, want %d", err.ExitCode, ytrerrors.ExitUserError)
+	}
+	for _, field := range []string{"bogus", "size"} {
+		if !strings.Contains(err.Message, field) {
+			t.Errorf("Message = %q, want it to name %q", err.Message, field)
+		}
+	}
+
+	data, jsonErr := err.JSONError()
+	if jsonErr != nil {
+		t.Fatalf("JSONError() returned error: %v", jsonErr)
+	}
+
+	var result map[string]any
+	if unmarshalErr := json.Unmarshal(data, &result); unmarshalErr != nil {
+		t.Fatalf("JSONError() produced invalid JSON: %v", unmarshalErr)
+	}
+
+	if result["code"] != ytrerrors.CodeInvalidField {
+		t.Errorf("code = %v, want %q", result["code"], ytrerrors.CodeInvalidField)
+	}
+	if _, present := result["invalidField"]; present {
+		t.Errorf("invalidField must be omitted when several fields are unknown, got %v", result["invalidField"])
+	}
+
+	invalidFields, ok := result["invalidFields"].([]any)
+	if !ok {
+		t.Fatalf("invalidFields type = %T, want []any", result["invalidFields"])
+	}
+	if len(invalidFields) != 2 || invalidFields[0] != "bogus" || invalidFields[1] != "size" {
+		t.Errorf("invalidFields = %v, want [bogus size]", invalidFields)
+	}
+	if _, ok := result["validFields"].([]any); !ok {
+		t.Fatalf("validFields type = %T, want []any", result["validFields"])
 	}
 }

@@ -98,8 +98,15 @@ func NewRateLimitedError(message, suggestion string) *ExitError {
 type InvalidFieldError struct {
 	ExitError
 
-	InvalidField string   `json:"invalidField"`
-	ValidFields  []string `json:"validFields"`
+	// InvalidField is the single offending field name. Empty when several
+	// fields were rejected at once; see InvalidFields.
+	InvalidField string `json:"invalidField,omitempty"`
+
+	// InvalidFields holds every offending field name when more than one was
+	// rejected, as happens for a JSON request body.
+	InvalidFields []string `json:"invalidFields,omitempty"`
+
+	ValidFields []string `json:"validFields"`
 }
 
 // Unwrap exposes the embedded ExitError so errors.As/Is can traverse the
@@ -114,17 +121,19 @@ func (e *InvalidFieldError) Unwrap() error {
 // JSONError returns JSON with invalid_field code, the bad field, and valid field list.
 func (e *InvalidFieldError) JSONError() ([]byte, error) {
 	return json.Marshal(struct {
-		Code         string   `json:"code"`
-		Message      string   `json:"message"`
-		InvalidField string   `json:"invalidField"`
-		ValidFields  []string `json:"validFields"`
-		Suggestion   string   `json:"suggestion"`
+		Code          string   `json:"code"`
+		Message       string   `json:"message"`
+		InvalidField  string   `json:"invalidField,omitempty"`
+		InvalidFields []string `json:"invalidFields,omitempty"`
+		ValidFields   []string `json:"validFields"`
+		Suggestion    string   `json:"suggestion"`
 	}{
-		Code:         CodeInvalidField,
-		Message:      e.Message,
-		InvalidField: e.InvalidField,
-		ValidFields:  e.ValidFields,
-		Suggestion:   e.Suggestion,
+		Code:          CodeInvalidField,
+		Message:       e.Message,
+		InvalidField:  e.InvalidField,
+		InvalidFields: e.InvalidFields,
+		ValidFields:   e.ValidFields,
+		Suggestion:    e.Suggestion,
 	})
 }
 
@@ -139,5 +148,21 @@ func NewInvalidFieldError(field string, validFields []string) *InvalidFieldError
 		},
 		InvalidField: field,
 		ValidFields:  validFields,
+	}
+}
+
+// NewUnknownFieldsError creates an error for JSON input carrying keys the
+// request body has no field for. Unlike NewInvalidFieldError it reports every
+// offending key at once, so a single run names all of them.
+func NewUnknownFieldsError(fields, validFields []string) *InvalidFieldError {
+	return &InvalidFieldError{
+		ExitError: ExitError{
+			ExitCode:   ExitUserError,
+			Code:       CodeInvalidField,
+			Message:    "unknown fields in JSON input: " + strings.Join(fields, ", "),
+			Suggestion: "Valid fields: " + strings.Join(validFields, ", "),
+		},
+		InvalidFields: fields,
+		ValidFields:   validFields,
 	}
 }

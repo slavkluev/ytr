@@ -1,7 +1,6 @@
 package issue
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 
@@ -201,11 +200,8 @@ func parseIssueRequestFromJSON(fromJSON string) (*tracker.IssueRequest, error) {
 		return nil, parseErr
 	}
 	req := &tracker.IssueRequest{}
-	if unmarshalErr := json.Unmarshal(data, req); unmarshalErr != nil {
-		return nil, errors.NewUserError(
-			fmt.Sprintf("invalid JSON input: %s", unmarshalErr),
-			"Provide valid JSON matching the IssueRequest format",
-		)
+	if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
+		return nil, unmarshalErr
 	}
 	return req, nil
 }

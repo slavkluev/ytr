@@ -293,3 +293,47 @@ func TestCreateTable(t *testing.T) {
 		}
 	}
 }
+
+func TestCreateFromJSONRejectsUnknownFields(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	mock := &mockCreator{
+		issue: makeCreatedIssue("PROJ-6", "local field", "Open"),
+		resp:  &tracker.Response{},
+	}
+
+	// A local queue field is not part of IssueRequest: dropping it silently
+	// sends a body without it and the API answers 200.
+	_, err := setupCreateCmd(t, mock, []string{
+		"--from-json", `{"queue":"PROJ","summary":"local field","size":["L"]}`,
+	})
+	if err == nil {
+		t.Fatal("expected an error for an unknown field, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "size") {
+		t.Errorf("error %q should name the unknown field", err.Error())
+	}
+	if len(mock.calls) != 0 {
+		t.Error("Create should not have been called")
+	}
+}
+
+func TestCreateFromJSONMalformedInput(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	mock := &mockCreator{
+		issue: makeCreatedIssue("PROJ-7", "test", "Open"),
+		resp:  &tracker.Response{},
+	}
+
+	_, err := setupCreateCmd(t, mock, []string{"--from-json", `{"queue":`})
+	if err == nil {
+		t.Fatal("expected an error for malformed JSON, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "invalid JSON input") {
+		t.Errorf("error %q should report invalid JSON input", err.Error())
+	}
+	if len(mock.calls) != 0 {
+		t.Error("Create should not have been called")
+	}
+}
