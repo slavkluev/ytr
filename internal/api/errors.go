@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
@@ -15,9 +17,9 @@ import (
 
 // MapAPIError translates a go-yandex-tracker API error into the appropriate
 // ytr ExitError type. Returns nil if err is nil. Preserves existing ExitError
-// values, checks for specific HTTP status codes (404, 403, 429), then falls
-// back to extracting error messages from ErrorResponse, and finally wraps
-// unknown errors.
+// values, then maps the HTTP status code to a semantic exit code, keeping the
+// message the server sent and falling back to a generic one only when the
+// response body carried no text at all.
 func MapAPIError(err error) error {
 	if err == nil {
 		return nil
@@ -30,38 +32,68 @@ func MapAPIError(err error) error {
 
 	debugAPIError(err)
 
-	if tracker.IsNotFound(err) {
+	var errResp *tracker.ErrorResponse
+	if !stderrors.As(err, &errResp) {
+		return fmt.Errorf("API request failed: %w", err)
+	}
+
+	msg := apiErrorMessage(errResp)
+
+	if errResp.Response == nil {
+		return ytrerrors.NewUserError(orFallback(msg, "API error"), "")
+	}
+
+	switch errResp.Response.StatusCode {
+	case http.StatusNotFound:
 		return ytrerrors.NewNotFoundError(
-			"resource not found",
+			orFallback(msg, "resource not found"),
 			"Check the issue key or queue name",
 		)
-	}
-
-	if tracker.IsForbidden(err) {
+	case http.StatusForbidden:
 		return ytrerrors.NewAuthError(
-			"access denied",
+			orFallback(msg, "access denied"),
 			"Check your permissions for this resource",
 		)
-	}
-
-	if tracker.IsRateLimited(err) {
+	case http.StatusTooManyRequests:
 		return ytrerrors.NewRateLimitedError(
-			"API rate limit exceeded",
+			orFallback(msg, "API rate limit exceeded"),
 			"Wait and retry",
 		)
 	}
 
-	// Try to extract message from ErrorResponse
-	var errResp *tracker.ErrorResponse
-	if stderrors.As(err, &errResp) {
-		msg := strings.Join(errResp.ErrorMessages, "; ")
-		if msg == "" {
-			msg = fmt.Sprintf("API error (HTTP %d)", errResp.Response.StatusCode)
-		}
-		return ytrerrors.NewUserError(msg, "")
+	return ytrerrors.NewUserError(
+		orFallback(msg, fmt.Sprintf("API error (HTTP %d)", errResp.Response.StatusCode)),
+		"",
+	)
+}
+
+// apiErrorMessage joins everything the API said about the failure: the
+// top-level errorMessages first, then the field-level errors map as
+// "field: reason" pairs. Keys are sorted because Go randomizes map iteration
+// order, and an error message that reshuffles between runs is untestable.
+func apiErrorMessage(errResp *tracker.ErrorResponse) string {
+	parts := make([]string, 0, len(errResp.ErrorMessages)+len(errResp.Errors))
+	parts = append(parts, errResp.ErrorMessages...)
+
+	keys := make([]string, 0, len(errResp.Errors))
+	for key := range errResp.Errors {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s: %s", key, errResp.Errors[key]))
 	}
 
-	return fmt.Errorf("API request failed: %w", err)
+	return strings.Join(parts, "; ")
+}
+
+func orFallback(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+
+	return value
 }
 
 func debugAPIError(err error) {
