@@ -1,7 +1,6 @@
 package link
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -133,11 +132,8 @@ func runCreate(cmd *cobra.Command, issueKey, typeFlag, issueFlag, fromJSON strin
 			return parseErr
 		}
 		req = &tracker.LinkRequest{}
-		if unmarshalErr := json.Unmarshal(data, req); unmarshalErr != nil {
-			return errors.NewUserError(
-				fmt.Sprintf("invalid JSON input: %s", unmarshalErr),
-				"Provide valid JSON matching the LinkRequest format",
-			)
+		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
+			return unmarshalErr
 		}
 	} else {
 		req = &tracker.LinkRequest{

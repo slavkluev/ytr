@@ -1,7 +1,6 @@
 package component
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -161,11 +160,8 @@ func buildEditRequest(
 			return nil, parseErr
 		}
 		req := &tracker.ComponentRequest{}
-		if unmarshalErr := json.Unmarshal(data, req); unmarshalErr != nil {
-			return nil, errors.NewUserError(
-				fmt.Sprintf("invalid JSON input: %s", unmarshalErr),
-				"Provide valid JSON matching the ComponentRequest format",
-			)
+		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
+			return nil, unmarshalErr
 		}
 		return req, nil
 	}

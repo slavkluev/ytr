@@ -1,7 +1,6 @@
 package comment
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -125,11 +124,8 @@ func runEdit(cmd *cobra.Command, issueKey string, commentID string, body, fromJS
 			return parseErr
 		}
 		req = &tracker.CommentRequest{}
-		if unmarshalErr := json.Unmarshal(data, req); unmarshalErr != nil {
-			return errors.NewUserError(
-				fmt.Sprintf("invalid JSON input: %s", unmarshalErr),
-				"Provide valid JSON matching the CommentRequest format",
-			)
+		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
+			return unmarshalErr
 		}
 	} else {
 		req = &tracker.CommentRequest{Text: new(body)}

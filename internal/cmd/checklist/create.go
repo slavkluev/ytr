@@ -1,7 +1,6 @@
 package checklist
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -125,11 +124,8 @@ func runCreate(cmd *cobra.Command, issueKey, textFlag, assigneeFlag, fromJSON st
 			return parseErr
 		}
 		req = &tracker.ChecklistItemRequest{}
-		if unmarshalErr := json.Unmarshal(data, req); unmarshalErr != nil {
-			return errors.NewUserError(
-				fmt.Sprintf("invalid JSON input: %s", unmarshalErr),
-				"Provide valid JSON matching the ChecklistItemRequest format",
-			)
+		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
+			return unmarshalErr
 		}
 	} else {
 		req = &tracker.ChecklistItemRequest{

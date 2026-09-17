@@ -2,7 +2,6 @@ package bulk
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -158,11 +157,8 @@ func buildMoveRequest(
 		}
 
 		req := &tracker.BulkMoveRequest{}
-		if err := json.Unmarshal(data, req); err != nil {
-			return nil, errors.NewUserError(
-				fmt.Sprintf("invalid JSON input: %s", err),
-				"Provide valid JSON matching the BulkMoveRequest format",
-			)
+		if err := validate.UnmarshalRequestJSON(data, req); err != nil {
+			return nil, err
 		}
 
 		return req, nil

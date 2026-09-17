@@ -422,3 +422,24 @@ func TestMove_RegisteredAsSubcommand(t *testing.T) {
 		t.Error("expected 'move' subcommand to be registered on bulk command")
 	}
 }
+
+func TestMoveFromJSONRejectsUnknownFields(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	bc := makeCompletedBulkChange("move-unknown-1")
+	mover := &mockBulkMover{bc: bc}
+	poll := &mockPollGetter{bc: bc}
+
+	_, err := setupMoveCmd(t, mover, poll,
+		[]string{"--from-json", `{"queue":"TARGET","issues":["PROJ-1"],"bogus":1}`})
+	if err == nil {
+		t.Fatal("expected an error for an unknown field, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "bogus") {
+		t.Errorf("error %q should name the unknown field", err.Error())
+	}
+	if len(mover.calls) != 0 {
+		t.Error("Move should not have been called")
+	}
+}

@@ -319,6 +319,11 @@ ytr issue list --filter queue=PROJ --quiet
 | 5 | Rate limited | Wait and retry |
 | 130 | Interrupted | Re-run the command |
 
+`--from-json` fails with exit code 1 when the input carries a key the request
+body has no field for. The JSON error lists every offending key in
+`invalidFields` and the accepted ones in `validFields`. Local queue fields are
+among the rejected keys: the API supports them, `--from-json` does not yet.
+
 ## Flags Reference
 
 | Flag | Scope | Description |
@@ -330,7 +335,7 @@ ytr issue list --filter queue=PROJ --quiet
 | `--token` | Global auth override | Override auth token |
 | `--org-id` | Global auth override | Override organization ID |
 | `--org-type` | Global auth override | Override organization type: `360` or `cloud` |
-| `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin) |
+| `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin); keys the request body has no field for are rejected, not dropped |
 | `--query` | `issue list` | Search using Tracker query language; mutually exclusive with `--filter` and `--order-by` |
 | `--filter k=v` | `issue list` | Filter by field (repeatable); mutually exclusive with `--query` |
 | `--order-by` | `issue list` | Sort by field (descending by default); cannot be used with `--query` |

@@ -270,3 +270,23 @@ func TestCreateRegistered(t *testing.T) {
 		t.Error("'create' not registered as subcommand of 'link'")
 	}
 }
+
+func TestCreateFromJSONRejectsUnknownFields(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockLinkCreator{link: makeCreatedLink()}
+
+	_, err := setupCreateCmd(t, mock, []string{
+		"PROJ-123", "--from-json", `{"relationship":"relates","issue":"PROJ-456","bogus":1}`,
+	})
+	if err == nil {
+		t.Fatal("expected an error for an unknown field, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "bogus") {
+		t.Errorf("error %q should name the unknown field", err.Error())
+	}
+	if mock.gotReq != nil {
+		t.Error("CreateLink should not have been called")
+	}
+}

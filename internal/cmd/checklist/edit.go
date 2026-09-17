@@ -1,7 +1,6 @@
 package checklist
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -141,11 +140,8 @@ func runEdit(
 			return parseErr
 		}
 		req = &tracker.ChecklistItemRequest{}
-		if unmarshalErr := json.Unmarshal(data, req); unmarshalErr != nil {
-			return errors.NewUserError(
-				fmt.Sprintf("invalid JSON input: %s", unmarshalErr),
-				"Provide valid JSON matching the ChecklistItemRequest format",
-			)
+		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
+			return unmarshalErr
 		}
 	} else {
 		req = buildEditRequest(cmd, textFlag, checkedFlag, assigneeFlag)

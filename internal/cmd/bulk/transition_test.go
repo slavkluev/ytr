@@ -290,3 +290,24 @@ func TestTransition_RegisteredAsSubcommand(t *testing.T) {
 		t.Error("expected 'transition' subcommand to be registered on bulk command")
 	}
 }
+
+func TestTransitionFromJSONRejectsUnknownFields(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	bc := makeCompletedBulkChange("transition-unknown-1")
+	transitioner := &mockBulkTransitioner{bc: bc}
+	poll := &mockPollGetter{bc: bc}
+
+	_, err := setupTransitionCmd(t, transitioner, poll,
+		[]string{"--from-json", `{"transition":"close","issues":["PROJ-1"],"bogus":1}`})
+	if err == nil {
+		t.Fatal("expected an error for an unknown field, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "bogus") {
+		t.Errorf("error %q should name the unknown field", err.Error())
+	}
+	if len(transitioner.calls) != 0 {
+		t.Error("Transition should not have been called")
+	}
+}
