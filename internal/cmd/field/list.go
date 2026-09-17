@@ -14,31 +14,43 @@ import (
 )
 
 // FieldListFields lists the available JSON field names for field list output.
-var FieldListFields = []string{"key", "name", "schema", "readonly"}
+var FieldListFields = []string{"id", "key", "name", "schema", "items", "readonly", "options"}
 
 // fieldItem is a clean struct for JSON serialization of field data.
 type fieldItem struct {
-	Key      string `json:"key"`
-	Name     string `json:"name"`
-	Schema   string `json:"schema,omitempty"`
-	Readonly bool   `json:"readonly"`
+	ID       string   `json:"id"`
+	Key      string   `json:"key"`
+	Name     string   `json:"name"`
+	Schema   string   `json:"schema,omitempty"`
+	Items    string   `json:"items,omitempty"`
+	Readonly bool     `json:"readonly"`
+	Options  []string `json:"options,omitempty"`
 }
 
 // toFieldItem converts a tracker.Field to a clean JSON-serializable struct.
 // Schema is left empty (and omitted from JSON) when the field has no schema
 // type, matching `field get`; the "-" placeholder is a table-only convention.
 func toFieldItem(f *tracker.Field) fieldItem {
-	schema := ""
+	schema, schemaItems := "", ""
 	if f.Schema != nil {
 		schema = api.DerefString(f.Schema.Type, "")
+		schemaItems = api.DerefString(f.Schema.Items, "")
 	}
 
-	return fieldItem{
+	item := fieldItem{
+		ID:       api.DerefFlexString(f.ID, ""),
 		Key:      api.DerefString(f.Key, ""),
 		Name:     api.DerefString(f.Name, ""),
 		Schema:   schema,
+		Items:    schemaItems,
 		Readonly: api.DerefBool(f.Readonly, false),
 	}
+
+	if f.OptionsProvider != nil && len(f.OptionsProvider.Values) > 0 {
+		item.Options = f.OptionsProvider.Values
+	}
+
+	return item
 }
 
 // newListCmd creates the "field list" command.
@@ -53,7 +65,7 @@ func newListCmd() *cobra.Command {
 When --queue is specified, shows queue-local fields instead of global fields.
 
 JSON FIELDS
-  key, name, schema, readonly
+  id, key, name, schema, items, readonly, options
 
 SEE ALSO
   ytr field get  - Show field details`,
@@ -63,8 +75,8 @@ SEE ALSO
   # List queue-local fields
   ytr field list --queue PROJ
 
-  # Get fields as JSON
-  ytr field list --json key,name,schema`,
+  # Get fields as JSON (id is the full field id needed to write the field)
+  ytr field list --queue PROJ --json id,key,name,schema,options`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runList(cmd, queueFlag)
@@ -170,7 +182,7 @@ func renderTable(w io.Writer, fields []*tracker.Field) error {
 	}
 
 	tbl := output.NewTable(w)
-	tbl.AddHeader("KEY", "NAME", "SCHEMA", "READONLY")
+	tbl.AddHeader("ID", "KEY", "NAME", "SCHEMA", "READONLY")
 
 	for _, f := range fields {
 		schema := "-"
@@ -184,6 +196,7 @@ func renderTable(w io.Writer, fields []*tracker.Field) error {
 		}
 
 		tbl.AddRow(
+			api.DerefFlexString(f.ID, "-"),
 			api.DerefString(f.Key, "-"),
 			api.DerefString(f.Name, "-"),
 			schema,

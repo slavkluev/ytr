@@ -136,7 +136,9 @@ Common `--filter` keys (camelCase, from API JSON field names):
 Note: `--filter` uses camelCase API field names (`createdBy`, `createdAt`), while `--query` uses Title Case display names (`Author`, `Created`). See [query-language.md](query-language.md) for query syntax.
 
 Special value: `me()` for current user (e.g., `--filter assignee=me()`).
-Discover all fields: `ytr field list --queue QUEUE --json id,name,type`.
+Discover all fields: `ytr field list --queue QUEUE --json id,key,name,schema,options`.
+`id` is the full field id (`<queueId>--<key>` for local fields); `options` lists the
+allowed values for enum fields.
 
 ```bash
 # Search with Tracker query language (complex boolean/date queries)
@@ -236,7 +238,7 @@ ytr checklist edit PROJ-123 42 --checked
 
 ```bash
 # List available fields for a queue
-ytr field list --queue PROJ --json id,name,type
+ytr field list --queue PROJ --json id,key,name,schema,options
 
 # Look up workflow statuses
 ytr status list --json key,name
@@ -245,7 +247,7 @@ ytr status list --json key,name
 ytr issuetype list --json key,name
 
 # Get field details
-ytr field get assignee --json key,name,type
+ytr field get assignee --json id,key,name,schema,options
 ```
 
 ### JSON Pipeline

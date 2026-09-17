@@ -17,10 +17,12 @@ import (
 
 // FieldGetFields lists the available JSON field names for field get output.
 var FieldGetFields = []string{
+	"id",
 	"key",
 	"name",
 	"type",
 	"schema",
+	"items",
 	"required",
 	"readonly",
 	"category",
@@ -31,10 +33,12 @@ var FieldGetFields = []string{
 
 // fieldDetail is a clean struct for JSON serialization of a single field.
 type fieldDetail struct {
+	ID          string   `json:"id"`
 	Key         string   `json:"key"`
 	Name        string   `json:"name"`
 	Type        string   `json:"type,omitempty"`
 	Schema      string   `json:"schema,omitempty"`
+	Items       string   `json:"items,omitempty"`
 	Required    bool     `json:"required"`
 	Readonly    bool     `json:"readonly"`
 	Category    string   `json:"category,omitempty"`
@@ -46,6 +50,7 @@ type fieldDetail struct {
 // toFieldDetail converts a tracker.Field into a clean fieldDetail struct for JSON output.
 func toFieldDetail(f *tracker.Field) fieldDetail {
 	detail := fieldDetail{
+		ID:       api.DerefFlexString(f.ID, ""),
 		Key:      api.DerefString(f.Key, ""),
 		Name:     api.DerefString(f.Name, ""),
 		Type:     api.DerefString(f.Type, ""),
@@ -54,6 +59,7 @@ func toFieldDetail(f *tracker.Field) fieldDetail {
 
 	if f.Schema != nil {
 		detail.Schema = api.DerefString(f.Schema.Type, "")
+		detail.Items = api.DerefString(f.Schema.Items, "")
 		detail.Required = api.DerefBool(f.Schema.Required, false)
 	}
 
@@ -86,7 +92,8 @@ func newGetCmd() *cobra.Command {
 When --queue is specified, retrieves a queue-local field instead of a global field.
 
 JSON FIELDS
-  key, name, type, schema, required, readonly, category, queue, options, description
+  id, key, name, type, schema, items, required, readonly, category, queue, options,
+  description
 
 SEE ALSO
   ytr field list  - List available fields`,
@@ -97,7 +104,7 @@ SEE ALSO
   ytr field get custom-field --queue PROJ
 
   # Get specific fields as JSON
-  ytr field get priority --json key,name,options`,
+  ytr field get priority --json id,key,name,schema,options`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGet(cmd, args[0], queueFlag)
@@ -195,6 +202,7 @@ func renderFieldCard(w io.Writer, field *tracker.Field) error {
 		_, writeErr = fmt.Fprintf(w, "%s  %s\n", bold(label+":"), value)
 	}
 
+	printField("ID", api.DerefFlexString(field.ID, "-"))
 	printField("Key", api.DerefString(field.Key, "-"))
 	printField("Name", api.DerefString(field.Name, "-"))
 	printField("Type", api.DerefString(field.Type, "-"))
@@ -217,6 +225,9 @@ func formatSchema(field *tracker.Field) string {
 		return "-"
 	}
 	display := api.DerefString(field.Schema.Type, "-")
+	if items := api.DerefString(field.Schema.Items, ""); items != "" {
+		display += " of " + items
+	}
 	if api.DerefBool(field.Schema.Required, false) {
 		display += " (required)"
 	}

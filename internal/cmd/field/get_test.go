@@ -275,3 +275,105 @@ func TestGet(t *testing.T) {
 		})
 	}
 }
+
+// localSizeDetailField returns a queue-local field fixture carrying the full
+// field id that the Tracker API assigns to local fields.
+func localSizeDetailField() *tracker.Field {
+	return &tracker.Field{
+		ID:       testutil.FlexStringPtr("66fd07bba913292094b4403c--size"),
+		Key:      testutil.StrPtr("size"),
+		Name:     testutil.StrPtr("Size"),
+		Type:     testutil.StrPtr("local"),
+		Schema:   &tracker.FieldSchema{Type: testutil.StrPtr("string")},
+		Readonly: testutil.BoolPtr(false),
+		Queue:    &tracker.Queue{Key: testutil.StrPtr("PROJ")},
+	}
+}
+
+// tagsArrayField returns a field whose schema is an array of strings.
+func tagsArrayField(required bool) *tracker.Field {
+	return &tracker.Field{
+		Key:  testutil.StrPtr("tags"),
+		Name: testutil.StrPtr("Tags"),
+		Type: testutil.StrPtr("standard"),
+		Schema: &tracker.FieldSchema{
+			Type:     testutil.StrPtr("array"),
+			Items:    testutil.StrPtr("string"),
+			Required: testutil.BoolPtr(required),
+		},
+		Readonly: testutil.BoolPtr(false),
+	}
+}
+
+// decodeDetail parses field get JSON output into a generic map.
+func decodeDetail(t *testing.T, out string) map[string]any {
+	t.Helper()
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	return result
+}
+
+func TestGetCardShowsFullFieldID(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockFieldGetter{field: localSizeDetailField()}
+	out, err := setupGetCmd(t, mock, []string{"size", "--queue", "PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, want := range []string{"ID:", "66fd07bba913292094b4403c--size"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("detail output missing %q; got:\n%s", want, out)
+		}
+	}
+}
+
+func TestGetJSONIncludesFullFieldID(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"id", "key"}
+
+	mock := &mockFieldGetter{field: localSizeDetailField()}
+	out, err := setupGetCmd(t, mock, []string{"size", "--queue", "PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := decodeDetail(t, out)
+	if result["id"] != "66fd07bba913292094b4403c--size" {
+		t.Errorf("expected full field id, got %v", result["id"])
+	}
+}
+
+func TestGetCardSpellsOutArrayElementType(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockFieldGetter{field: tagsArrayField(true)}
+	out, err := setupGetCmd(t, mock, []string{"tags"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(out, "array of string (required)") {
+		t.Errorf("detail output missing array element type; got:\n%s", out)
+	}
+}
+
+func TestGetJSONIncludesArrayElementType(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key", "schema", "items"}
+
+	mock := &mockFieldGetter{field: tagsArrayField(false)}
+	out, err := setupGetCmd(t, mock, []string{"tags"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := decodeDetail(t, out)
+	if result["items"] != "string" {
+		t.Errorf("expected items=string, got %v", result["items"])
+	}
+}

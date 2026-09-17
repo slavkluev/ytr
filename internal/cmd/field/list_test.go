@@ -241,3 +241,132 @@ func TestList(t *testing.T) {
 		})
 	}
 }
+
+// localSizeField returns a queue-local enum field fixture carrying the full
+// field id that the Tracker API assigns to local fields.
+func localSizeField() *tracker.Field {
+	return &tracker.Field{
+		ID:       testutil.FlexStringPtr("66fd07bba913292094b4403c--size"),
+		Key:      testutil.StrPtr("size"),
+		Name:     testutil.StrPtr("Size"),
+		Schema:   &tracker.FieldSchema{Type: testutil.StrPtr("string")},
+		Readonly: testutil.BoolPtr(false),
+		OptionsProvider: &tracker.OptionsProvider{
+			Values: []string{"S", "M", "L"},
+		},
+	}
+}
+
+// decodeListItems parses field list JSON output into generic maps.
+func decodeListItems(t *testing.T, out string) []map[string]any {
+	t.Helper()
+
+	var items []map[string]any
+	if err := json.Unmarshal([]byte(out), &items); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	return items
+}
+
+func TestListTableShowsFullFieldID(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockFieldLister{fields: []*tracker.Field{localSizeField()}}
+	out, err := setupListCmd(t, mock, []string{"--queue", "PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, want := range []string{"ID", "66fd07bba913292094b4403c--size"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("table output missing %q; got:\n%s", want, out)
+		}
+	}
+}
+
+func TestListJSONIncludesFullFieldID(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"id", "key"}
+
+	mock := &mockFieldLister{fields: []*tracker.Field{localSizeField()}}
+	out, err := setupListCmd(t, mock, []string{"--queue", "PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	items := decodeListItems(t, out)
+	if items[0]["id"] != "66fd07bba913292094b4403c--size" {
+		t.Errorf("expected full field id, got %v", items[0]["id"])
+	}
+}
+
+func TestListJSONIncludesEnumOptions(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key", "options"}
+
+	mock := &mockFieldLister{fields: []*tracker.Field{localSizeField()}}
+	out, err := setupListCmd(t, mock, []string{"--queue", "PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	items := decodeListItems(t, out)
+	opts, ok := items[0]["options"].([]any)
+	if !ok {
+		t.Fatalf("expected options array, got %T: %v", items[0]["options"], items[0]["options"])
+	}
+	if len(opts) != 3 || opts[0] != "S" || opts[1] != "M" || opts[2] != "L" {
+		t.Errorf("expected [S M L], got %v", opts)
+	}
+}
+
+func TestListJSONOmitsOptionsWhenFieldHasNone(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key", "options"}
+
+	mock := &mockFieldLister{fields: []*tracker.Field{{
+		Key:      testutil.StrPtr("summary"),
+		Name:     testutil.StrPtr("Summary"),
+		Schema:   &tracker.FieldSchema{Type: testutil.StrPtr("string")},
+		Readonly: testutil.BoolPtr(true),
+	}}}
+	out, err := setupListCmd(t, mock, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	items := decodeListItems(t, out)
+	if _, present := items[0]["options"]; present {
+		t.Errorf("expected options to be omitted, got %v", items[0]["options"])
+	}
+}
+
+func TestListJSONIncludesArrayElementType(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key", "schema", "items"}
+
+	mock := &mockFieldLister{fields: []*tracker.Field{{
+		Key:  testutil.StrPtr("tags"),
+		Name: testutil.StrPtr("Tags"),
+		Schema: &tracker.FieldSchema{
+			Type:  testutil.StrPtr("array"),
+			Items: testutil.StrPtr("string"),
+		},
+		Readonly: testutil.BoolPtr(false),
+	}}}
+	out, err := setupListCmd(t, mock, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	items := decodeListItems(t, out)
+	if items[0]["schema"] != "array" {
+		t.Errorf("expected schema=array, got %v", items[0]["schema"])
+	}
+	if items[0]["items"] != "string" {
+		t.Errorf("expected items=string, got %v", items[0]["items"])
+	}
+}
