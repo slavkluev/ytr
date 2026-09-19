@@ -10,3 +10,7 @@ coverage.out
 
 # Binary
 /ytr
+
+# Local workspace for building against an unreleased go-yandex-tracker
+go.work
+go.work.sum
