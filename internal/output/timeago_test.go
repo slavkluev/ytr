@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/slavkluev/ytr/internal/output"
+	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 func TestTimeAgo_JustNow(t *testing.T) {
@@ -52,5 +53,34 @@ func TestTimeAgo_YearOld(t *testing.T) {
 	want := target.Format("Jan 2, 2006")
 	if got != want {
 		t.Errorf("TimeAgo(400d ago) = %q, want %q", got, want)
+	}
+}
+
+func TestFormatTimeOffTTYIsRFC3339(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	moment := time.Date(2026, 9, 19, 14, 22, 31, 0, time.FixedZone("MSK", 3*60*60))
+	if got, want := output.FormatTime(moment), "2026-09-19T14:22:31+03:00"; got != want {
+		t.Errorf("FormatTime off a TTY = %q, want %q", got, want)
+	}
+}
+
+func TestFormatTimeOffTTYKeepsTheServerOffset(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	moment := time.Date(2026, 9, 19, 14, 22, 31, 0, time.FixedZone("", -7*60*60))
+	if got, want := output.FormatTime(moment), "2026-09-19T14:22:31-07:00"; got != want {
+		t.Errorf("FormatTime off a TTY = %q, want %q", got, want)
+	}
+}
+
+func TestFormatTimeOnTTYIsRelative(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(true)
+
+	if got, want := output.FormatTime(time.Now().Add(-3*time.Hour)), "3h ago"; got != want {
+		t.Errorf("FormatTime on a TTY = %q, want %q", got, want)
 	}
 }

@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "5.2"
+  version: "6.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -321,6 +321,49 @@ ytr issue list --filter queue=PROJ --quiet
 # Quiet mode for changelog outputs "category: from -> to" per line
 # Categories: field names (status, assignee), comment, link, attachment, worklog, reaction, relatedResolution
 ytr issue changelog PROJ-123 --quiet --field status
+```
+
+## Output Shape
+
+ytr checks whether stdout is a terminal and prints accordingly. There is no
+flag or environment variable for this: an agent that pipes, captures or
+redirects ytr always gets the lean shape below.
+
+Off a terminal:
+
+- Tables print one header row and one line per record, columns joined by a
+  single tab. Nothing is padded, truncated or given an ellipsis, so a long
+  summary or comment body arrives whole.
+- Any value's tab, newline and carriage return are escaped as `\t`, `\n` and
+  `\r`, and a literal backslash as `\\`, so one record is always one line and
+  the escaping can be reversed.
+- Detail views (`issue view`, `queue view`, `field get`, `component get`,
+  `user myself`, `user get`, and the `issue create`/`issue update` result)
+  print `Label<TAB>value` with no trailing colon. A description still follows
+  as its own block after a blank line.
+- Times in text output are RFC 3339 with the offset the server sent, the same
+  string the JSON fields carry: `2026-09-19T14:22:31+03:00`. `issue changelog`
+  already printed RFC 3339 and reads the same in both modes.
+- `--json` prints one line of JSON, and so does `queue context`, which prints
+  its document without being asked for JSON.
+- There is no color.
+
+`--jq` is unchanged: its output was always compact, and a filter that yields
+several results still prints one line per result in both modes.
+
+On a terminal the output is for human eyes: padded columns fitted to the
+terminal width, relative times such as `3h ago` (except `issue changelog`),
+color, and indented `--json`.
+
+`NO_COLOR`, `CLICOLOR_FORCE` and `CLICOLOR` keep their usual meaning, so
+`CLICOLOR_FORCE=1` colors the tab-separated output too.
+
+```bash
+# One line per issue, columns split on a tab
+ytr issue list --filter queue=PROJ | cut -f1,4
+
+# One line of JSON
+ytr issue view PROJ-123 --json key,summary
 ```
 
 ## JSON Output

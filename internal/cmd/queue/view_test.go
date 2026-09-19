@@ -90,17 +90,42 @@ func TestQueueViewTable(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	for _, want := range []string{
-		"MYQUEUE",
-		"My Queue",
-		"john.doe",
-		"Task",
-		"Normal",
-		"Queue for tracking tasks",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("view output missing %q; got:\n%s", want, out)
-		}
+	// Off a TTY, where the tests run, the rows are tab separated and the
+	// description still arrives as its own block.
+	want := "Key\tMYQUEUE\n" +
+		"Name\tMy Queue\n" +
+		"Lead\tjohn.doe\n" +
+		"Default Type\tTask\n" +
+		"Default Priority\tNormal\n" +
+		"\nDescription:\n  Queue for tracking tasks\n"
+	if out != want {
+		t.Errorf("view output = %q, want %q", out, want)
+	}
+}
+
+func TestQueueViewTableOnTTYUsesLabeledRows(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(true)
+	t.Setenv("NO_COLOR", "1")
+
+	mock := &mockQueueGetter{
+		queue: fullQueue(),
+		resp:  &tracker.Response{},
+	}
+
+	out, err := setupViewCmd(t, mock, []string{"MYQUEUE"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := "Key:  MYQUEUE\n" +
+		"Name:  My Queue\n" +
+		"Lead:  john.doe\n" +
+		"Default Type:  Task\n" +
+		"Default Priority:  Normal\n" +
+		"\nDescription:\n  Queue for tracking tasks\n"
+	if out != want {
+		t.Errorf("view output = %q, want %q", out, want)
 	}
 }
 

@@ -1,10 +1,8 @@
 package issue
 
 import (
-	"fmt"
 	"slices"
 
-	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 
 	"github.com/spf13/cobra"
@@ -233,24 +231,11 @@ func outputIssueResult(cmd *cobra.Command, issue *tracker.Issue) error {
 	}
 
 	// Table-style key-value output.
-	bold := func(label string) string {
-		if output.ColorsEnabled() {
-			return text.Colors{text.Bold}.Sprint(label)
-		}
-		return label
-	}
+	d := output.NewDetail(w)
 
-	var writeErr error
-	printField := func(label, value string) {
-		if writeErr != nil {
-			return
-		}
-		_, writeErr = fmt.Fprintf(w, "%s  %s\n", bold(label+":"), value)
-	}
+	d.Field("Key", api.DerefString(issue.Key, "-"))
+	d.Field("Summary", api.DerefString(issue.Summary, "-"))
+	d.Field("Status", issueStatusDisplay(issue))
 
-	printField("Key", api.DerefString(issue.Key, "-"))
-	printField("Summary", api.DerefString(issue.Summary, "-"))
-	printField("Status", issueStatusDisplay(issue))
-
-	return writeErr
+	return d.Err()
 }

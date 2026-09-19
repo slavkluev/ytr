@@ -75,6 +75,7 @@ func ResetFlags() {
 	JQFilter = ""
 	QuietFlag = false
 	DebugFlag = false
+	ttyOverride = nil
 	SetDebugWriter(os.Stderr)
 	SetJSONErrorWriter(os.Stdout)
 }

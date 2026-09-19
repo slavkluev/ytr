@@ -82,12 +82,12 @@ func TestGet(t *testing.T) {
 					t.Errorf("expected componentID=42, got %q", mock.gotID)
 				}
 				for _, want := range []string{
-					"ID:", "42",
-					"Name:", "Backend",
-					"Queue:", "PROJ",
-					"Lead:", "John Doe",
-					"Description:", "Backend services",
-					"AssignAuto:", "yes",
+					"ID\t42",
+					"Name\tBackend",
+					"Queue\tPROJ",
+					"Lead\tJohn Doe",
+					"Description\tBackend services",
+					"AssignAuto\tyes",
 				} {
 					if !strings.Contains(out, want) {
 						t.Errorf("detail output missing %q; got:\n%s", want, out)
@@ -111,11 +111,11 @@ func TestGet(t *testing.T) {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				if strings.Contains(out, "Description:") {
+				if strings.Contains(out, "Description\t") {
 					t.Errorf("output should not contain Description for empty value; got:\n%s", out)
 				}
-				if !strings.Contains(out, "AssignAuto:") || !strings.Contains(out, "no") {
-					t.Errorf("expected AssignAuto: no; got:\n%s", out)
+				if !strings.Contains(out, "AssignAuto\tno") {
+					t.Errorf("expected AssignAuto no; got:\n%s", out)
 				}
 			},
 		},
@@ -207,10 +207,10 @@ func TestGet(t *testing.T) {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				if !strings.Contains(out, "Queue:") && !strings.Contains(out, "-") {
+				if !strings.Contains(out, "Queue\t-") {
 					t.Errorf("expected '-' for nil queue; got:\n%s", out)
 				}
-				if !strings.Contains(out, "Lead:") && !strings.Contains(out, "-") {
+				if !strings.Contains(out, "Lead\t-") {
 					t.Errorf("expected '-' for nil lead; got:\n%s", out)
 				}
 			},

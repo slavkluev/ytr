@@ -107,13 +107,12 @@ func TestViewTable(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		"Fix login bug",
-		"In Progress",
-		"Critical",
-		"Bug",
-		"john.doe",
-		"jane.smith",
-		"ago",
+		"Title\tFix login bug",
+		"Status\tIn Progress",
+		"Priority\tCritical",
+		"Type\tBug",
+		"Author\tjohn.doe",
+		"Assignee\tjane.smith",
 		"login page returns 500",
 	} {
 		if !strings.Contains(out, want) {
@@ -298,5 +297,58 @@ func TestViewNamesakesKeepDistinctUserIDs(t *testing.T) {
 	}
 	if result["assigneeId"] != "uid-assignee" {
 		t.Errorf("expected assigneeId=uid-assignee, got %v", result["assigneeId"])
+	}
+}
+
+func TestViewTableOnTTYUsesLabeledRowsAndRelativeTimes(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(true)
+	t.Setenv("NO_COLOR", "1")
+
+	mock := &mockGetter{
+		issue: fullIssue(),
+		resp:  &tracker.Response{},
+	}
+
+	out, err := setupViewCmd(t, mock, []string{"PROJ-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(out, "Key:  PROJ-123") {
+		t.Errorf("TTY view lost its labeled rows: %q", out)
+	}
+	if strings.Contains(out, "\t") {
+		t.Errorf("TTY view uses tabs: %q", out)
+	}
+	if !strings.Contains(out, "ago") {
+		t.Errorf("TTY view lost the relative times: %q", out)
+	}
+}
+
+func TestViewTableOffTTYUsesISOTimes(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	created := tracker.Timestamp{
+		Time: time.Date(2026, 9, 17, 9, 5, 0, 0, time.FixedZone("MSK", 3*60*60)),
+	}
+	issue := fullIssue()
+	issue.CreatedAt = &created
+	issue.UpdatedAt = &created
+
+	out, err := setupViewCmd(t, &mockGetter{issue: issue, resp: &tracker.Response{}}, []string{"PROJ-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(out, "Key\tPROJ-123") {
+		t.Errorf("off-TTY view is not tab separated: %q", out)
+	}
+	if !strings.Contains(out, "Created\t2026-09-17T09:05:00+03:00") {
+		t.Errorf("off-TTY view lost the ISO created time: %q", out)
+	}
+	if strings.Contains(out, "ago") {
+		t.Errorf("off-TTY view kept a relative time: %q", out)
 	}
 }

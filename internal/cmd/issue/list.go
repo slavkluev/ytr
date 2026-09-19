@@ -409,11 +409,7 @@ func renderListTable(w io.Writer, issues []*tracker.Issue) error {
 		key := api.DerefString(issue.Key, "-")
 		statusVal := issueStatusDisplay(issue)
 		assigneeVal := api.DerefUser(issue.Assignee, "-")
-		summary := api.DerefString(issue.Summary, "-")
-
-		// Truncate summary to fit terminal width.
-		maxSummary := max(output.TerminalWidth()-tableReservedWidth, minColumnWidth)
-		summary = output.TruncateDisplay(summary, maxSummary)
+		summary := output.FitColumn(api.DerefString(issue.Summary, "-"), tableReservedWidth, minColumnWidth)
 
 		// Apply status color if colors are enabled.
 		if output.ColorsEnabled() {

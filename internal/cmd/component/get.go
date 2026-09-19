@@ -1,10 +1,8 @@
 package component
 
 import (
-	"fmt"
 	"io"
 
-	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
@@ -144,44 +142,30 @@ func runGet(cmd *cobra.Command, componentID string) error {
 
 // renderComponentCard renders a bold-label detail card for a component.
 func renderComponentCard(w io.Writer, c *tracker.Component) error {
-	bold := func(label string) string {
-		if output.ColorsEnabled() {
-			return text.Colors{text.Bold}.Sprint(label)
-		}
-		return label
-	}
+	d := output.NewDetail(w)
 
-	// writeErr captures the first write error encountered.
-	var writeErr error
-	printField := func(label, value string) {
-		if writeErr != nil {
-			return
-		}
-		_, writeErr = fmt.Fprintf(w, "%s  %s\n", bold(label+":"), value)
-	}
-
-	printField("ID", api.DerefFlexString(c.ID, ""))
-	printField("Name", api.DerefString(c.Name, "-"))
+	d.Field("ID", api.DerefFlexString(c.ID, ""))
+	d.Field("Name", api.DerefString(c.Name, "-"))
 
 	queue := "-"
 	if c.Queue != nil {
 		queue = api.DerefString(c.Queue.Key, "-")
 	}
-	printField("Queue", queue)
+	d.Field("Queue", queue)
 
-	printField("Lead", api.DerefUser(c.Lead, "-"))
+	d.Field("Lead", api.DerefUser(c.Lead, "-"))
 
 	// Only show Description if non-empty.
 	desc := api.DerefString(c.Description, "")
 	if desc != "" {
-		printField("Description", desc)
+		d.Field("Description", desc)
 	}
 
 	assignAuto := "no"
 	if api.DerefBool(c.AssignAuto, false) {
 		assignAuto = "yes"
 	}
-	printField("AssignAuto", assignAuto)
+	d.Field("AssignAuto", assignAuto)
 
-	return writeErr
+	return d.Err()
 }

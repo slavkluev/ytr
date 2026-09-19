@@ -829,7 +829,6 @@ func TestChangelogTableAllTypes(t *testing.T) {
 	}
 
 	// Verify all event types produce rows with expected field names and values.
-	// Use short substrings to survive table column truncation.
 	for _, want := range []string{
 		"comment", "reaction", "link", "attachment", "worklog", "relatedResolution",
 		"Test comment", "Old comment", "like", "heart",

@@ -253,7 +253,7 @@ func TestUpdateTable(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	for _, want := range []string{"Key:", "PROJ-123", "Summary:", "updated title", "Status:"} {
+	for _, want := range []string{"Key\tPROJ-123", "Summary\tupdated title", "Status\t"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("table output missing %q; got:\n%s", want, out)
 		}

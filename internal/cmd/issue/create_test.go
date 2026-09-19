@@ -287,7 +287,7 @@ func TestCreateTable(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	for _, want := range []string{"Key:", "PROJ-7", "Summary:", "table test", "Status:", "Open"} {
+	for _, want := range []string{"Key\tPROJ-7", "Summary\ttable test", "Status\tOpen"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("table output missing %q; got:\n%s", want, out)
 		}

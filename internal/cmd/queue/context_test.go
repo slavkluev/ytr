@@ -351,6 +351,33 @@ func assertJSONEqual(t *testing.T, got, want string) {
 	}
 }
 
+// topLevelKeys reads an object's keys back in the order they were encoded,
+// so an ordering check does not depend on how the document is formatted.
+func topLevelKeys(t *testing.T, doc string) []string {
+	t.Helper()
+	dec := json.NewDecoder(strings.NewReader(doc))
+	if _, err := dec.Token(); err != nil {
+		t.Fatalf("output is not a JSON object: %v\n%s", err, doc)
+	}
+	var keys []string
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			t.Fatalf("reading a key failed: %v\n%s", err, doc)
+		}
+		key, ok := tok.(string)
+		if !ok {
+			t.Fatalf("expected a key, got %v\n%s", tok, doc)
+		}
+		keys = append(keys, key)
+		var value json.RawMessage
+		if err := dec.Decode(&value); err != nil {
+			t.Fatalf("reading %q failed: %v\n%s", key, err, doc)
+		}
+	}
+	return keys
+}
+
 // assertExitCode checks that err carries the given exit code.
 func assertExitCode(t *testing.T, err error, want int) {
 	t.Helper()
@@ -384,13 +411,8 @@ func TestQueueContextFull(t *testing.T) {
 	assertJSONEqual(t, stdout, mtpFullDocument)
 
 	// The whole document keeps the part order.
-	last := -1
-	for _, key := range QueueContextFields {
-		idx := strings.Index(stdout, "\n  \""+key+"\": ")
-		if idx <= last {
-			t.Errorf("part %q is out of order in:\n%s", key, stdout)
-		}
-		last = idx
+	if got := topLevelKeys(t, stdout); !slices.Equal(got, QueueContextFields) {
+		t.Errorf("parts = %q, want %q", got, QueueContextFields)
 	}
 
 	// W207 is fetched once, though two issue types follow it.
@@ -606,11 +628,11 @@ func TestQueueContextTerminalStep(t *testing.T) {
 	  "workflows": [{"id": "W207", "initialStatus": "open", "transitions": {"open": ["closed"], "closed": []}}],
 	  "incomplete": []
 	}`)
-	if !strings.Contains(stdout, `"closed": []`) {
+	if !strings.Contains(stdout, `"closed":[]`) {
 		t.Errorf("a step without actions must map to [], got:\n%s", stdout)
 	}
 	// Steps keep the workflow's order rather than sorting.
-	if strings.Index(stdout, `"open": [`) > strings.Index(stdout, `"closed": []`) {
+	if strings.Index(stdout, `"open":[`) > strings.Index(stdout, `"closed":[]`) {
 		t.Errorf("transitions are not in step order:\n%s", stdout)
 	}
 }

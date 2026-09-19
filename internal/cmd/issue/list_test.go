@@ -642,3 +642,113 @@ func TestListNamesakesKeepDistinctAssigneeIDs(t *testing.T) {
 			first["assigneeId"], second["assigneeId"])
 	}
 }
+
+func TestListTableOffTTYIsTabSeparated(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	mock := &mockSearcher{
+		issues: makeIssues("PROJ-1", "PROJ-2"),
+		resp:   &tracker.Response{TotalCount: 2},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := "KEY\tSTATUS\tASSIGNEE\tSUMMARY\n" +
+		"PROJ-1\tOpen\tuserPROJ-1\tSummary for PROJ-1\n" +
+		"PROJ-2\tOpen\tuserPROJ-2\tSummary for PROJ-2\n"
+	if out != want {
+		t.Errorf("off-TTY list = %q, want %q", out, want)
+	}
+	if strings.Contains(out, "\x1b") {
+		t.Errorf("off-TTY list carries ANSI escapes: %q", out)
+	}
+}
+
+func TestListTableOnTTYStaysPadded(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(true)
+	t.Setenv("NO_COLOR", "1")
+
+	mock := &mockSearcher{
+		issues: makeIssues("PROJ-1"),
+		resp:   &tracker.Response{TotalCount: 1},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if strings.Contains(out, "\t") {
+		t.Errorf("TTY list uses tabs instead of padding: %q", out)
+	}
+	if !strings.Contains(out, "KEY") || !strings.Contains(out, "PROJ-1") {
+		t.Errorf("TTY list lost its columns: %q", out)
+	}
+}
+
+func TestListOffTTYKeepsALongSummaryWhole(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	summary := strings.Repeat("a long summary ", 20)
+	issues := makeIssues("PROJ-1")
+	issues[0].Summary = testutil.StrPtr(summary)
+
+	mock := &mockSearcher{issues: issues, resp: &tracker.Response{TotalCount: 1}}
+	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(out, summary) {
+		t.Errorf("off-TTY list shortened the summary: %q", out)
+	}
+	if strings.Contains(out, "...") {
+		t.Errorf("off-TTY list added an ellipsis: %q", out)
+	}
+}
+
+func TestListOnTTYTruncatesALongSummary(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(true)
+	t.Setenv("NO_COLOR", "1")
+
+	summary := strings.Repeat("a long summary ", 20)
+	issues := makeIssues("PROJ-1")
+	issues[0].Summary = testutil.StrPtr(summary)
+
+	mock := &mockSearcher{issues: issues, resp: &tracker.Response{TotalCount: 1}}
+	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if strings.Contains(out, summary) {
+		t.Errorf("TTY list did not fit the summary to the terminal: %q", out)
+	}
+	if !strings.Contains(out, "...") {
+		t.Errorf("TTY list dropped the ellipsis: %q", out)
+	}
+}
+
+func TestListEmptyLineIsTheSameInBothModes(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	for _, isTTY := range []bool{false, true} {
+		output.SetTTY(isTTY)
+
+		mock := &mockSearcher{issues: nil, resp: &tracker.Response{}}
+		out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if out != "No issues found\n" {
+			t.Errorf("empty list with IsTTY()=%v = %q, want %q", isTTY, out, "No issues found\n")
+		}
+	}
+}

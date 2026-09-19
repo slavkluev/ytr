@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
@@ -199,37 +198,21 @@ func runGet(cmd *cobra.Command, fieldKey, queueFlag string) error {
 
 // renderFieldCard renders a bold-label detail card for a field.
 func renderFieldCard(w io.Writer, field *tracker.Field) error {
-	bold := func(label string) string {
-		if output.ColorsEnabled() {
-			return text.Colors{text.Bold}.Sprint(label)
-		}
-		return label
-	}
+	d := output.NewDetail(w)
 
-	// writeErr captures the first write error encountered.
-	var writeErr error
-	printField := func(label, value string) {
-		if writeErr != nil {
-			return
-		}
-		_, writeErr = fmt.Fprintf(w, "%s  %s\n", bold(label+":"), value)
-	}
-
-	printField("ID", api.DerefFlexString(field.ID, "-"))
-	printField("Key", api.DerefString(field.Key, "-"))
-	printField("Name", api.DerefString(field.Name, "-"))
-	printField("Type", api.DerefString(field.Type, "-"))
-	printField("Schema", formatSchema(field))
-	printField("Readonly", formatBoolYesNo(api.DerefBool(field.Readonly, false)))
+	d.Field("ID", api.DerefFlexString(field.ID, "-"))
+	d.Field("Key", api.DerefString(field.Key, "-"))
+	d.Field("Name", api.DerefString(field.Name, "-"))
+	d.Field("Type", api.DerefString(field.Type, "-"))
+	d.Field("Schema", formatSchema(field))
+	d.Field("Readonly", formatBoolYesNo(api.DerefBool(field.Readonly, false)))
 
 	// Optional fields: category, queue, options.
-	renderOptionalFields(printField, field)
+	renderOptionalFields(d, field)
 
-	if writeErr != nil {
-		return writeErr
-	}
+	renderDescription(d, field)
 
-	return renderDescription(w, bold, field)
+	return d.Err()
 }
 
 // formatSchema returns the schema display string with required indicator.
@@ -256,29 +239,29 @@ func formatBoolYesNo(val bool) string {
 }
 
 // renderOptionalFields prints category, queue, and options if present.
-func renderOptionalFields(printField func(string, string), field *tracker.Field) {
+func renderOptionalFields(d *output.DetailPrinter, field *tracker.Field) {
 	if field.Category != nil {
 		if display := api.DerefString(field.Category.Display, ""); display != "" {
-			printField("Category", display)
+			d.Field("Category", display)
 		}
 	}
 
 	if field.Queue != nil {
 		if queueKey := api.DerefString(field.Queue.Key, ""); queueKey != "" {
-			printField("Queue", queueKey)
+			d.Field("Queue", queueKey)
 		}
 	}
 
 	if p := field.OptionsProvider; p != nil {
-		renderOptions(printField, p)
+		renderOptions(d, p)
 	}
 }
 
 // renderOptions prints a field's allowed values: the flat list, then one row
 // per queue in key order, then Tracker's defaults list.
-func renderOptions(printField func(string, string), p *tracker.OptionsProvider) {
+func renderOptions(d *output.DetailPrinter, p *tracker.OptionsProvider) {
 	if len(p.Values) > 0 {
-		printField("Options", joinOptions(p.Values))
+		d.Field("Options", joinOptions(p.Values))
 	}
 
 	queues := make([]string, 0, len(p.QueueValues))
@@ -287,11 +270,11 @@ func renderOptions(printField func(string, string), p *tracker.OptionsProvider) 
 	}
 	sort.Strings(queues)
 	for _, queue := range queues {
-		printField("Options ("+queue+")", joinOptions(p.QueueValues[queue]))
+		d.Field("Options ("+queue+")", joinOptions(p.QueueValues[queue]))
 	}
 
 	if len(p.Defaults) > 0 {
-		printField("Default options", joinOptions(p.Defaults))
+		d.Field("Default options", joinOptions(p.Defaults))
 	}
 }
 
@@ -305,16 +288,9 @@ func joinOptions(values []any) string {
 }
 
 // renderDescription prints the field description with a separator if present.
-func renderDescription(w io.Writer, bold func(string) string, field *tracker.Field) error {
+func renderDescription(d *output.DetailPrinter, field *tracker.Field) {
 	if field.Description == nil || *field.Description == "" {
-		return nil
+		return
 	}
-	if _, err := fmt.Fprintln(w); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "%s\n", bold("Description:")); err != nil {
-		return err
-	}
-	_, err := fmt.Fprintf(w, "  %s\n", *field.Description)
-	return err
+	d.Block("Description", *field.Description)
 }

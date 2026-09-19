@@ -429,3 +429,108 @@ func TestListNilAuthorYieldsEmptyAuthorID(t *testing.T) {
 		t.Errorf("expected empty authorId, got %v", authorID)
 	}
 }
+
+func TestListDateOffTTYIsRFC3339(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	created := tracker.Timestamp{
+		Time: time.Date(2026, 9, 19, 14, 22, 31, 0, time.FixedZone("MSK", 3*60*60)),
+	}
+	mock := &mockCommentLister{
+		comments: []*tracker.Comment{{
+			ID:        testutil.FlexStringPtr("101"),
+			Text:      testutil.StrPtr("body"),
+			CreatedBy: &tracker.User{Display: testutil.StrPtr("john.doe")},
+			CreatedAt: &created,
+		}},
+		resp: &tracker.Response{},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := "ID\tAUTHOR\tDATE\tBODY\n101\tjohn.doe\t2026-09-19T14:22:31+03:00\tbody\n"
+	if out != want {
+		t.Errorf("off-TTY list = %q, want %q", out, want)
+	}
+}
+
+func TestListDateOnTTYIsRelative(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(true)
+	t.Setenv("NO_COLOR", "1")
+
+	mock := &mockCommentLister{
+		comments: makeComments("101"),
+		resp:     &tracker.Response{},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(out, "just now") {
+		t.Errorf("TTY list lost the relative date: %q", out)
+	}
+}
+
+func TestListBodyOffTTYIsOneEscapedLine(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	created := tracker.Timestamp{Time: time.Date(2026, 9, 19, 14, 22, 31, 0, time.UTC)}
+	mock := &mockCommentLister{
+		comments: []*tracker.Comment{{
+			ID:        testutil.FlexStringPtr("101"),
+			Text:      testutil.StrPtr("first\nsecond\tthird"),
+			CreatedBy: &tracker.User{Display: testutil.StrPtr("john.doe")},
+			CreatedAt: &created,
+		}},
+		resp: &tracker.Response{},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if lines := strings.Count(out, "\n"); lines != 2 {
+		t.Errorf("one comment must be one line, got %d lines in %q", lines, out)
+	}
+	if !strings.Contains(out, `first\nsecond\tthird`) {
+		t.Errorf("control characters were not escaped: %q", out)
+	}
+}
+
+func TestListOnTTYTruncatesALongBody(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(true)
+
+	body := strings.Repeat("a long comment body ", 20)
+	created := tracker.Timestamp{Time: time.Now()}
+	mock := &mockCommentLister{
+		comments: []*tracker.Comment{{
+			ID:        testutil.FlexStringPtr("101"),
+			Text:      testutil.StrPtr(body),
+			CreatedBy: &tracker.User{Display: testutil.StrPtr("john.doe")},
+			CreatedAt: &created,
+		}},
+		resp: &tracker.Response{},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if strings.Contains(out, body) {
+		t.Errorf("TTY list did not fit the body to the terminal: %q", out)
+	}
+	if !strings.Contains(out, "...") {
+		t.Errorf("TTY list dropped the ellipsis: %q", out)
+	}
+}

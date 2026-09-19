@@ -96,9 +96,9 @@ func TestGet(t *testing.T) {
 					t.Error("expected global Get to be called")
 				}
 				for _, want := range []string{
-					"Key:", "summary", "Name:", "Summary",
-					"Type:", "standard", "Schema:", "string (required)",
-					"Readonly:", "no", "Category:", "System",
+					"Key\tsummary", "Name\tSummary",
+					"Type\tstandard", "Schema\tstring (required)",
+					"Readonly\tno", "Category\tSystem",
 				} {
 					if !strings.Contains(out, want) {
 						t.Errorf("detail output missing %q; got:\n%s", want, out)
@@ -130,7 +130,7 @@ func TestGet(t *testing.T) {
 				if mock.gotQueueKey != "PROJ" {
 					t.Errorf("expected queue key PROJ, got %q", mock.gotQueueKey)
 				}
-				if !strings.Contains(out, "Queue:") {
+				if !strings.Contains(out, "Queue\t") {
 					t.Errorf("output missing Queue field; got:\n%s", out)
 				}
 				if !strings.Contains(out, "PROJ") {
@@ -220,7 +220,7 @@ func TestGet(t *testing.T) {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				if !strings.Contains(out, "Options:") {
+				if !strings.Contains(out, "Options\t") {
 					t.Errorf("output missing Options field; got:\n%s", out)
 				}
 				if !strings.Contains(out, "bug, task, story") {
@@ -245,7 +245,7 @@ func TestGet(t *testing.T) {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				if strings.Contains(out, "Options:") {
+				if strings.Contains(out, "Options\t") {
 					t.Errorf("output should not contain Options field; got:\n%s", out)
 				}
 			},
@@ -326,7 +326,7 @@ func TestGetCardShowsFullFieldID(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	for _, want := range []string{"ID:", "66fd07bba913292094b4403c--size"} {
+	for _, want := range []string{"ID\t66fd07bba913292094b4403c--size"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("detail output missing %q; got:\n%s", want, out)
 		}
@@ -422,7 +422,7 @@ func TestGetCardShowsNumericOptions(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !strings.Contains(out, "Options:  0, 1\n") {
+	if !strings.Contains(out, "Options\t0, 1\n") {
 		t.Errorf("detail output missing numeric options; got:\n%s", out)
 	}
 }
@@ -463,14 +463,14 @@ func TestGetCardShowsPerQueueOptions(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		"Options (DIRECT):  Not specified, Test, Developer, Beta, Production, Trunk\n",
-		"Default options:  Not specified, Test, Developer, Beta, Production\n",
+		"Options (DIRECT)\tNot specified, Test, Developer, Beta, Production, Trunk\n",
+		"Default options\tNot specified, Test, Developer, Beta, Production\n",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("detail output missing %q; got:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "Options:") {
+	if strings.Contains(out, "Options\t") {
 		t.Errorf("detail output should not have a flat Options row; got:\n%s", out)
 	}
 }
@@ -537,8 +537,8 @@ func TestGetCardOrdersPerQueueOptionsByQueueKey(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	alpha := strings.Index(out, "Options (ALPHA):")
-	zeta := strings.Index(out, "Options (ZETA):")
+	alpha := strings.Index(out, "Options (ALPHA)\t")
+	zeta := strings.Index(out, "Options (ZETA)\t")
 	if alpha < 0 || zeta < 0 {
 		t.Fatalf("detail output missing a per-queue options row; got:\n%s", out)
 	}

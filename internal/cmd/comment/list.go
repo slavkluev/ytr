@@ -203,12 +203,9 @@ func renderListOutput(w io.Writer, comments []*tracker.Comment) error {
 		author := api.DerefUser(c.CreatedBy, "-")
 		date := "-"
 		if c.CreatedAt != nil {
-			date = output.TimeAgo(c.CreatedAt.Time)
+			date = output.FormatTime(c.CreatedAt.Time)
 		}
-		body := api.DerefString(c.Text, "")
-		// Truncate body to fit terminal width.
-		maxBody := max(output.TerminalWidth()-commentTableReservedWidth, commentMinColumnWidth)
-		body = output.TruncateDisplay(body, maxBody)
+		body := output.FitColumn(api.DerefString(c.Text, ""), commentTableReservedWidth, commentMinColumnWidth)
 		tbl.AddRow(id, author, date, body)
 	}
 

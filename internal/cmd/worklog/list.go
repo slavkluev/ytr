@@ -151,7 +151,7 @@ func renderListOutput(w io.Writer, worklogs []*tracker.Worklog) error {
 		duration := formatDuration(wl.Duration)
 		start := "-"
 		if wl.Start != nil {
-			start = output.TimeAgo(wl.Start.Time)
+			start = output.FormatTime(wl.Start.Time)
 		}
 		tbl.AddRow(id, author, duration, start)
 	}

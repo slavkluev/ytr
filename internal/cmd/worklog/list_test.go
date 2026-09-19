@@ -279,3 +279,46 @@ func TestListNamesakesKeepDistinctAuthorIDs(t *testing.T) {
 			items[0]["authorId"], items[1]["authorId"])
 	}
 }
+
+func TestListStartOffTTYIsRFC3339(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	mock := &mockWorklogLister{
+		worklogs: []*tracker.Worklog{makeWorklog("abc123", "Bug fix", 90)},
+		resp:     &tracker.Response{},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := "ID\tAUTHOR\tDURATION\tSTART\nabc123\ttestuser\tPT1H30M\t2026-03-30T10:00:00Z\n"
+	if out != want {
+		t.Errorf("off-TTY list = %q, want %q", out, want)
+	}
+}
+
+func TestListStartOnTTYIsRelative(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(true)
+	t.Setenv("NO_COLOR", "1")
+
+	mock := &mockWorklogLister{
+		worklogs: []*tracker.Worklog{makeWorklog("abc123", "Bug fix", 90)},
+		resp:     &tracker.Response{},
+	}
+
+	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if strings.Contains(out, "2026-03-30T10:00:00Z") {
+		t.Errorf("TTY list used an ISO timestamp: %q", out)
+	}
+	if !strings.Contains(out, "Mar 30") {
+		t.Errorf("TTY list lost the human date: %q", out)
+	}
+}

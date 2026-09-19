@@ -1,11 +1,9 @@
 package user
 
 import (
-	"fmt"
 	"io"
 	"strconv"
 
-	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
@@ -143,31 +141,17 @@ func renderDetailOutput(w io.Writer, user *tracker.User) error {
 	}
 
 	// Table-style view: labeled rows similar to gh issue view.
-	bold := func(label string) string {
-		if output.ColorsEnabled() {
-			return text.Colors{text.Bold}.Sprint(label)
-		}
-		return label
-	}
+	d := output.NewDetail(w)
 
-	// writeErr captures the first write error encountered.
-	var writeErr error
-	printField := func(label, value string) {
-		if writeErr != nil {
-			return
-		}
-		_, writeErr = fmt.Fprintf(w, "%s  %s\n", bold(label+":"), value)
-	}
+	d.Field("UID", strconv.Itoa(api.DerefInt(user.UID, 0)))
+	d.Field("Display", api.DerefString(user.Display, "-"))
+	d.Field("Login", api.DerefString(user.Login, "-"))
+	d.Field("Email", api.DerefString(user.Email, "-"))
+	d.Field("First Name", api.DerefString(user.FirstName, "-"))
+	d.Field("Last Name", api.DerefString(user.LastName, "-"))
+	d.Field("Dismissed", strconv.FormatBool(api.DerefBool(user.Dismissed, false)))
+	d.Field("Has License", strconv.FormatBool(api.DerefBool(user.HasLicense, false)))
+	d.Field("External", strconv.FormatBool(api.DerefBool(user.External, false)))
 
-	printField("UID", strconv.Itoa(api.DerefInt(user.UID, 0)))
-	printField("Display", api.DerefString(user.Display, "-"))
-	printField("Login", api.DerefString(user.Login, "-"))
-	printField("Email", api.DerefString(user.Email, "-"))
-	printField("First Name", api.DerefString(user.FirstName, "-"))
-	printField("Last Name", api.DerefString(user.LastName, "-"))
-	printField("Dismissed", strconv.FormatBool(api.DerefBool(user.Dismissed, false)))
-	printField("Has License", strconv.FormatBool(api.DerefBool(user.HasLicense, false)))
-	printField("External", strconv.FormatBool(api.DerefBool(user.External, false)))
-
-	return writeErr
+	return d.Err()
 }

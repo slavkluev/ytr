@@ -85,10 +85,9 @@ func TestMyself(t *testing.T) {
 					t.Fatalf("unexpected error: %v", err)
 				}
 				for _, want := range []string{
-					"12345", "John Doe", "john.doe", "john@example.com",
-					"John", "Doe", "false", "true",
-					"UID:", "Display:", "Login:", "Email:",
-					"First Name:", "Last Name:", "Dismissed:", "Has License:", "External:",
+					"UID\t12345", "Display\tJohn Doe", "Login\tjohn.doe",
+					"Email\tjohn@example.com", "First Name\tJohn", "Last Name\tDoe",
+					"Dismissed\tfalse", "Has License\ttrue", "External\tfalse",
 				} {
 					if !strings.Contains(out, want) {
 						t.Errorf("output missing %q; got:\n%s", want, out)

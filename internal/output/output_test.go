@@ -8,6 +8,7 @@ import (
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
+	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 func TestPrintJSON(t *testing.T) {
@@ -413,5 +414,57 @@ func TestHandleError_GenericError_JSON(t *testing.T) {
 	}
 	if result["message"] != bytes.ErrTooLarge.Error() {
 		t.Errorf("JSON message = %q, want %q", result["message"], bytes.ErrTooLarge.Error())
+	}
+}
+
+func TestPrintJSONOffTTYIsOneLine(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	var buf bytes.Buffer
+	data := map[string]any{"key": "MTP-1", "labels": []string{"a", "b"}}
+	if err := output.PrintJSON(&buf, data); err != nil {
+		t.Fatalf("PrintJSON() returned error: %v", err)
+	}
+
+	got := buf.String()
+	if strings.Count(got, "\n") != 1 || !strings.HasSuffix(got, "\n") {
+		t.Errorf("off-TTY JSON must be one line, got %q", got)
+	}
+	if !strings.Contains(got, `{"key":"MTP-1","labels":["a","b"]}`) {
+		t.Errorf("off-TTY JSON is not minified: %q", got)
+	}
+}
+
+func TestPrintJSONOnTTYKeepsTheIndent(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(true)
+
+	var buf bytes.Buffer
+	data := map[string]any{"key": "MTP-1"}
+	if err := output.PrintJSON(&buf, data); err != nil {
+		t.Fatalf("PrintJSON() returned error: %v", err)
+	}
+
+	if got, want := buf.String(), "{\n  \"key\": \"MTP-1\"\n}\n"; got != want {
+		t.Errorf("TTY JSON = %q, want %q", got, want)
+	}
+}
+
+func TestHandleErrorJSONStaysCompactInBothModes(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key"}
+
+	for _, isTTY := range []bool{false, true} {
+		output.SetTTY(isTTY)
+
+		var buf bytes.Buffer
+		code := output.HandleError(&buf, ytrerrors.NewUserError("bad input", "try again"))
+		if code != ytrerrors.ExitUserError {
+			t.Errorf("exit code = %d, want %d", code, ytrerrors.ExitUserError)
+		}
+		if got := buf.String(); strings.Count(got, "\n") != 1 {
+			t.Errorf("JSON error with IsTTY()=%v must be one line, got %q", isTTY, got)
+		}
 	}
 }

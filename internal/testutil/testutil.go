@@ -10,8 +10,15 @@ import (
 )
 
 // ResetOutputFlags resets global output flags and restores them after the test.
+// It also clears the three color variables, so a test starts from a known
+// color state rather than inheriting whatever the developer's shell exports:
+// CLICOLOR_FORCE=1 would otherwise put ANSI codes in output a test compares
+// byte for byte. t.Setenv restores the previous values when the test ends.
 func ResetOutputFlags(t *testing.T) {
 	t.Helper()
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("CLICOLOR_FORCE", "")
+	t.Setenv("CLICOLOR", "")
 	output.ResetFlags()
 	t.Cleanup(func() {
 		output.ResetFlags()

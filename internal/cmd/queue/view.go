@@ -1,10 +1,8 @@
 package queue
 
 import (
-	"fmt"
 	"io"
 
-	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
@@ -153,46 +151,19 @@ func renderDetailJSON(w io.Writer, q *tracker.Queue) error {
 
 // renderDetailTable renders the queue as labeled key-value rows.
 func renderDetailTable(w io.Writer, q *tracker.Queue) error {
-	bold := func(label string) string {
-		if output.ColorsEnabled() {
-			return text.Colors{text.Bold}.Sprint(label)
-		}
-		return label
-	}
+	d := output.NewDetail(w)
 
-	// writeErr captures the first write error encountered.
-	var writeErr error
-	printField := func(label, value string) {
-		if writeErr != nil {
-			return
-		}
-		_, writeErr = fmt.Fprintf(w, "%s  %s\n", bold(label+":"), value)
-	}
+	d.Field("Key", api.DerefString(q.Key, "-"))
+	d.Field("Name", api.DerefString(q.Name, "-"))
+	d.Field("Lead", api.DerefUser(q.Lead, "-"))
+	d.Field("Default Type", derefIssueTypeOrFallback(q.DefaultType, "-"))
+	d.Field("Default Priority", derefPriorityOrFallback(q.DefaultPriority, "-"))
 
-	printField("Key", api.DerefString(q.Key, "-"))
-	printField("Name", api.DerefString(q.Name, "-"))
-	printField("Lead", api.DerefUser(q.Lead, "-"))
-	printField("Default Type", derefIssueTypeOrFallback(q.DefaultType, "-"))
-	printField("Default Priority", derefPriorityOrFallback(q.DefaultPriority, "-"))
-
-	if writeErr != nil {
-		return writeErr
-	}
-
-	// Description with separator.
 	if q.Description != nil && *q.Description != "" {
-		if _, err := fmt.Fprintln(w); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(w, "%s\n", bold("Description:")); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(w, "  %s\n", *q.Description); err != nil {
-			return err
-		}
+		d.Block("Description", *q.Description)
 	}
 
-	return nil
+	return d.Err()
 }
 
 // derefIssueType extracts the display name from a *tracker.IssueType.

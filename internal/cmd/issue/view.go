@@ -1,11 +1,9 @@
 package issue
 
 import (
-	"fmt"
 	"io"
 	"time"
 
-	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 
 	"github.com/spf13/cobra"
@@ -177,69 +175,42 @@ func renderDetailOutput(w io.Writer, issue *tracker.Issue) error {
 
 // renderDetailTable renders the issue as labeled key-value rows.
 func renderDetailTable(w io.Writer, issue *tracker.Issue) error {
-	bold := func(label string) string {
-		if output.ColorsEnabled() {
-			return text.Colors{text.Bold}.Sprint(label)
-		}
-		return label
-	}
+	d := output.NewDetail(w)
 
-	// writeErr captures the first write error encountered.
-	var writeErr error
-	printField := func(label, value string) {
-		if writeErr != nil {
-			return
-		}
-		_, writeErr = fmt.Fprintf(w, "%s  %s\n", bold(label+":"), value)
-	}
-
-	printField("Key", api.DerefString(issue.Key, "-"))
-	printField("Title", api.DerefString(issue.Summary, "-"))
-	printField("Status", issueStatusDisplay(issue))
+	d.Field("Key", api.DerefString(issue.Key, "-"))
+	d.Field("Title", api.DerefString(issue.Summary, "-"))
+	d.Field("Status", issueStatusDisplay(issue))
 
 	priority := "-"
 	if issue.Priority != nil {
 		priority = api.DerefString(issue.Priority.Display, "-")
 	}
-	printField("Priority", priority)
+	d.Field("Priority", priority)
 
 	issueType := "-"
 	if issue.Type != nil {
 		issueType = api.DerefString(issue.Type.Display, "-")
 	}
-	printField("Type", issueType)
+	d.Field("Type", issueType)
 
-	printField("Author", api.DerefUser(issue.CreatedBy, "-"))
-	printField("Assignee", api.DerefUser(issue.Assignee, "-"))
+	d.Field("Author", api.DerefUser(issue.CreatedBy, "-"))
+	d.Field("Assignee", api.DerefUser(issue.Assignee, "-"))
 
 	created := "-"
 	if issue.CreatedAt != nil {
-		created = output.TimeAgo(issue.CreatedAt.Time)
+		created = output.FormatTime(issue.CreatedAt.Time)
 	}
-	printField("Created", created)
+	d.Field("Created", created)
 
 	updated := "-"
 	if issue.UpdatedAt != nil {
-		updated = output.TimeAgo(issue.UpdatedAt.Time)
+		updated = output.FormatTime(issue.UpdatedAt.Time)
 	}
-	printField("Updated", updated)
+	d.Field("Updated", updated)
 
-	if writeErr != nil {
-		return writeErr
-	}
-
-	// Description with separator.
 	if issue.Description != nil && *issue.Description != "" {
-		if _, err := fmt.Fprintln(w); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(w, "%s\n", bold("Description:")); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(w, "  %s\n", *issue.Description); err != nil {
-			return err
-		}
+		d.Block("Description", *issue.Description)
 	}
 
-	return nil
+	return d.Err()
 }
