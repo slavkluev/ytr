@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -210,7 +211,7 @@ func TestGet(t *testing.T) {
 					Type:            testutil.StrPtr("standard"),
 					Schema:          &tracker.FieldSchema{Type: testutil.StrPtr("string")},
 					Readonly:        testutil.BoolPtr(false),
-					OptionsProvider: &tracker.OptionsProvider{Values: []string{"bug", "task", "story"}},
+					OptionsProvider: &tracker.OptionsProvider{Values: []any{"bug", "task", "story"}},
 				},
 			},
 			args: []string{"issueType"},
@@ -375,5 +376,173 @@ func TestGetJSONIncludesArrayElementType(t *testing.T) {
 	result := decodeDetail(t, out)
 	if result["items"] != "string" {
 		t.Errorf("expected items=string, got %v", result["items"])
+	}
+}
+
+func TestGetJSONKeepsStringOptions(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key", "options"}
+
+	field := localSizeDetailField()
+	field.OptionsProvider = &tracker.OptionsProvider{Values: []any{"S", "M"}}
+	mock := &mockFieldGetter{field: field}
+	out, err := setupGetCmd(t, mock, []string{"size", "--queue", "PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := decodeDetail(t, out)
+	if want := []any{"S", "M"}; !reflect.DeepEqual(result["options"], want) {
+		t.Errorf("expected options %v, got %#v", want, result["options"])
+	}
+}
+
+func TestGetJSONKeepsNumericOptions(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key", "options"}
+
+	mock := &mockFieldGetter{field: decodeFieldFixture(t, possibleSpamJSON)}
+	out, err := setupGetCmd(t, mock, []string{"possibleSpam"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := decodeDetail(t, out)
+	if want := []any{float64(0), float64(1)}; !reflect.DeepEqual(result["options"], want) {
+		t.Errorf("expected numeric options [0 1], got %#v", result["options"])
+	}
+}
+
+func TestGetCardShowsNumericOptions(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockFieldGetter{field: decodeFieldFixture(t, possibleSpamJSON)}
+	out, err := setupGetCmd(t, mock, []string{"possibleSpam"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(out, "Options:  0, 1\n") {
+		t.Errorf("detail output missing numeric options; got:\n%s", out)
+	}
+}
+
+func TestGetJSONPerQueueOptions(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key", "options", "queueOptions", "defaultOptions"}
+
+	mock := &mockFieldGetter{field: decodeFieldFixture(t, perQueueFieldJSON)}
+	out, err := setupGetCmd(t, mock, []string{"stand"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := decodeDetail(t, out)
+	if _, present := result["options"]; present {
+		t.Errorf("expected options to be omitted, got %v", result["options"])
+	}
+	wantQueue := map[string]any{
+		"DIRECT": []any{"Not specified", "Test", "Developer", "Beta", "Production", "Trunk"},
+	}
+	if !reflect.DeepEqual(result["queueOptions"], wantQueue) {
+		t.Errorf("expected queueOptions %v, got %#v", wantQueue, result["queueOptions"])
+	}
+	wantDefaults := []any{"Not specified", "Test", "Developer", "Beta", "Production"}
+	if !reflect.DeepEqual(result["defaultOptions"], wantDefaults) {
+		t.Errorf("expected defaultOptions %v, got %#v", wantDefaults, result["defaultOptions"])
+	}
+}
+
+func TestGetCardShowsPerQueueOptions(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockFieldGetter{field: decodeFieldFixture(t, perQueueFieldJSON)}
+	out, err := setupGetCmd(t, mock, []string{"stand"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, want := range []string{
+		"Options (DIRECT):  Not specified, Test, Developer, Beta, Production, Trunk\n",
+		"Default options:  Not specified, Test, Developer, Beta, Production\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("detail output missing %q; got:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "Options:") {
+		t.Errorf("detail output should not have a flat Options row; got:\n%s", out)
+	}
+}
+
+func TestGetJSONOmitsOptionsWhenProviderHasNoValues(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key", "options", "queueOptions", "defaultOptions"}
+
+	mock := &mockFieldGetter{field: decodeFieldFixture(t, teamFieldJSON)}
+	out, err := setupGetCmd(t, mock, []string{"team"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result := decodeDetail(t, out)
+	for _, key := range []string{"options", "queueOptions", "defaultOptions"} {
+		if _, present := result[key]; present {
+			t.Errorf("expected %s to be omitted, got %v", key, result[key])
+		}
+	}
+}
+
+func TestGetCardOmitsOptionsWhenProviderHasNoValues(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	mock := &mockFieldGetter{field: decodeFieldFixture(t, teamFieldJSON)}
+	out, err := setupGetCmd(t, mock, []string{"team"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if strings.Contains(out, "ptions") {
+		t.Errorf("detail output should have no options rows; got:\n%s", out)
+	}
+}
+
+func TestGetPassesThroughOptionDecodeError(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	decodeErr := optionDecodeError(t)
+	mock := &mockFieldGetter{err: decodeErr}
+	_, err := setupGetCmd(t, mock, []string{"size"})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), decodeErr.Error()) {
+		t.Errorf("expected error to carry %q, got %q", decodeErr, err)
+	}
+}
+
+func TestGetCardOrdersPerQueueOptionsByQueueKey(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	field := localSizeDetailField()
+	field.OptionsProvider = &tracker.OptionsProvider{
+		QueueValues: map[string][]any{
+			"ZETA":  {"Z1"},
+			"ALPHA": {"A1"},
+		},
+	}
+	mock := &mockFieldGetter{field: field}
+	out, err := setupGetCmd(t, mock, []string{"size", "--queue", "PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	alpha := strings.Index(out, "Options (ALPHA):")
+	zeta := strings.Index(out, "Options (ZETA):")
+	if alpha < 0 || zeta < 0 {
+		t.Fatalf("detail output missing a per-queue options row; got:\n%s", out)
+	}
+	if alpha > zeta {
+		t.Errorf("expected Options (ALPHA) before Options (ZETA); got:\n%s", out)
 	}
 }

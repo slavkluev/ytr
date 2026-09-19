@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -252,7 +253,7 @@ func localSizeField() *tracker.Field {
 		Schema:   &tracker.FieldSchema{Type: testutil.StrPtr("string")},
 		Readonly: testutil.BoolPtr(false),
 		OptionsProvider: &tracker.OptionsProvider{
-			Values: []string{"S", "M", "L"},
+			Values: []any{"S", "M", "L"},
 		},
 	}
 }
@@ -368,5 +369,140 @@ func TestListJSONIncludesArrayElementType(t *testing.T) {
 	}
 	if items[0]["items"] != "string" {
 		t.Errorf("expected items=string, got %v", items[0]["items"])
+	}
+}
+
+// possibleSpamJSON is the global field possibleSpam as GET /v3/fields returned
+// it from a real org: an integer field whose options are the numbers 0 and 1.
+const possibleSpamJSON = `{"self":"https://api.tracker.yandex.net/v3/fields/possibleSpam",` +
+	`"id":"possibleSpam","name":"Возможно спам","key":"possibleSpam","version":0,` +
+	`"schema":{"type":"integer","required":false},"readonly":false,"options":true,"suggest":false,` +
+	`"optionsProvider":{"type":"FixedListOptionsProvider","needValidation":true,"values":[0,1]},` +
+	`"queryProvider":{"type":"NumberOptionalQueryProvider"},"order":66,` +
+	`"category":{"self":"https://api.tracker.yandex.net/v3/fields/categories/000000000000000000000001",` +
+	`"id":"000000000000000000000001","display":"Системные"},"type":"standard"}`
+
+// perQueueFieldJSON is the GET /v3/queues/{queue}/fields reference example,
+// whose optionsProvider keys the allowed values by queue and adds defaults.
+const perQueueFieldJSON = `{
+	"self": "https://api.tracker.yandex.net/v3/fields/stand",
+	"id": "stand",
+	"name": "Bench",
+	"version": 1361890459119,
+	"schema": {"type": "string", "required": false},
+	"readonly": false,
+	"options": true,
+	"suggest": false,
+	"optionsProvider": {
+		"type": "QueueFixedListOptionsProvider",
+		"values": {
+			"DIRECT": ["Not specified", "Test", "Developer", "Beta", "Production", "Trunk"]
+		},
+		"defaults": ["Not specified", "Test", "Developer", "Beta", "Production"]
+	},
+	"queryProvider": {"type": "StringOptionalQueryProvider"},
+	"order": 222
+}`
+
+// teamFieldJSON is a field whose options provider carries a type and no values.
+const teamFieldJSON = `{"id":"team","key":"team","name":"Team",` +
+	`"optionsProvider":{"type":"TeamOptionsProvider"}}`
+
+// decodeFieldFixture decodes Tracker field JSON through the SDK, so fixtures
+// carry exactly the option value types the SDK produces.
+func decodeFieldFixture(t *testing.T, raw string) *tracker.Field {
+	t.Helper()
+
+	field := new(tracker.Field)
+	if err := json.Unmarshal([]byte(raw), field); err != nil {
+		t.Fatalf("decode field fixture: %v", err)
+	}
+	return field
+}
+
+// optionDecodeError returns the error the SDK reports for an optionsProvider
+// whose values are neither an array nor an object.
+func optionDecodeError(t *testing.T) error {
+	t.Helper()
+
+	var field tracker.Field
+	err := json.Unmarshal([]byte(`{"key":"size","optionsProvider":{"values":"S"}}`), &field)
+	if err == nil {
+		t.Fatal("expected the SDK to reject a string optionsProvider.values")
+	}
+	return err
+}
+
+func TestListJSONKeepsNumericOptions(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key", "options"}
+
+	mock := &mockFieldLister{fields: []*tracker.Field{decodeFieldFixture(t, possibleSpamJSON)}}
+	out, err := setupListCmd(t, mock, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	items := decodeListItems(t, out)
+	if want := []any{float64(0), float64(1)}; !reflect.DeepEqual(items[0]["options"], want) {
+		t.Errorf("expected numeric options [0 1], got %#v", items[0]["options"])
+	}
+}
+
+func TestListJSONPerQueueOptions(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key", "options", "queueOptions", "defaultOptions"}
+
+	mock := &mockFieldLister{fields: []*tracker.Field{decodeFieldFixture(t, perQueueFieldJSON)}}
+	out, err := setupListCmd(t, mock, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	items := decodeListItems(t, out)
+	if _, present := items[0]["options"]; present {
+		t.Errorf("expected options to be omitted, got %v", items[0]["options"])
+	}
+	wantQueue := map[string]any{
+		"DIRECT": []any{"Not specified", "Test", "Developer", "Beta", "Production", "Trunk"},
+	}
+	if !reflect.DeepEqual(items[0]["queueOptions"], wantQueue) {
+		t.Errorf("expected queueOptions %v, got %#v", wantQueue, items[0]["queueOptions"])
+	}
+	wantDefaults := []any{"Not specified", "Test", "Developer", "Beta", "Production"}
+	if !reflect.DeepEqual(items[0]["defaultOptions"], wantDefaults) {
+		t.Errorf("expected defaultOptions %v, got %#v", wantDefaults, items[0]["defaultOptions"])
+	}
+}
+
+func TestListJSONOmitsOptionsWhenProviderHasNoValues(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"key", "options", "queueOptions", "defaultOptions"}
+
+	mock := &mockFieldLister{fields: []*tracker.Field{decodeFieldFixture(t, teamFieldJSON)}}
+	out, err := setupListCmd(t, mock, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	items := decodeListItems(t, out)
+	for _, key := range []string{"options", "queueOptions", "defaultOptions"} {
+		if _, present := items[0][key]; present {
+			t.Errorf("expected %s to be omitted, got %v", key, items[0][key])
+		}
+	}
+}
+
+func TestListPassesThroughOptionDecodeError(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	decodeErr := optionDecodeError(t)
+	mock := &mockFieldLister{err: decodeErr}
+	_, err := setupListCmd(t, mock, nil)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), decodeErr.Error()) {
+		t.Errorf("expected error to carry %q, got %q", decodeErr, err)
 	}
 }

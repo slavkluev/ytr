@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "5.0"
+  version: "5.1"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -138,7 +138,11 @@ Note: `--filter` uses camelCase API field names (`createdBy`, `createdAt`), whil
 Special value: `me()` for current user (e.g., `--filter assignee=me()`).
 Discover all fields: `ytr field list --queue QUEUE --json id,key,name,schema,options`.
 `id` is the full field id (`<queueId>--<key>` for local fields); `options` lists the
-allowed values for enum fields.
+allowed values for enum fields in the JSON type Tracker sent, so numeric options
+stay numbers (`possibleSpam` has `options: [0, 1]`). When Tracker sets the allowed
+values per queue, `options` is omitted: `queueOptions` maps each queue key to its
+list, and `defaultOptions` holds Tracker's `defaults` list. `field get` has the
+same three fields.
 
 ```bash
 # Search with Tracker query language (complex boolean/date queries)

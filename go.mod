@@ -7,7 +7,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.7.9
 	github.com/mattn/go-isatty v0.0.21
 	github.com/mattn/go-runewidth v0.0.23
-	github.com/slavkluev/go-yandex-tracker v0.4.1
+	github.com/slavkluev/go-yandex-tracker v0.5.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/term v0.41.0
 	gopkg.in/yaml.v3 v3.0.1

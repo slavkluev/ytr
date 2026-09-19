@@ -3,6 +3,7 @@ package field
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -28,23 +29,28 @@ var FieldGetFields = []string{
 	"category",
 	"queue",
 	"options",
+	"queueOptions",
+	"defaultOptions",
 	"description",
 }
 
 // fieldDetail is a clean struct for JSON serialization of a single field.
+// Option values are []any so each keeps the JSON type Tracker sent.
 type fieldDetail struct {
-	ID          string   `json:"id"`
-	Key         string   `json:"key"`
-	Name        string   `json:"name"`
-	Type        string   `json:"type,omitempty"`
-	Schema      string   `json:"schema,omitempty"`
-	Items       string   `json:"items,omitempty"`
-	Required    bool     `json:"required"`
-	Readonly    bool     `json:"readonly"`
-	Category    string   `json:"category,omitempty"`
-	Queue       string   `json:"queue,omitempty"`
-	Options     []string `json:"options,omitempty"`
-	Description string   `json:"description,omitempty"`
+	ID             string           `json:"id"`
+	Key            string           `json:"key"`
+	Name           string           `json:"name"`
+	Type           string           `json:"type,omitempty"`
+	Schema         string           `json:"schema,omitempty"`
+	Items          string           `json:"items,omitempty"`
+	Required       bool             `json:"required"`
+	Readonly       bool             `json:"readonly"`
+	Category       string           `json:"category,omitempty"`
+	Queue          string           `json:"queue,omitempty"`
+	Options        []any            `json:"options,omitempty"`
+	QueueOptions   map[string][]any `json:"queueOptions,omitempty"`
+	DefaultOptions []any            `json:"defaultOptions,omitempty"`
+	Description    string           `json:"description,omitempty"`
 }
 
 // toFieldDetail converts a tracker.Field into a clean fieldDetail struct for JSON output.
@@ -71,8 +77,10 @@ func toFieldDetail(f *tracker.Field) fieldDetail {
 		detail.Queue = api.DerefString(f.Queue.Key, "")
 	}
 
-	if f.OptionsProvider != nil && len(f.OptionsProvider.Values) > 0 {
-		detail.Options = f.OptionsProvider.Values
+	if p := f.OptionsProvider; p != nil {
+		detail.Options = p.Values
+		detail.QueueOptions = p.QueueValues
+		detail.DefaultOptions = p.Defaults
 	}
 
 	detail.Description = api.DerefString(f.Description, "")
@@ -91,9 +99,14 @@ func newGetCmd() *cobra.Command {
 
 When --queue is specified, retrieves a queue-local field instead of a global field.
 
+options lists the field's allowed values in the JSON type Tracker sent, so
+numeric options stay numbers. When Tracker sets the values per queue, options
+is omitted: queueOptions maps each queue key to its list, and defaultOptions
+holds Tracker's defaults list.
+
 JSON FIELDS
   id, key, name, type, schema, items, required, readonly, category, queue, options,
-  description
+  queueOptions, defaultOptions, description
 
 SEE ALSO
   ytr field list  - List available fields`,
@@ -256,9 +269,39 @@ func renderOptionalFields(printField func(string, string), field *tracker.Field)
 		}
 	}
 
-	if field.OptionsProvider != nil && len(field.OptionsProvider.Values) > 0 {
-		printField("Options", strings.Join(field.OptionsProvider.Values, ", "))
+	if p := field.OptionsProvider; p != nil {
+		renderOptions(printField, p)
 	}
+}
+
+// renderOptions prints a field's allowed values: the flat list, then one row
+// per queue in key order, then Tracker's defaults list.
+func renderOptions(printField func(string, string), p *tracker.OptionsProvider) {
+	if len(p.Values) > 0 {
+		printField("Options", joinOptions(p.Values))
+	}
+
+	queues := make([]string, 0, len(p.QueueValues))
+	for queue := range p.QueueValues {
+		queues = append(queues, queue)
+	}
+	sort.Strings(queues)
+	for _, queue := range queues {
+		printField("Options ("+queue+")", joinOptions(p.QueueValues[queue]))
+	}
+
+	if len(p.Defaults) > 0 {
+		printField("Default options", joinOptions(p.Defaults))
+	}
+}
+
+// joinOptions renders option values of any JSON type as a comma-separated list.
+func joinOptions(values []any) string {
+	parts := make([]string, len(values))
+	for i, v := range values {
+		parts[i] = fmt.Sprint(v)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // renderDescription prints the field description with a separator if present.

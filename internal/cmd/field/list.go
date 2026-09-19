@@ -14,17 +14,30 @@ import (
 )
 
 // FieldListFields lists the available JSON field names for field list output.
-var FieldListFields = []string{"id", "key", "name", "schema", "items", "readonly", "options"}
+var FieldListFields = []string{
+	"id",
+	"key",
+	"name",
+	"schema",
+	"items",
+	"readonly",
+	"options",
+	"queueOptions",
+	"defaultOptions",
+}
 
 // fieldItem is a clean struct for JSON serialization of field data.
+// Option values are []any so each keeps the JSON type Tracker sent.
 type fieldItem struct {
-	ID       string   `json:"id"`
-	Key      string   `json:"key"`
-	Name     string   `json:"name"`
-	Schema   string   `json:"schema,omitempty"`
-	Items    string   `json:"items,omitempty"`
-	Readonly bool     `json:"readonly"`
-	Options  []string `json:"options,omitempty"`
+	ID             string           `json:"id"`
+	Key            string           `json:"key"`
+	Name           string           `json:"name"`
+	Schema         string           `json:"schema,omitempty"`
+	Items          string           `json:"items,omitempty"`
+	Readonly       bool             `json:"readonly"`
+	Options        []any            `json:"options,omitempty"`
+	QueueOptions   map[string][]any `json:"queueOptions,omitempty"`
+	DefaultOptions []any            `json:"defaultOptions,omitempty"`
 }
 
 // toFieldItem converts a tracker.Field to a clean JSON-serializable struct.
@@ -46,8 +59,10 @@ func toFieldItem(f *tracker.Field) fieldItem {
 		Readonly: api.DerefBool(f.Readonly, false),
 	}
 
-	if f.OptionsProvider != nil && len(f.OptionsProvider.Values) > 0 {
-		item.Options = f.OptionsProvider.Values
+	if p := f.OptionsProvider; p != nil {
+		item.Options = p.Values
+		item.QueueOptions = p.QueueValues
+		item.DefaultOptions = p.Defaults
 	}
 
 	return item
@@ -64,8 +79,13 @@ func newListCmd() *cobra.Command {
 
 When --queue is specified, shows queue-local fields instead of global fields.
 
+options lists a field's allowed values in the JSON type Tracker sent, so
+numeric options stay numbers. When Tracker sets the values per queue, options
+is omitted: queueOptions maps each queue key to its list, and defaultOptions
+holds Tracker's defaults list.
+
 JSON FIELDS
-  id, key, name, schema, items, readonly, options
+  id, key, name, schema, items, readonly, options, queueOptions, defaultOptions
 
 SEE ALSO
   ytr field get  - Show field details`,
