@@ -23,7 +23,7 @@ Additional commands:
 
 ```bash
 make build     # compile the ytr binary
-make fmt       # format code with gofmt
+make fmt       # apply the formatters lint enforces (golangci-lint fmt)
 make coverage  # generate coverage profile
 ```
 

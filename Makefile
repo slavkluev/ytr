@@ -4,9 +4,9 @@
 build:
 	go build -o ytr ./cmd/ytr
 
-## fmt: format code with gofmt
+## fmt: apply the formatters lint enforces (gofmt, goimports, golines)
 fmt:
-	gofmt -w .
+	golangci-lint fmt
 
 ## lint: run golangci-lint (matches CI lint job)
 lint:
