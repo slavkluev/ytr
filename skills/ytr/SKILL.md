@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "4.0"
+  version: "5.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -342,7 +342,7 @@ among the rejected keys: the API supports them, `--from-json` does not yet.
 | `--filter k=v` | `issue list` | Filter by field (repeatable); mutually exclusive with `--query` |
 | `--order-by` | `issue list` | Sort by field (descending by default); cannot be used with `--query` |
 | `--order-asc` | `issue list` | Sort ascending; requires `--order-by` |
-| `--field` | `issue changelog` | Filter changes by field name (case-insensitive) |
+| `--field` | `issue changelog` | Filter changes by field name (case-sensitive) |
 | `--type` | `issue changelog` | Filter by change type (e.g., IssueWorkflow, IssueCommentAdded) |
 | `--limit N` | Paginated list commands | Results per page (default 50, max 1000) |
 | `--all` | Paginated list commands | Fetch all pages automatically |
