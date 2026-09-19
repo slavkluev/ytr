@@ -7,7 +7,7 @@ import (
 )
 
 // PrintJSON writes data as indented JSON to the writer, followed by a newline.
-// No ANSI codes or color are ever included in the output per OUT-01.
+// No ANSI codes or color are ever included, so the output stays machine-parseable.
 func PrintJSON(w io.Writer, data any) error {
 	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {

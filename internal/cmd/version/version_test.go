@@ -109,9 +109,9 @@ func TestVersionJSON(t *testing.T) {
 	}
 }
 
-// TestVersionJSONEmptyShowsFieldHint covers Info #4: `version --json=` (an
-// explicit empty value) must show the available-fields hint, not fall through
-// to table output with exit 0. Detection relies on cmd.Flags().Changed("json"),
+// TestVersionJSONEmptyShowsFieldHint checks that `version --json=` (an
+// explicit empty value) shows the available-fields hint instead of falling
+// through to table output with exit 0. Detection relies on cmd.Flags().Changed("json"),
 // so the test wires a --json flag mirroring the root persistent flag.
 func TestVersionJSONEmptyShowsFieldHint(t *testing.T) {
 	output.ResetFlags()

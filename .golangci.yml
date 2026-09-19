@@ -92,7 +92,7 @@ linters:
     - unused
     - usetesting
   disable:
-    # D-06: Permanently excluded with documented rationale.
+    # Permanently excluded; rationale inline.
     - gochecknoglobals   # Factory vars (newSearcher, newGetter) are the testability mechanism
     - gochecknoinits     # init() in root.go is idiomatic Cobra
     - testpackage        # White-box testing by design -- tests access factory vars from same package

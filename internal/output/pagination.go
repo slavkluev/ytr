@@ -1,7 +1,7 @@
 package output
 
 // PaginatedResult wraps list command results with pagination metadata
-// for JSON output per OUT-08. The envelope format is:
+// for JSON output. The envelope format is:
 // {"items": [...], "pagination": {"cursor": "...", "hasMore": true, "total": N}}.
 type PaginatedResult struct {
 	// Items contains the list of results.

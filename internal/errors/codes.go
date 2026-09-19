@@ -2,7 +2,7 @@
 package errors
 
 // Exit code constants define semantic meanings for process exit codes.
-// These follow Unix conventions and ytr-specific semantics per OUT-05.
+// These follow Unix conventions plus ytr-specific semantics that scripts and agents branch on.
 const (
 	// ExitSuccess indicates the command completed successfully.
 	ExitSuccess = 0
