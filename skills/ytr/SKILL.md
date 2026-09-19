@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "5.1"
+  version: "5.2"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -92,6 +92,7 @@ Notes:
 |---------|-------------|-----------|
 | `ytr queue list` | List queues | `--limit`, `--all`, `--cursor` |
 | `ytr queue view QUEUE-KEY` | View queue details | |
+| `ytr queue context QUEUE-KEY` | Everything needed to create and move issues in a queue, as one JSON document | `--json` selects parts |
 | `ytr component create` | Create a component | `--name`, `--queue`, `--description`, `--lead`, `--assign-auto`, `--from-json` |
 | `ytr component edit COMPONENT-ID` | Edit a component | `--name`, `--queue`, `--description`, `--lead`, `--assign-auto`, `--from-json` |
 | `ytr component delete COMPONENT-ID` | Delete a component | |
@@ -143,6 +144,9 @@ stay numbers (`possibleSpam` has `options: [0, 1]`). When Tracker sets the allow
 values per queue, `options` is omitted: `queueOptions` maps each queue key to its
 list, and `defaultOptions` holds Tracker's `defaults` list. `field get` has the
 same three fields.
+A local field is filtered by its full id, `--filter <queueId>--size=L`; the short
+`--filter size=L` gets a bare 400. `ytr queue context QUEUE --json localFields`
+lists a queue's local fields with their full ids and allowed values.
 
 ```bash
 # Search with Tracker query language (complex boolean/date queries)
@@ -240,7 +244,50 @@ ytr checklist edit PROJ-123 42 --checked
 
 ### Discovery
 
+Before creating or moving issues in a queue, run `ytr queue context QUEUE` once.
+It prints one JSON document whose top-level keys are its parts:
+
+- `key`, `name`: the queue.
+- `defaultType`, `defaultPriority`: keys, the form `issue create --type` and `--priority` take.
+- `issueTypes`: `key`, `name`, and the `workflow` id each type follows.
+- `statuses`: every status of the queue's workflows, once, as `key` and `name`.
+- `workflows`: `id`, `initialStatus`, and `transitions`, which maps each status key
+  to the status keys an issue can move to from it (`[]` for a status with no outgoing transitions).
+  `issue transition --to` takes such a key.
+- `components`: `id` and `name`.
+- `requiredFields`: `summary`, then every field the queue marks required. On `type`
+  and `priority`, `default` is the queue's default, which fills the field when the
+  issue does not set it. Tracker's list of queue fields is often empty; then
+  `incomplete` says so, because other fields may still be required.
+- `localFields`: `id` is the full `<queueId>--<key>` that `--filter` needs;
+  `options` are the allowed values in the JSON type Tracker sent.
+- `globalFields`: the editable global fields, `key` and `name` only. Run
+  `ytr field get KEY` for a field's schema and allowed values.
+- `incomplete`: `{"part", "reason"}` for each part that is missing or may be missing entries.
+
+`key`, `name`, the defaults and `issueTypes` come from the queue request; `statuses`
+and `workflows` share the workflow requests; each other part has a request of its own.
+A part whose request failed is `null`, and `incomplete` names it with the server's
+error text; a part that was fetched but is empty is `[]`. The command exits 0 once the
+queue itself is found, so check `incomplete` before relying on a part. An unknown
+queue exits 4. `--json a,b` returns only those parts and makes only the requests they
+need; `incomplete` is always included. The document is always JSON, and `--quiet` is
+an error. As for every command, an error is a JSON document on stderr only under
+`--json` or `--jq`.
+
 ```bash
+# Everything needed to work in a queue
+ytr queue context PROJ
+
+# Only issue types and their workflows
+ytr queue context PROJ --json issueTypes,workflows
+
+# Statuses an issue in "open" can move to
+ytr queue context PROJ --json workflows --jq '.workflows[].transitions.open'
+
+# Full local field ids and allowed values, for --filter
+ytr queue context PROJ --json localFields --jq '.localFields[] | {id, options}'
+
 # List available fields for a queue
 ytr field list --queue PROJ --json id,key,name,schema,options
 
@@ -300,6 +347,10 @@ ytr user get "$(ytr comment list PROJ-123 --json authorId --jq '.[0].authorId')"
 Exceptions:
 
 - Delete commands return fixed confirmation objects such as `{ "id": "...", "deleted": true }`.
+- `queue context` prints its document as JSON even without `--json`: its top-level keys
+  are its parts. `--json` selects parts, `incomplete` is always present, and `--quiet`
+  is an error. Its errors follow the usual rule: a JSON document on stderr only under
+  `--json` or `--jq`.
 - Paginated list commands such as `issue list`, `issue changelog`, `queue list`, and `user list` return an object with `items` and `pagination`.
 - Non-paginated sub-resource list commands such as `comment list`, `link list`, `worklog list`, and `checklist list` return arrays.
 

@@ -93,7 +93,7 @@ func TestDebugTransportLogsRequestAndResponse(t *testing.T) {
 	out := buf.String()
 	for _, want := range []string{
 		`[debug] request POST /v2/issues?query_keys=perPage,signature auth_source=env body=json_keys=priority,queue,summary`,
-		`[debug] response 500 duration=`,
+		`[debug] response 500 method=POST path=/v2/issues?query_keys=perPage,signature duration=`,
 		`request_id=req-123`,
 		`[debug] response_preview text="Internal Server Error"`,
 	} {

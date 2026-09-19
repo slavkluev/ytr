@@ -76,10 +76,11 @@ func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	requestID := output.SanitizeDebugString(extractRequestID(resp.Header))
 	if requestID != "" {
-		output.Debugf("response %d duration=%s request_id=%s",
-			resp.StatusCode, duration, requestID)
+		output.Debugf("response %d method=%s path=%s duration=%s request_id=%s",
+			resp.StatusCode, req.Method, path, duration, requestID)
 	} else {
-		output.Debugf("response %d duration=%s", resp.StatusCode, duration)
+		output.Debugf("response %d method=%s path=%s duration=%s",
+			resp.StatusCode, req.Method, path, duration)
 	}
 
 	if responsePreview != "" {

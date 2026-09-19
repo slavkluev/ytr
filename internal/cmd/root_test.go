@@ -2,11 +2,14 @@ package cmd_test
 
 import (
 	"bytes"
+	"slices"
 	"testing"
 
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/cmd"
+	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/queue"
 	"github.com/slavkluev/ytr/internal/output"
 )
 
@@ -134,6 +137,41 @@ func TestBulkRegistered(t *testing.T) {
 		if !subNames[name] {
 			t.Errorf("bulk subcommand %q not registered", name)
 		}
+	}
+}
+
+func TestQueueContextRegistered(t *testing.T) {
+	root := cmd.RootCmd()
+
+	var queueCmd *cobra.Command
+	for _, sub := range root.Commands() {
+		if sub.Name() == "queue" {
+			queueCmd = sub
+			break
+		}
+	}
+
+	if queueCmd == nil {
+		t.Fatal("'queue' not registered on root command")
+	}
+
+	var contextCmd *cobra.Command
+	for _, sub := range queueCmd.Commands() {
+		if sub.Name() == "context" {
+			contextCmd = sub
+			break
+		}
+	}
+
+	if contextCmd == nil {
+		t.Fatal("queue subcommand \"context\" not registered")
+	}
+
+	// Completion looks the fields up by the command path.
+	fields, ok := jsonfields.Get(contextCmd.CommandPath())
+	if !ok || !slices.Equal(fields, queue.QueueContextFields) {
+		t.Errorf("jsonfields.Get(%q) = %q (registered %v), want %q",
+			contextCmd.CommandPath(), fields, ok, queue.QueueContextFields)
 	}
 }
 
