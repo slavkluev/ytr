@@ -68,6 +68,7 @@ SEE ALSO
 
   # Get all user logins
   ytr user list --all --json login --jq '.items[].login'`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runList(cmd, limit, cursor, all)
 		},

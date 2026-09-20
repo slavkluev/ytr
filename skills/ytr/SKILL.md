@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "6.0"
+  version: "7.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -424,6 +424,46 @@ body has no field for. The JSON error lists every offending key in
 `invalidFields` and the accepted ones in `validFields`. Local queue fields are
 among the rejected keys: the API supports them, `--from-json` does not yet.
 
+### Bad invocations
+
+Any invocation ytr cannot serve exits 1, leaves stdout empty, and writes one
+error to stderr -- a single JSON document under `--json` or `--jq`, plain text
+otherwise. This covers a mistyped subcommand, a group named without a
+subcommand (`ytr issue`), `ytr` with no arguments at all, an unknown flag, a
+stray positional argument, and an unknown `ytr help` topic. None of them print
+help and exit 0.
+
+`--json` is honoured even when it comes after the mistake, so
+`ytr issue list --nosuchflag --json key` still answers with JSON.
+
+Every `suggestion` can be run as it stands. A suggested command is complete and
+never contains a value ytr picked for you, so act on it literally:
+
+```bash
+ytr issue lst --json key
+# {"code":"user_error","message":"unknown command \"lst\" for \"ytr issue\"","suggestion":"Did you mean: ytr issue list"}
+
+ytr issue
+# Error: "ytr issue" needs a subcommand: changelog, create, list, transition, update, view
+# Run "ytr issue --help" for details.
+
+ytr issue list --limitt 5
+# Error: unknown flag: --limitt
+# Did you mean: --limit
+```
+
+Asking for help is not a bad invocation: `--help` and `ytr help <command>` write
+the help text to stdout and exit 0, even on a mistyped command path
+(`ytr issue lst --help`).
+
+`--debug` is the one exception to "the error goes to stderr": it moves the JSON
+error to **stdout** so the debug diagnostics keep stderr to themselves. Which
+stream a bad invocation lands on then depends on whether `--json` was read
+before the mistake stopped flag parsing -- `ytr issue list --debug --json key
+--nosuchflag` answers on stdout, `ytr issue list --debug --nosuchflag --json key`
+on stderr. Leave `--debug` off when a program reads the output, or read both
+streams.
+
 ## Flags Reference
 
 | Flag | Scope | Description |
@@ -431,7 +471,7 @@ among the rejected keys: the API supports them, `--from-json` does not yet.
 | `--json f1,f2` | Global on most commands | Output JSON with selected fields |
 | `--jq expr` | Global | Filter JSON output with a jq expression; implies JSON |
 | `--quiet` | Global | Output minimal text, one item per line; mutually exclusive with `--json` and `--jq` |
-| `--debug` | Global | Emit sanitized debug diagnostics to stderr |
+| `--debug` | Global | Emit sanitized debug diagnostics to stderr; moves the JSON error to stdout, see Error Recovery |
 | `--token` | Global auth override | Override auth token |
 | `--org-id` | Global auth override | Override organization ID |
 | `--org-type` | Global auth override | Override organization type: `360` or `cloud` |

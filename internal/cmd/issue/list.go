@@ -103,6 +103,7 @@ SEE ALSO
 
   # Extract just keys with jq
   ytr issue list --filter queue=PROJ --json key --jq '.items[].key'`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runList(cmd, query, filterFlags, orderBy, orderAsc, limit, cursor, all)
 		},

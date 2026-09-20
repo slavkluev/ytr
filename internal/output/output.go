@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 )
@@ -98,6 +99,65 @@ func Mode() OutputMode {
 // If err is an *ExitError, formats it as JSON or human-readable based on IsJSON().
 // For unknown errors, writes a generic message and returns ExitUserError.
 func HandleError(w io.Writer, err error) int {
+	return handleError(w, err, IsJSON())
+}
+
+// HandleInvocationError renders err the way HandleError does, but reads the
+// output mode from rawArgs as well when the parsed flags do not show JSON.
+//
+// A failed invocation can hide the mode it asked for: pflag stops at the first
+// flag it does not know, so `--nosuchflag --json key` never fills JSONFields.
+// rawArgs is consulted only when err is non-nil, so a value that happens to
+// read like --json (a comment body, a query) can never turn a successful run
+// into JSON.
+func HandleInvocationError(w io.Writer, err error, rawArgs []string) int {
+	return handleError(w, err, IsJSON() || (err != nil && jsonRequestedIn(rawArgs)))
+}
+
+// jsonRequestedIn reports whether args ask for JSON output, by the rule IsJSON
+// applies to the parsed flags: a non-empty --json field list or a non-empty
+// --jq filter. It reads the arguments as given, so it survives a parse failure.
+func jsonRequestedIn(args []string) bool {
+	for i, arg := range args {
+		// Everything after a bare -- is a value, not a flag.
+		if arg == "--" {
+			return false
+		}
+
+		if flagValueAt(args, i, "--json") != "" || flagValueAt(args, i, "--jq") != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+// flagValueAt returns the value args[i] gives to the flag called name, or ""
+// when args[i] is not that flag or carries no value. `--json=` with nothing
+// after it carries no value, which keeps the empty form on its plain-text
+// field-hint path.
+func flagValueAt(args []string, i int, name string) string {
+	if value, ok := strings.CutPrefix(args[i], name+"="); ok {
+		return value
+	}
+
+	if args[i] != name || i+1 >= len(args) {
+		return ""
+	}
+
+	// pflag would take a following flag as the value; refusing it here keeps a
+	// flag that was really some other flag's value from inventing a JSON
+	// request out of a run that failed for an unrelated reason.
+	if next := args[i+1]; !strings.HasPrefix(next, "-") {
+		return next
+	}
+
+	return ""
+}
+
+// handleError renders err, as JSON when asJSON is set and as human-readable
+// text otherwise, and returns the exit code err carries.
+func handleError(w io.Writer, err error, asJSON bool) int {
 	if err == nil {
 		return ytrerrors.ExitSuccess
 	}
@@ -114,7 +174,7 @@ func HandleError(w io.Writer, err error) int {
 	// payload (and the "Valid fields: …" hint in human mode).
 	var invalidFieldErr *ytrerrors.InvalidFieldError
 	if errors.As(err, &invalidFieldErr) {
-		if IsJSON() {
+		if asJSON {
 			if data, jsonErr := invalidFieldErr.JSONError(); jsonErr == nil {
 				fmt.Fprintln(JSONErrorWriter(w), string(data))
 			}
@@ -126,7 +186,7 @@ func HandleError(w io.Writer, err error) int {
 
 	var exitErr *ytrerrors.ExitError
 	if errors.As(err, &exitErr) {
-		if IsJSON() {
+		if asJSON {
 			data, jsonErr := exitErr.JSONError()
 			if jsonErr == nil {
 				fmt.Fprintln(JSONErrorWriter(w), string(data))
@@ -137,7 +197,7 @@ func HandleError(w io.Writer, err error) int {
 		return exitErr.ExitCode
 	}
 
-	if IsJSON() {
+	if asJSON {
 		data, jsonErr := genericExitErr.JSONError()
 		if jsonErr == nil {
 			fmt.Fprintln(JSONErrorWriter(w), string(data))

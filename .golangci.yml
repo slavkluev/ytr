@@ -94,7 +94,7 @@ linters:
   disable:
     # Permanently excluded; rationale inline.
     - gochecknoglobals   # Factory vars (newSearcher, newGetter) are the testability mechanism
-    - gochecknoinits     # init() in root.go is idiomatic Cobra
+    - gochecknoinits     # init() in internal/version reads build info when ldflags are unset
     - testpackage        # White-box testing by design -- tests access factory vars from same package
     # Not applicable to this project or impractical.
     - exhaustruct        # Tracker SDK types use *string/*int everywhere; requiring all fields is impractical

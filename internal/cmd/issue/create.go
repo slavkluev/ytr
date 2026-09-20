@@ -51,6 +51,7 @@ SEE ALSO
 
   # Create and get the new key
   ytr issue create --queue PROJ --summary "Bug" --json key --jq '.key'`,
+		Args: cobra.NoArgs,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return validateCreateFlags(cmd)
 		},

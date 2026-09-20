@@ -59,6 +59,7 @@ SEE ALSO
 
   # Get all queue keys
   ytr queue list --all --json key --jq '.items[].key'`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runList(cmd, limit, cursor, all)
 		},

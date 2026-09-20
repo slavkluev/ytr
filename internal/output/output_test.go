@@ -468,3 +468,81 @@ func TestHandleErrorJSONStaysCompactInBothModes(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleInvocationErrorReadsJSONFromRawArgs(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	// pflag stopped at --nosuchflag, so --json never reached JSONFields.
+	var buf bytes.Buffer
+	args := []string{"issue", "list", "--nosuchflag", "--json", "key"}
+	code := output.HandleInvocationError(&buf, ytrerrors.NewUserError("unknown flag: --nosuchflag", "try --help"), args)
+
+	if code != ytrerrors.ExitUserError {
+		t.Errorf("exit code = %d, want %d", code, ytrerrors.ExitUserError)
+	}
+
+	var doc map[string]string
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("output is not a JSON document (%v): %q", err, buf.String())
+	}
+	if doc["message"] != "unknown flag: --nosuchflag" {
+		t.Errorf("message = %q, want the flag error", doc["message"])
+	}
+}
+
+func TestHandleInvocationErrorKeepsTextWithoutJSONArgs(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	var buf bytes.Buffer
+	args := []string{"issue", "list", "--nosuchflag"}
+	output.HandleInvocationError(&buf, ytrerrors.NewUserError("unknown flag: --nosuchflag", "try --help"), args)
+
+	if got, want := buf.String(), "Error: unknown flag: --nosuchflag\ntry --help\n"; got != want {
+		t.Errorf("output = %q, want %q", got, want)
+	}
+}
+
+func TestHandleInvocationErrorIgnoresRawArgsOnSuccess(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	var buf bytes.Buffer
+	if code := output.HandleInvocationError(&buf, nil, []string{"--json", "key"}); code != ytrerrors.ExitSuccess {
+		t.Errorf("exit code = %d, want %d", code, ytrerrors.ExitSuccess)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("output = %q, want empty", buf.String())
+	}
+}
+
+func TestHandleInvocationErrorRawArgForms(t *testing.T) {
+	cases := []struct {
+		name   string
+		args   []string
+		isJSON bool
+	}{
+		{"space separated json", []string{"issue", "--x", "--json", "key"}, true},
+		{"equals form json", []string{"issue", "--x", "--json=key"}, true},
+		{"space separated jq", []string{"issue", "--x", "--jq", ".key"}, true},
+		{"equals form jq", []string{"issue", "--x", "--jq=.key"}, true},
+		{"no json at all", []string{"issue", "--x"}, false},
+		{"empty equals form stays on the field-hint path", []string{"issue", "--x", "--json="}, false},
+		{"json with no value", []string{"issue", "--x", "--json"}, false},
+		{"json followed by another flag", []string{"issue", "--x", "--json", "--quiet"}, false},
+		{"json after a bare double dash is a value", []string{"issue", "--x", "--", "--json", "key"}, false},
+	}
+
+	for _, c := range cases {
+		testutil.ResetOutputFlags(t)
+		output.SetTTY(false)
+
+		var buf bytes.Buffer
+		output.HandleInvocationError(&buf, ytrerrors.NewUserError("bad invocation", "try --help"), c.args)
+
+		gotJSON := strings.HasPrefix(buf.String(), "{")
+		if gotJSON != c.isJSON {
+			t.Errorf("%s: rendered JSON = %v, want %v (output %q)", c.name, gotJSON, c.isJSON, buf.String())
+		}
+	}
+}
