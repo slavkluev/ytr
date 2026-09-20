@@ -342,14 +342,16 @@ func TestHandleError_InvalidFieldError_Human(t *testing.T) {
 	}
 }
 
-func TestHandleError_ExitError_JSON_DebugIsolation(t *testing.T) {
+// TestHandleError_JSONErrorSharesStderrWithDebug pins the one stream the JSON
+// error document may take. Debug diagnostics used to push it onto stdout so
+// they could keep stderr to themselves; the document now sits among them,
+// because stdout has to stay empty for a run that failed.
+func TestHandleError_JSONErrorSharesStderrWithDebug(t *testing.T) {
 	var stderrBuf bytes.Buffer
-	var jsonBuf bytes.Buffer
 
 	output.JSONFields = []string{"key"}
 	output.DebugFlag = true
 	output.SetDebugWriter(&stderrBuf)
-	output.SetJSONErrorWriter(&jsonBuf)
 	defer output.ResetFlags()
 
 	output.Debugf("transport error")
@@ -361,21 +363,85 @@ func TestHandleError_ExitError_JSON_DebugIsolation(t *testing.T) {
 		t.Errorf("HandleError(NotFoundError) = %d, want 4", code)
 	}
 
-	if !strings.Contains(stderrBuf.String(), "[debug] transport error") {
-		t.Fatalf("stderr debug output = %q, want debug line", stderrBuf.String())
+	lines := strings.Split(strings.TrimSuffix(stderrBuf.String(), "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("stderr = %q, want the debug line followed by one error document", stderrBuf.String())
 	}
-
-	if strings.Contains(stderrBuf.String(), `"code":"not_found"`) {
-		t.Fatalf("stderr should not contain JSON error payload: %q", stderrBuf.String())
+	if lines[0] != "[debug] transport error" {
+		t.Errorf("stderr line 1 = %q, want the debug line", lines[0])
 	}
 
 	var result map[string]string
-	if unmarshalErr := json.Unmarshal(jsonBuf.Bytes(), &result); unmarshalErr != nil {
-		t.Fatalf("JSON error output is invalid: %v\nOutput: %q", unmarshalErr, jsonBuf.String())
+	if unmarshalErr := json.Unmarshal([]byte(lines[1]), &result); unmarshalErr != nil {
+		t.Fatalf("JSON error output is invalid: %v\nOutput: %q", unmarshalErr, lines[1])
 	}
 
 	if result["code"] != "not_found" {
 		t.Errorf("JSON code = %q, want %q", result["code"], "not_found")
+	}
+}
+
+// TestHandleError_BulkFailedError_JSON checks that an error type which adds
+// fields to ExitError renders its own document. handleError matches the
+// JSONError interface rather than naming concrete types, so this is what keeps
+// a new type from being flattened to the generic user_error shape.
+func TestHandleError_BulkFailedError_JSON(t *testing.T) {
+	var buf bytes.Buffer
+	output.JSONFields = []string{"id"}
+	defer output.ResetFlags()
+
+	err := ytrerrors.NewBulkFailedError("op-1", "Operation FAILED", 7, 3)
+	code := output.HandleError(&buf, err)
+
+	if code != ytrerrors.ExitUserError {
+		t.Errorf("HandleError(BulkFailedError) = %d, want %d", code, ytrerrors.ExitUserError)
+	}
+
+	var result map[string]any
+	if unmarshalErr := json.Unmarshal(buf.Bytes(), &result); unmarshalErr != nil {
+		t.Fatalf("HandleError JSON output is invalid: %v\nOutput: %q", unmarshalErr, buf.String())
+	}
+
+	if result["code"] != ytrerrors.CodeBulkFailed {
+		t.Errorf("JSON code = %v, want %q", result["code"], ytrerrors.CodeBulkFailed)
+	}
+	if result["operationId"] != "op-1" {
+		t.Errorf("JSON operationId = %v, want %q", result["operationId"], "op-1")
+	}
+	if result["statusText"] != "Operation FAILED" {
+		t.Errorf("JSON statusText = %v, want %q", result["statusText"], "Operation FAILED")
+	}
+	if result["totalIssues"] != float64(7) {
+		t.Errorf("JSON totalIssues = %v, want 7", result["totalIssues"])
+	}
+	if result["totalCompletedIssues"] != float64(3) {
+		t.Errorf("JSON totalCompletedIssues = %v, want 3", result["totalCompletedIssues"])
+	}
+	if result["suggestion"] != "ytr bulk status op-1" {
+		t.Errorf("JSON suggestion = %v, want a runnable ytr bulk status", result["suggestion"])
+	}
+}
+
+// TestHandleError_BulkFailedError_Human checks the counts reach a human too:
+// human output shows only the message and the suggestion, so the message has
+// to carry what the JSON document holds in its own fields.
+func TestHandleError_BulkFailedError_Human(t *testing.T) {
+	var buf bytes.Buffer
+	output.JSONFields = nil
+	defer output.ResetFlags()
+
+	err := ytrerrors.NewBulkFailedError("op-1", "Operation FAILED", 7, 3)
+	code := output.HandleError(&buf, err)
+
+	if code != ytrerrors.ExitUserError {
+		t.Errorf("HandleError(BulkFailedError) = %d, want %d", code, ytrerrors.ExitUserError)
+	}
+
+	out := buf.String()
+	for _, want := range []string{"Operation FAILED", "3 of 7", "ytr bulk status op-1"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("human output = %q, should contain %q", out, want)
+		}
 	}
 }
 

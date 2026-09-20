@@ -189,7 +189,7 @@ func handlePollError(ctx context.Context, err error, timeout time.Duration, oper
 	if ctx.Err() != nil {
 		return errors.NewUserError(
 			fmt.Sprintf("bulk operation timed out after %s (operation ID: %s)", timeout, operationID),
-			"Check status with: ytr bulk status "+operationID,
+			"ytr bulk status "+operationID,
 		)
 	}
 

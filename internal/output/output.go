@@ -78,7 +78,6 @@ func ResetFlags() {
 	DebugFlag = false
 	ttyOverride = nil
 	SetDebugWriter(os.Stderr)
-	SetJSONErrorWriter(os.Stdout)
 }
 
 // Mode returns the current output mode based on flag state.
@@ -155,56 +154,53 @@ func flagValueAt(args []string, i int, name string) string {
 	return ""
 }
 
-// handleError renders err, as JSON when asJSON is set and as human-readable
-// text otherwise, and returns the exit code err carries.
+// jsonErrorRenderer is implemented by every error that knows its own JSON
+// document. Matching the interface once, instead of one branch per concrete
+// type, is what lets an error type add fields without touching this file.
+type jsonErrorRenderer interface {
+	JSONError() ([]byte, error)
+}
+
+// handleError renders err to w, as JSON when asJSON is set and as
+// human-readable text otherwise, and returns the exit code err carries.
+//
+// w is always the caller's error stream: the single document goes to stderr in
+// every mode, so stdout carries command output and nothing else.
 func handleError(w io.Writer, err error, asJSON bool) int {
 	if err == nil {
 		return ytrerrors.ExitSuccess
 	}
 
-	genericExitErr := &ytrerrors.ExitError{
+	// The exit code and the human text live on ExitError. A richer error type
+	// embeds it by value and unwraps to it, so this finds one whether err is an
+	// ExitError or carries one.
+	exitErr := &ytrerrors.ExitError{
 		ExitCode: ytrerrors.ExitUserError,
 		Code:     ytrerrors.CodeUserError,
 		Message:  err.Error(),
 	}
-
-	// Match *InvalidFieldError before the generic *ExitError: it embeds
-	// ExitError by value, so without this branch errors.As would route it to
-	// the generic handler and drop the structured invalidField/validFields
-	// payload (and the "Valid fields: …" hint in human mode).
-	var invalidFieldErr *ytrerrors.InvalidFieldError
-	if errors.As(err, &invalidFieldErr) {
-		if asJSON {
-			if data, jsonErr := invalidFieldErr.JSONError(); jsonErr == nil {
-				fmt.Fprintln(JSONErrorWriter(w), string(data))
-			}
-		} else {
-			ytrerrors.PrintHuman(w, &invalidFieldErr.ExitError, ColorsEnabled())
-		}
-		return invalidFieldErr.ExitCode
+	var wrapped *ytrerrors.ExitError
+	if errors.As(err, &wrapped) {
+		exitErr = wrapped
 	}
 
-	var exitErr *ytrerrors.ExitError
-	if errors.As(err, &exitErr) {
-		if asJSON {
-			data, jsonErr := exitErr.JSONError()
-			if jsonErr == nil {
-				fmt.Fprintln(JSONErrorWriter(w), string(data))
-			}
-		} else {
-			ytrerrors.PrintHuman(w, exitErr, ColorsEnabled())
-		}
+	if !asJSON {
+		ytrerrors.PrintHuman(w, exitErr, ColorsEnabled())
 		return exitErr.ExitCode
 	}
 
-	if asJSON {
-		data, jsonErr := genericExitErr.JSONError()
-		if jsonErr == nil {
-			fmt.Fprintln(JSONErrorWriter(w), string(data))
-		}
-		return genericExitErr.ExitCode
+	// errors.As walks outward in, so the outermost error that renders itself
+	// wins: an InvalidFieldError keeps its invalidField/validFields payload
+	// rather than being flattened to the ExitError it unwraps to.
+	renderer := jsonErrorRenderer(exitErr)
+	var self jsonErrorRenderer
+	if errors.As(err, &self) {
+		renderer = self
 	}
 
-	ytrerrors.PrintHuman(w, genericExitErr, ColorsEnabled())
-	return genericExitErr.ExitCode
+	if data, jsonErr := renderer.JSONError(); jsonErr == nil {
+		fmt.Fprintln(w, string(data))
+	}
+
+	return exitErr.ExitCode
 }

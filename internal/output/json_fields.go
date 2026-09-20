@@ -1,6 +1,7 @@
 package output
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -138,6 +139,11 @@ func PrintFieldHint(w io.Writer, commandName string, fields []string) error {
 // map[string]any / []any, not custom structs).
 // String results are printed without quotes (raw output, like jq -r).
 // Non-string results are JSON-encoded.
+//
+// The whole result stream is collected before anything is written, so a filter
+// that fails on its third result leaves w untouched instead of the first two
+// lines: once written, they cannot be taken back, and a reader would take a
+// truncated stream for the whole answer.
 func ApplyJQ(w io.Writer, data any, expression string) error {
 	jsonBytes, err := json.Marshal(data)
 	if err != nil {
@@ -164,6 +170,8 @@ func ApplyJQ(w io.Writer, data any, expression string) error {
 		)
 	}
 
+	var results bytes.Buffer
+
 	iter := code.Run(input)
 	for {
 		v, ok := iter.Next()
@@ -178,14 +186,17 @@ func ApplyJQ(w io.Writer, data any, expression string) error {
 		}
 		// Raw string output (like jq -r): print strings without quotes
 		if s, ok := v.(string); ok {
-			_, _ = fmt.Fprintln(w, s)
+			_, _ = fmt.Fprintln(&results, s)
 		} else {
 			jsonOut, err := json.Marshal(v)
 			if err != nil {
 				return fmt.Errorf("failed to marshal jq result: %w", err)
 			}
-			_, _ = fmt.Fprintln(w, string(jsonOut))
+			_, _ = fmt.Fprintln(&results, string(jsonOut))
 		}
 	}
-	return nil
+
+	_, writeErr := w.Write(results.Bytes())
+
+	return writeErr
 }

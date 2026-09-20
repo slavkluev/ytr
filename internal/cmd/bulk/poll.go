@@ -196,8 +196,9 @@ func pollUntilDone(
 }
 
 // awaitBulkCompletion extracts the operation ID from a freshly-created bulk
-// change, polls until the operation reaches a terminal state, renders the
-// result, and surfaces a non-zero exit code when the operation FAILED.
+// change, polls until the operation reaches a terminal state, and renders a
+// COMPLETED result or returns a BulkFailedError, rendering nothing, when the
+// operation FAILED.
 //
 // It is used by bulk move/update/transition. The empty-ID guard prevents
 // polling the collection endpoint with no ID (which produced a misleading
@@ -230,28 +231,26 @@ func awaitBulkCompletion(
 	return finalizeBulkResult(cmd, result, operationID)
 }
 
-// finalizeBulkResult renders a terminal BulkChange and returns a non-zero
-// ExitError when the operation finished in the FAILED state, so the process
-// exit code honors the "success == 0" contract relied on by scripts and agents.
-// Output details are still rendered for both COMPLETED and FAILED.
+// finalizeBulkResult renders a terminal BulkChange, or returns a non-zero
+// BulkFailedError when the operation finished in the FAILED state.
+//
+// A failed operation renders nothing: a run that ends non-zero must leave
+// stdout empty, so a reader never has to decide whether the document it found
+// there describes a change that happened. The counts the result carried travel
+// in the error instead, and reach stderr with it. `bulk status` is a query and
+// calls renderBulkOutput directly, so it still reports a FAILED operation as a
+// document at exit 0.
 func finalizeBulkResult(cmd *cobra.Command, bc *tracker.BulkChange, operationID string) error {
-	if err := renderBulkOutput(cmd, bc); err != nil {
-		return err
-	}
-
 	if api.DerefString(bc.Status, "") == bulkStatusFail {
-		msg := fmt.Sprintf("bulk operation %s failed", operationID)
-		if statusText := api.DerefString(bc.StatusText, ""); statusText != "" {
-			msg = fmt.Sprintf("%s: %s", msg, statusText)
-		}
-		return &ytrerrors.ExitError{
-			ExitCode: ytrerrors.ExitUserError,
-			Code:     "bulk_failed",
-			Message:  msg,
-		}
+		return ytrerrors.NewBulkFailedError(
+			operationID,
+			api.DerefString(bc.StatusText, ""),
+			api.DerefInt(bc.TotalIssues, 0),
+			api.DerefInt(bc.TotalCompletedIssues, 0),
+		)
 	}
 
-	return nil
+	return renderBulkOutput(cmd, bc)
 }
 
 // renderBulkOutput renders a BulkChange in the appropriate output mode.

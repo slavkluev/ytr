@@ -13,6 +13,7 @@ const (
 	CodeNotFound     = "not_found"
 	CodeRateLimited  = "rate_limited"
 	CodeInvalidField = "invalid_field"
+	CodeBulkFailed   = "bulk_failed"
 )
 
 // ExitError is an error with a semantic exit code, machine-readable code,
@@ -112,8 +113,8 @@ type InvalidFieldError struct {
 // Unwrap exposes the embedded ExitError so errors.As/Is can traverse the
 // chain. InvalidFieldError embeds ExitError by value, which on its own does
 // not satisfy errors.As(err, **ExitError); Unwrap makes the relationship
-// explicit. Callers that want the field-specific JSON must still match
-// *InvalidFieldError before the generic *ExitError.
+// explicit. The field-specific JSON comes from JSONError below, which
+// handleError finds through an interface rather than by matching this type.
 func (e *InvalidFieldError) Unwrap() error {
 	return &e.ExitError
 }
@@ -164,5 +165,80 @@ func NewUnknownFieldsError(fields, validFields []string) *InvalidFieldError {
 		},
 		InvalidFields: fields,
 		ValidFields:   validFields,
+	}
+}
+
+// BulkFailedError extends ExitError with what a bulk operation reported when
+// it finished in the FAILED state. A failed operation writes nothing to
+// stdout, so these counts are the only place an agent learns how much of the
+// change landed.
+type BulkFailedError struct {
+	ExitError
+
+	// OperationID is the bulk change the counts belong to.
+	OperationID string `json:"operationId"`
+
+	// StatusText is the API's own description of the failure, empty when it
+	// gave none.
+	StatusText string `json:"statusText"`
+
+	// TotalIssues and TotalCompletedIssues are the operation's final counts.
+	TotalIssues          int `json:"totalIssues"`
+	TotalCompletedIssues int `json:"totalCompletedIssues"`
+}
+
+// Unwrap exposes the embedded ExitError so errors.As/Is can traverse the
+// chain, for the same reason InvalidFieldError does.
+func (e *BulkFailedError) Unwrap() error {
+	return &e.ExitError
+}
+
+// JSONError returns JSON with the bulk_failed code and the operation's counts.
+func (e *BulkFailedError) JSONError() ([]byte, error) {
+	return json.Marshal(struct {
+		Code                 string `json:"code"`
+		Message              string `json:"message"`
+		OperationID          string `json:"operationId"`
+		StatusText           string `json:"statusText"`
+		TotalIssues          int    `json:"totalIssues"`
+		TotalCompletedIssues int    `json:"totalCompletedIssues"`
+		Suggestion           string `json:"suggestion"`
+	}{
+		Code:                 CodeBulkFailed,
+		Message:              e.Message,
+		OperationID:          e.OperationID,
+		StatusText:           e.StatusText,
+		TotalIssues:          e.TotalIssues,
+		TotalCompletedIssues: e.TotalCompletedIssues,
+		Suggestion:           e.Suggestion,
+	})
+}
+
+// NewBulkFailedError creates an error for a bulk operation that reached the
+// FAILED state. The message repeats the counts so human output, which shows
+// only the message and the suggestion, says as much as the JSON document.
+func NewBulkFailedError(
+	operationID, statusText string,
+	totalIssues, totalCompletedIssues int,
+) *BulkFailedError {
+	message := fmt.Sprintf("bulk operation %s failed", operationID)
+	if statusText != "" {
+		message += ": " + statusText
+	}
+	message += fmt.Sprintf(
+		" (%d of %d issues completed)", totalCompletedIssues, totalIssues,
+	)
+
+	return &BulkFailedError{
+		ExitError: ExitError{
+			ExitCode:   ExitUserError,
+			Code:       CodeBulkFailed,
+			Message:    message,
+			Suggestion: "ytr bulk status " + operationID,
+		},
+		OperationID:          operationID,
+		StatusText:           statusText,
+		TotalIssues:          totalIssues,
+		TotalCompletedIssues: totalCompletedIssues,
 	}
 }

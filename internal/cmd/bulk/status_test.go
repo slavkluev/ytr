@@ -244,3 +244,36 @@ func TestStatusExposesCreatedByID(t *testing.T) {
 		t.Errorf("expected createdById=uid-a, got %v", item["createdById"])
 	}
 }
+
+// TestStatusReportsAFailedOperationAtExitZero pins the query side of the rule:
+// bulk status changes nothing, so a FAILED operation is an answer, not a
+// failure, and it arrives as one document on stdout.
+func TestStatusReportsAFailedOperationAtExitZero(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+	output.JSONFields = BulkStatusFields
+
+	mock := &mockStatusGetter{
+		bc: makeBulkChange("op-failed-1", "FAILED", 10, 3, 30),
+	}
+
+	out, err := setupStatusCmd(t, mock, []string{"op-failed-1"})
+	if err != nil {
+		t.Fatalf("unexpected error for a FAILED operation: %v", err)
+	}
+
+	if strings.Count(out, "\n") != 1 {
+		t.Errorf("stdout = %q, want exactly one JSON document", out)
+	}
+
+	var item map[string]any
+	if unmarshalErr := json.Unmarshal([]byte(out), &item); unmarshalErr != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", unmarshalErr, out)
+	}
+	if item["status"] != "FAILED" {
+		t.Errorf("status = %v, want FAILED", item["status"])
+	}
+	if item["totalCompletedIssues"] != float64(3) {
+		t.Errorf("totalCompletedIssues = %v, want 3", item["totalCompletedIssues"])
+	}
+}

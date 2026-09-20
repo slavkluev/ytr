@@ -13,7 +13,6 @@ import (
 var DebugFlag bool
 
 var debugWriter io.Writer = os.Stderr
-var jsonErrorWriter io.Writer = os.Stdout
 
 var debugStringRedactors = []struct {
 	pattern *regexp.Regexp
@@ -64,28 +63,6 @@ func SetDebugWriter(w io.Writer) {
 	}
 
 	debugWriter = w
-}
-
-// SetJSONErrorWriter overrides the writer used for JSON errors when debug mode
-// is enabled. Tests use this to keep machine-readable JSON isolated from debug
-// diagnostics written to stderr.
-func SetJSONErrorWriter(w io.Writer) {
-	if w == nil {
-		jsonErrorWriter = io.Discard
-		return
-	}
-
-	jsonErrorWriter = w
-}
-
-// JSONErrorWriter returns the writer that should receive machine-readable JSON
-// errors. Under debug mode, it is isolated from stderr diagnostics.
-func JSONErrorWriter(fallback io.Writer) io.Writer {
-	if DebugEnabled() && IsJSON() {
-		return jsonErrorWriter
-	}
-
-	return fallback
 }
 
 // SanitizeDebugString redacts sensitive values before they are written to

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -120,10 +121,16 @@ func setupMoveCmd(
 		r.Close()
 	})
 
+	// Separate buffers: only what reaches stdout is returned, so a test can
+	// tell the command's document apart from cobra's error text.
 	buf := &bytes.Buffer{}
 	cmd := newMoveCmd()
 	cmd.SetOut(buf)
-	cmd.SetErr(buf)
+	cmd.SetErr(io.Discard)
+	// The binary silences both on the root command, so nothing cobra writes
+	// about a failure reaches the command's own output stream.
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
 
 	// Simulate root persistent flags for auth.
 	cmd.PersistentFlags().String("token", "test-token", "")
@@ -375,16 +382,94 @@ func TestMoveFailedStatusExitsNonZero(t *testing.T) {
 	if exitErr.ExitCode == ytrerrors.ExitSuccess {
 		t.Errorf("expected non-zero exit code for FAILED operation, got %d", exitErr.ExitCode)
 	}
-	if exitErr.Code != "bulk_failed" {
-		t.Errorf("expected code=bulk_failed, got %q", exitErr.Code)
+	if exitErr.Code != ytrerrors.CodeBulkFailed {
+		t.Errorf("expected code=%s, got %q", ytrerrors.CodeBulkFailed, exitErr.Code)
 	}
 	if !strings.Contains(exitErr.Message, "Operation FAILED") {
 		t.Errorf("expected statusText in error message, got: %q", exitErr.Message)
 	}
 
-	// Details must still be rendered (review: "оставив вывод деталей").
-	if !strings.Contains(out, "FAILED") {
-		t.Errorf("expected FAILED details rendered, got: %s", out)
+	// A run that ends non-zero leaves stdout empty; the counts travel in the
+	// error instead, which the caller renders on stderr.
+	if out != "" {
+		t.Errorf("stdout = %q, want empty for a FAILED operation", out)
+	}
+	assertBulkFailedDetail(t, err, "move-fail-1", 2, 0)
+}
+
+// TestMoveFailedQuietWritesNothing pins --quiet to the same rule: printing the
+// operation ID of a failed run would hand a pipeline an ID it reads as success.
+// The operation fails partway, so the error must carry the counts the server
+// reported rather than any fixed pair.
+func TestMoveFailedQuietWritesNothing(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.QuietFlag = true
+
+	bc := makeFailedBulkChange("move-fail-quiet-1")
+	bc.TotalIssues = testutil.IntPtr(3)
+	bc.TotalCompletedIssues = testutil.IntPtr(1)
+	mover := &mockBulkMover{bc: bc}
+	poll := &mockPollGetter{bc: bc}
+
+	out, err := setupMoveCmd(t, mover, poll,
+		[]string{"PROJ-1", "PROJ-2", "PROJ-3", "--queue", "TARGET"})
+	if err == nil {
+		t.Fatal("expected non-nil error for FAILED bulk operation, got nil")
+	}
+
+	if out != "" {
+		t.Errorf("stdout = %q, want empty for a FAILED operation under --quiet", out)
+	}
+	assertBulkFailedDetail(t, err, "move-fail-quiet-1", 3, 1)
+}
+
+// TestMoveTimeoutSuggestsRunnableCommand keeps the timeout suggestion a command
+// an agent can run as it stands, like the FAILED one: the change may still
+// land after ytr stops waiting, and bulk status is how to find out.
+func TestMoveTimeoutSuggestsRunnableCommand(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	bc := makeCompletedBulkChange("move-timeout-1")
+	mover := &mockBulkMover{bc: bc}
+	poll := &mockPollGetter{bc: bc}
+
+	// The deadline passes during the wait before the first poll.
+	_, err := setupMoveCmd(t, mover, poll,
+		[]string{"PROJ-1", "--queue", "TARGET", "--timeout", "1ms"})
+	if err == nil {
+		t.Fatal("expected an error when the wait times out, got nil")
+	}
+
+	var exitErr *ytrerrors.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("expected *ExitError, got %T: %v", err, err)
+	}
+	if want := "ytr bulk status move-timeout-1"; exitErr.Suggestion != want {
+		t.Errorf("suggestion = %q, want %q", exitErr.Suggestion, want)
+	}
+}
+
+// assertBulkFailedDetail checks that a failed bulk mutation reports how much of
+// the change landed, which is the only place the caller can learn it now that
+// nothing is rendered.
+func assertBulkFailedDetail(t *testing.T, err error, operationID string, total, completed int) {
+	t.Helper()
+
+	var failed *ytrerrors.BulkFailedError
+	if !errors.As(err, &failed) {
+		t.Fatalf("expected *BulkFailedError, got %T: %v", err, err)
+	}
+	if failed.OperationID != operationID {
+		t.Errorf("operationId = %q, want %q", failed.OperationID, operationID)
+	}
+	if failed.TotalIssues != total {
+		t.Errorf("totalIssues = %d, want %d", failed.TotalIssues, total)
+	}
+	if failed.TotalCompletedIssues != completed {
+		t.Errorf("totalCompletedIssues = %d, want %d", failed.TotalCompletedIssues, completed)
+	}
+	if want := "ytr bulk status " + operationID; failed.Suggestion != want {
+		t.Errorf("suggestion = %q, want %q", failed.Suggestion, want)
 	}
 }
 

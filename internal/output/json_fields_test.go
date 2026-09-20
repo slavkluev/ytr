@@ -288,3 +288,85 @@ func TestInvalidFieldError_JSONError(t *testing.T) {
 		t.Errorf("validFields length = %d, want 2", len(validFields))
 	}
 }
+
+// TestApplyJQ_MidStreamFailureWritesNothing pins the reason ApplyJQ buffers:
+// the filter below yields two results before it hits a value it cannot index,
+// and those two must not reach the writer. A reader takes whatever is on
+// stdout for the whole answer, so a truncated stream is worse than none.
+func TestApplyJQ_MidStreamFailureWritesNothing(t *testing.T) {
+	var buf bytes.Buffer
+	data := []any{
+		map[string]any{"key": "ISSUE-1"},
+		map[string]any{"key": "ISSUE-2"},
+		42,
+	}
+
+	err := output.ApplyJQ(&buf, data, ".[] | .key")
+	if err == nil {
+		t.Fatal("ApplyJQ over a value it cannot index should return an error")
+	}
+
+	var exitErr *ytrerrors.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("expected *ExitError, got %T: %v", err, err)
+	}
+	if exitErr.ExitCode != ytrerrors.ExitUserError {
+		t.Errorf("exit code = %d, want %d", exitErr.ExitCode, ytrerrors.ExitUserError)
+	}
+
+	if buf.Len() != 0 {
+		t.Errorf("output = %q, want nothing written when the filter fails", buf.String())
+	}
+}
+
+// TestApplyJQ_NoMatchesWritesNothing covers the other empty case: a filter that
+// simply selects nothing succeeds, and says so by exiting 0 with no output.
+func TestApplyJQ_NoMatchesWritesNothing(t *testing.T) {
+	var buf bytes.Buffer
+	data := map[string]any{
+		"items": []any{
+			map[string]any{"key": "ISSUE-1"},
+			map[string]any{"key": "ISSUE-2"},
+		},
+	}
+
+	if err := output.ApplyJQ(&buf, data, `.items[] | select(.key == "ISSUE-9") | .key`); err != nil {
+		t.Fatalf("ApplyJQ returned error: %v", err)
+	}
+
+	if buf.Len() != 0 {
+		t.Errorf("output = %q, want nothing for a filter that matches nothing", buf.String())
+	}
+}
+
+// TestApplyJQ_ReportsWriteError keeps a failed write from exiting 0: the whole
+// stream goes out in one write, so losing its error would pass an empty or
+// truncated stdout off as the complete answer.
+func TestApplyJQ_ReportsWriteError(t *testing.T) {
+	data := map[string]any{"key": "ISSUE-1"}
+
+	if err := output.ApplyJQ(failingWriter{}, data, ".key"); err == nil {
+		t.Error("ApplyJQ must return the error of a failed write")
+	}
+}
+
+// TestApplyJQ_StreamShapeIsUnchanged keeps the buffering from changing what a
+// successful filter prints: one line per result, strings unquoted.
+func TestApplyJQ_StreamShapeIsUnchanged(t *testing.T) {
+	var buf bytes.Buffer
+	data := map[string]any{
+		"items": []any{
+			map[string]any{"key": "ISSUE-1", "votes": 3},
+			map[string]any{"key": "ISSUE-2", "votes": 0},
+		},
+	}
+
+	if err := output.ApplyJQ(&buf, data, ".items[] | .key, .votes"); err != nil {
+		t.Fatalf("ApplyJQ returned error: %v", err)
+	}
+
+	want := "ISSUE-1\n3\nISSUE-2\n0\n"
+	if got := buf.String(); got != want {
+		t.Errorf("output = %q, want %q", got, want)
+	}
+}

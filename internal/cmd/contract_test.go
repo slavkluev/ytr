@@ -54,6 +54,10 @@ func runProbe(t *testing.T, argv []string) probeResult {
 	t.Setenv("YTR_ORG_TYPE", "")
 
 	var out, errOut bytes.Buffer
+	// The binary writes debug diagnostics to the same stream it hands cobra,
+	// so a probe that passes --debug sees them interleaved the way a caller
+	// would. Pointing them anywhere else would hide the stream they share.
+	output.SetDebugWriter(&errOut)
 	code := execute(newRootCmd(), argv, &out, &errOut)
 
 	return probeResult{code: code, stdout: out.String(), stderr: errOut.String()}
@@ -113,6 +117,19 @@ func decodeOneJSONError(t *testing.T, label, stderr string) errorDocument {
 	}
 
 	return doc
+}
+
+// withoutDebugLines drops the diagnostics --debug writes to stderr, leaving
+// what a reader has to find there on its own: the single error document.
+func withoutDebugLines(stderr string) string {
+	var kept []string
+	for _, line := range strings.Split(stderr, "\n") {
+		if !strings.HasPrefix(line, "[debug] ") {
+			kept = append(kept, line)
+		}
+	}
+
+	return strings.Join(kept, "\n")
 }
 
 // walkCommands calls visit for cmd and every command below it.
@@ -211,6 +228,84 @@ func argCountProbes(t *testing.T) []argCountProbe {
 	})
 
 	return probes
+}
+
+// rejectionProbe is one bad invocation, kept as a command path and the mistake
+// appended to it so --json can be placed on either side of the mistake.
+type rejectionProbe struct {
+	path    []string
+	mistake []string
+}
+
+// derivedRejections returns every bad invocation the suite derives from the
+// tree: a group named without a subcommand, a group given one that does not
+// exist, any command given an unknown flag, and any leaf given a positional
+// argument count its own validator rejects.
+func derivedRejections(t *testing.T) []rejectionProbe {
+	t.Helper()
+
+	var probes []rejectionProbe
+
+	for _, path := range commandPaths(t, hasSubCommands) {
+		probes = append(probes,
+			rejectionProbe{path: path},
+			rejectionProbe{path: path, mistake: []string{unknownCommandProbe}},
+		)
+	}
+
+	for _, path := range commandPaths(t, acceptAnyCommand) {
+		probes = append(probes, rejectionProbe{
+			path: path, mistake: []string{unknownFlagProbe},
+		})
+	}
+
+	for _, probe := range argCountProbes(t) {
+		probes = append(probes, rejectionProbe{
+			path: probe.path, mistake: placeholderArgs(probe.count),
+		})
+	}
+
+	return probes
+}
+
+// debugForms returns the two ways to run probe under --debug: --json read
+// before the mistake, and --json reachable only by re-reading the raw
+// arguments because the mistake stopped flag parsing. Which one it was used to
+// decide whether the error document landed on stdout or on stderr.
+func debugForms(probe rejectionProbe) [][]string {
+	return [][]string{
+		slices.Concat(probe.path, []string{"--debug", "--json", "key"}, probe.mistake),
+		slices.Concat(probe.path, []string{"--debug"}, probe.mistake, []string{"--json", "key"}),
+	}
+}
+
+// TestContractDebugKeepsStdoutEmpty runs every derived bad invocation under
+// --debug in both --json positions. The probes come from the tree, so a
+// command added later is covered without this file being edited.
+func TestContractDebugKeepsStdoutEmpty(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	probes := derivedRejections(t)
+	if len(probes) == 0 {
+		t.Fatal("no bad invocation was derived, the walk is not reaching the tree")
+	}
+
+	for _, probe := range probes {
+		for _, argv := range debugForms(probe) {
+			label := "ytr " + strings.Join(argv, " ")
+			got := runProbe(t, argv)
+
+			if got.code != ytrerrors.ExitUserError {
+				t.Errorf("%s: exit = %d, want %d (stderr: %s)",
+					label, got.code, ytrerrors.ExitUserError, got.stderr)
+			}
+			if got.stdout != "" {
+				t.Errorf("%s: stdout = %q, want empty", label, got.stdout)
+			}
+
+			decodeOneJSONError(t, label, withoutDebugLines(got.stderr))
+		}
+	}
 }
 
 func TestContractEveryLeafDeclaresArgs(t *testing.T) {
@@ -531,6 +626,9 @@ func TestExplicitHelpStaysExitZero(t *testing.T) {
 		{"help", "issue"},
 		{"help"},
 		{"--help"},
+		// An explicit help request is not command output, so --json does not
+		// make it a JSON document and does not make it a failure either.
+		{"issue", "list", "--json", "key", "--help"},
 	} {
 		label := "ytr " + strings.Join(argv, " ")
 		got := runProbe(t, argv)
@@ -557,8 +655,11 @@ func TestHelpTopicMatchesTheHelpFlag(t *testing.T) {
 	}
 }
 
+// TestSuccessPathIsUnchanged is the stdout-side mirror of assertRejected:
+// exit 0, stderr empty, and stdout holding exactly one JSON document -- one
+// line off a terminal, so a reader can take the whole stream as the answer.
 func TestSuccessPathIsUnchanged(t *testing.T) {
-	got := runProbe(t, []string{"version", "--json", "version"})
+	got := runProbe(t, []string{"version", "--json", "version,commit"})
 
 	if got.code != ytrerrors.ExitSuccess {
 		t.Errorf("exit = %d, want %d (stderr: %s)", got.code, ytrerrors.ExitSuccess, got.stderr)
@@ -566,13 +667,59 @@ func TestSuccessPathIsUnchanged(t *testing.T) {
 	if got.stderr != "" {
 		t.Errorf("stderr = %q, want empty", got.stderr)
 	}
+	if strings.Count(got.stdout, "\n") != 1 || !strings.HasSuffix(got.stdout, "\n") {
+		t.Errorf("stdout = %q, want exactly one JSON document", got.stdout)
+	}
 	var doc map[string]any
 	if err := json.Unmarshal([]byte(got.stdout), &doc); err != nil {
 		t.Fatalf("stdout is not a JSON document (%v): %q", err, got.stdout)
 	}
-	if _, ok := doc["version"]; !ok {
-		t.Errorf("stdout = %q, want a version field", got.stdout)
+	for _, field := range []string{"version", "commit"} {
+		if _, ok := doc[field]; !ok {
+			t.Errorf("stdout = %q, want a %s field", got.stdout, field)
+		}
 	}
+}
+
+// TestJQStreamIsTheOnlyThingOnStdout pins the other success shape: --jq stays
+// a jq stream with an implicit -r, one line per result and strings unquoted,
+// and nothing else shares the stream with it.
+func TestJQStreamIsTheOnlyThingOnStdout(t *testing.T) {
+	got := runProbe(t, []string{"version", "--jq", ".version, .os"})
+
+	if got.code != ytrerrors.ExitSuccess {
+		t.Errorf("exit = %d, want %d (stderr: %s)", got.code, ytrerrors.ExitSuccess, got.stderr)
+	}
+	if got.stderr != "" {
+		t.Errorf("stderr = %q, want empty", got.stderr)
+	}
+
+	lines := strings.Split(strings.TrimSuffix(got.stdout, "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("stdout = %q, want one bare line per jq result", got.stdout)
+	}
+	for _, line := range lines {
+		if strings.HasPrefix(line, `"`) {
+			t.Errorf("stdout line %q is quoted, want the raw string jq -r prints", line)
+		}
+	}
+}
+
+// TestJQFailureLeavesStdoutEmpty runs a filter that yields results and then
+// fails. Nothing may reach stdout: a reader has no way to tell a truncated
+// stream from a complete one.
+func TestJQFailureLeavesStdoutEmpty(t *testing.T) {
+	got := runProbe(t, []string{"version", "--jq", ".version, (.os | .nosuchkey)"})
+
+	if got.code != ytrerrors.ExitUserError {
+		t.Errorf("exit = %d, want %d (stdout: %q, stderr: %q)",
+			got.code, ytrerrors.ExitUserError, got.stdout, got.stderr)
+	}
+	if got.stdout != "" {
+		t.Errorf("stdout = %q, want empty when the filter fails", got.stdout)
+	}
+
+	decodeOneJSONError(t, "ytr version --jq '.version, (.os | .nosuchkey)'", got.stderr)
 }
 
 func TestEditDistanceIgnoresCase(t *testing.T) {

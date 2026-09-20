@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -70,10 +71,16 @@ func setupUpdateCmd(
 		r.Close()
 	})
 
+	// Separate buffers: only what reaches stdout is returned, so a test can
+	// tell the command's document apart from cobra's error text.
 	buf := &bytes.Buffer{}
 	cmd := newUpdateCmd()
 	cmd.SetOut(buf)
-	cmd.SetErr(buf)
+	cmd.SetErr(io.Discard)
+	// The binary silences both on the root command, so nothing cobra writes
+	// about a failure reaches the command's own output stream.
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
 
 	// Simulate root persistent flags for auth.
 	cmd.PersistentFlags().String("token", "test-token", "")
@@ -310,4 +317,24 @@ func TestUpdateFromJSONRejectsUnknownFields(t *testing.T) {
 	if len(updater.calls) != 0 {
 		t.Error("Update should not have been called")
 	}
+}
+
+func TestUpdateFailedStatusWritesNothingToStdout(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = BulkStatusFields
+
+	bc := makeFailedBulkChange("update-fail-1")
+	updater := &mockBulkUpdater{bc: bc}
+	poll := &mockPollGetter{bc: bc}
+
+	out, err := setupUpdateCmd(t, updater, poll,
+		[]string{"PROJ-1", "PROJ-2", "--field", "priority=critical"})
+	if err == nil {
+		t.Fatal("expected non-nil error for FAILED bulk operation, got nil")
+	}
+	if out != "" {
+		t.Errorf("stdout = %q, want empty for a FAILED operation", out)
+	}
+
+	assertBulkFailedDetail(t, err, "update-fail-1", 2, 0)
 }

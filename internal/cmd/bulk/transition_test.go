@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -70,10 +71,16 @@ func setupTransitionCmd(
 		r.Close()
 	})
 
+	// Separate buffers: only what reaches stdout is returned, so a test can
+	// tell the command's document apart from cobra's error text.
 	buf := &bytes.Buffer{}
 	cmd := newTransitionCmd()
 	cmd.SetOut(buf)
-	cmd.SetErr(buf)
+	cmd.SetErr(io.Discard)
+	// The binary silences both on the root command, so nothing cobra writes
+	// about a failure reaches the command's own output stream.
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
 
 	// Simulate root persistent flags for auth.
 	cmd.PersistentFlags().String("token", "test-token", "")
@@ -310,4 +317,24 @@ func TestTransitionFromJSONRejectsUnknownFields(t *testing.T) {
 	if len(transitioner.calls) != 0 {
 		t.Error("Transition should not have been called")
 	}
+}
+
+func TestTransitionFailedStatusWritesNothingToStdout(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = BulkStatusFields
+
+	bc := makeFailedBulkChange("transition-fail-1")
+	transitioner := &mockBulkTransitioner{bc: bc}
+	poll := &mockPollGetter{bc: bc}
+
+	out, err := setupTransitionCmd(t, transitioner, poll,
+		[]string{"PROJ-1", "PROJ-2", "--transition", "close"})
+	if err == nil {
+		t.Fatal("expected non-nil error for FAILED bulk operation, got nil")
+	}
+	if out != "" {
+		t.Errorf("stdout = %q, want empty for a FAILED operation", out)
+	}
+
+	assertBulkFailedDetail(t, err, "transition-fail-1", 2, 0)
 }

@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "7.0"
+  version: "8.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -206,6 +206,24 @@ ytr bulk transition PROJ-1 PROJ-2 --transition close --timeout 10m
 ytr bulk status 6543210abcdef
 ```
 
+`bulk move`, `bulk update` and `bulk transition` wait for the operation and
+exit 1 when it ends `FAILED`, writing nothing to stdout in any mode, `--quiet`
+included. Under `--json` the error document on stderr carries `operationId`,
+`statusText`, `totalIssues` and `totalCompletedIssues`, so it still says how
+much of the change landed; in text mode the error message states the same
+counts. The `suggestion` is a runnable `ytr bulk status <operationId>`:
+
+```bash
+ytr bulk move PROJ-1 PROJ-2 --queue TARGET --json id,status
+# stdout: (empty)
+# stderr: {"code":"bulk_failed","message":"bulk operation 6543210abcdef failed: ... (1 of 2 issues completed)",
+#          "operationId":"6543210abcdef","statusText":"...","totalIssues":2,"totalCompletedIssues":1,
+#          "suggestion":"ytr bulk status 6543210abcdef"}
+```
+
+`bulk status` only reads, so it is not a failure: it reports a `FAILED`
+operation as one document on stdout and exits 0.
+
 ### Issue History
 
 ```bash
@@ -372,6 +390,25 @@ Most resource commands support `--json field1,field2` field selection.
 Run `ytr <command> --help` and look for the `JSON FIELDS` section to see
 the available field names for that command.
 
+### Streams
+
+Under `--json` or `--jq`, stdout carries the command's output and nothing
+else. A run that fails writes nothing at all to stdout and puts one JSON error
+document on stderr. The streams alone tell the two apart: parse stdout for the
+result, stderr for the failure, never both for one answer.
+
+- Without `--jq`, stdout on success is exactly one JSON document.
+- `--jq` is a stream, not a document: one line per result with an implicit
+  `-r`, so strings arrive unquoted. A filter that matches nothing writes
+  nothing and exits 0. A filter that fails writes nothing and exits 1 -- never
+  the results it had already produced -- so a partial stream is not a shape you
+  have to handle.
+- `--debug` writes its `[debug]` diagnostics to stderr, where they share the
+  stream with the error document. It moves nothing to stdout, and the position
+  of `--json` in the argument list changes nothing.
+- `--help` and `ytr help <command>` are not command output: they write plain
+  text to stdout and exit 0 even under `--json`.
+
 Every user-valued field ships with a paired `*Id` holding the Tracker user ID:
 `author`/`authorId`, `assignee`/`assigneeId`, `lead`/`leadId`,
 `createdBy`/`createdById`. Display names are not unique — two people can share
@@ -456,14 +493,6 @@ Asking for help is not a bad invocation: `--help` and `ytr help <command>` write
 the help text to stdout and exit 0, even on a mistyped command path
 (`ytr issue lst --help`).
 
-`--debug` is the one exception to "the error goes to stderr": it moves the JSON
-error to **stdout** so the debug diagnostics keep stderr to themselves. Which
-stream a bad invocation lands on then depends on whether `--json` was read
-before the mistake stopped flag parsing -- `ytr issue list --debug --json key
---nosuchflag` answers on stdout, `ytr issue list --debug --nosuchflag --json key`
-on stderr. Leave `--debug` off when a program reads the output, or read both
-streams.
-
 ## Flags Reference
 
 | Flag | Scope | Description |
@@ -471,7 +500,7 @@ streams.
 | `--json f1,f2` | Global on most commands | Output JSON with selected fields |
 | `--jq expr` | Global | Filter JSON output with a jq expression; implies JSON |
 | `--quiet` | Global | Output minimal text, one item per line; mutually exclusive with `--json` and `--jq` |
-| `--debug` | Global | Emit sanitized debug diagnostics to stderr; moves the JSON error to stdout, see Error Recovery |
+| `--debug` | Global | Emit sanitized debug diagnostics to stderr, alongside the error document; stdout is unaffected |
 | `--token` | Global auth override | Override auth token |
 | `--org-id` | Global auth override | Override organization ID |
 | `--org-type` | Global auth override | Override organization type: `360` or `cloud` |
