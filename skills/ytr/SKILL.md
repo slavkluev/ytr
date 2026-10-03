@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "9.0"
+  version: "10.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -426,7 +426,6 @@ ytr user get "$(ytr comment list PROJ-123 --json authorId --jq '.[0].authorId')"
 
 Exceptions:
 
-- Delete commands return fixed confirmation objects such as `{ "id": "...", "deleted": true }`.
 - `queue context` prints its document as JSON even without `--json`: its top-level keys
   are its parts. `--json` selects parts, `incomplete` is always present, and `--quiet`
   is an error. Its errors follow the usual rule: a JSON document on stderr only under

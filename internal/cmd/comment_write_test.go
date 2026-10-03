@@ -173,7 +173,7 @@ func TestCommentDelete(t *testing.T) {
 		},
 		failureRow("Tracker 404", trackerFailure(http.MethodDelete, path, http.StatusNotFound, "Comment not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
-		helpRow("comment delete", "Delete a comment from a Yandex Tracker issue.\n\n"+
+		helpRow("comment delete", "Delete a comment from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n\n"+
 			"SEE ALSO\n  ytr comment list    - List comments on issue\n  ytr comment create  - Add comment to issue\n"+
 			"  ytr comment edit    - Edit a comment\n"),
 	}))

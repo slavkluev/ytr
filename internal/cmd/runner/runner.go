@@ -227,11 +227,11 @@ func (w Write[Req, T, Item]) render(out io.Writer, opts *output.Options, args []
 }
 
 // Delete declares a command that deletes what its last argument names and
-// prints that ID: in an object under --json, alone under --quiet, and
+// prints that ID: as a deleted item under --json, alone under --quiet, and
 // otherwise in the Confirm line.
 type Delete struct {
-	// Long is the description; Command adds SeeAlso after it as the SEE ALSO
-	// section.
+	// Long is the description; Command adds the JSON FIELDS section after it,
+	// then SeeAlso as the SEE ALSO section.
 	Use, Short, Long, SeeAlso, Example string
 
 	Args []Arg
@@ -242,10 +242,12 @@ type Delete struct {
 
 // Command returns the cobra command d declares.
 func (d Delete) Command() *cobra.Command {
-	return newCommand(help{d.Use, d.Short, d.Long, d.SeeAlso, d.Example}, d.Args, nil,
+	fields := ItemFields[deleted]()
+
+	return newCommand(help{d.Use, d.Short, d.Long, d.SeeAlso, d.Example}, d.Args, fields,
 		func(cmd *cobra.Command, args []string) error {
 			return run(cmd, args, steps[struct{}]{
-				args: d.Args,
+				args: d.Args, fields: fields,
 				call: func(ctx context.Context, c *tracker.Client, args []string) (struct{}, error) {
 					return struct{}{}, d.Call(ctx, c, args)
 				},
@@ -258,7 +260,7 @@ func (d Delete) render(w io.Writer, opts *output.Options, args []string, _ struc
 	id := args[len(args)-1]
 
 	if opts.IsJSON() {
-		return printJSON(w, opts, map[string]any{"id": id, "deleted": true})
+		return printJSON(w, opts, output.FilterFields(deleted{ID: id, Deleted: true}, opts.JSONFields))
 	}
 
 	if opts.Quiet {
@@ -268,6 +270,11 @@ func (d Delete) render(w io.Writer, opts *output.Options, args []string, _ struc
 
 	_, err := fmt.Fprintln(w, d.Confirm(id))
 	return err
+}
+
+type deleted struct {
+	ID      string `json:"id"`
+	Deleted bool   `json:"deleted"`
 }
 
 // Flag is one request flag of a Write: the body key it sets and how its text
@@ -475,10 +482,7 @@ type help struct {
 }
 
 func newCommand(h help, args []Arg, fields []string, runE func(*cobra.Command, []string) error) *cobra.Command {
-	long := h.long
-	if fields != nil {
-		long += "\n\nJSON FIELDS\n  " + strings.Join(fields, ", ")
-	}
+	long := h.long + "\n\nJSON FIELDS\n  " + strings.Join(fields, ", ")
 	if h.seeAlso != "" {
 		long += "\n\nSEE ALSO\n" + h.seeAlso
 	}
@@ -498,18 +502,14 @@ func newCommand(h help, args []Arg, fields []string, runE func(*cobra.Command, [
 		Args:    accepts,
 		RunE:    runE,
 	}
-	if fields != nil {
-		SetFields(cmd, fields)
-	}
+	SetFields(cmd, fields)
 
 	return cmd
 }
 
 // steps are what one command runs inside the policy run applies.
 type steps[V any] struct {
-	args []Arg
-
-	// fields are the --json fields; nil skips the field prelude.
+	args   []Arg
 	fields []string
 
 	// check runs once the arguments pass, ahead of the field hint and auth.
@@ -566,10 +566,6 @@ func run[V any](cmd *cobra.Command, raw []string, s steps[V]) error {
 // selectFields leaves opts with the --json fields the run selected, or answers
 // a bare --json= with the field hint.
 func selectFields(cmd *cobra.Command, opts *output.Options, fields []string) error {
-	if fields == nil {
-		return nil
-	}
-
 	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		name := strings.TrimPrefix(cmd.CommandPath(), cmd.Root().Name()+" ")
 		return output.PrintFieldHint(cmd.ErrOrStderr(), name, fields)

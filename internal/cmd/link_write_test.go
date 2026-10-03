@@ -90,7 +90,7 @@ func TestLinkDelete(t *testing.T) {
 		},
 		failureRow("Tracker 404", trackerFailure(http.MethodDelete, path, http.StatusNotFound, "Link not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
-		helpRow("link delete", "Delete a link from a Yandex Tracker issue.\n\n"+
+		helpRow("link delete", "Delete a link from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n\n"+
 			"SEE ALSO\n  ytr link list    - List links on issue\n  ytr link create  - Create a link to another issue\n"),
 	}))
 }

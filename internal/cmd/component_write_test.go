@@ -161,7 +161,7 @@ func TestComponentDelete(t *testing.T) {
 		},
 		failureRow("Tracker 404", trackerFailure(http.MethodDelete, path, http.StatusNotFound, "Component not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
-		helpRow("component delete", "Delete a project component from Yandex Tracker.\n\n"+
+		helpRow("component delete", "Delete a project component from Yandex Tracker.\n\nJSON FIELDS\n  id, deleted\n\n"+
 			"SEE ALSO\n  ytr component list    - List all components\n  ytr component get     - Show component details\n"+
 			"  ytr component create  - Create a component\n"),
 	}))

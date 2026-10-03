@@ -235,25 +235,22 @@ func withoutANSI(s string) string {
 
 // deleteRows are the output rows of the delete leaf args run, which Tracker
 // answers with answer: what it prints for id plainly, under --json, --jq and
-// --quiet, and for a field hint or an unknown field.
+// --quiet, and the field hint and an unknown field, which send no request.
 func deleteRows(args []string, answer faketracker.Exchange, id, confirm string) []leafRow {
 	with := func(extra ...string) []string { return slices.Concat(args, extra) }
 	sent := []faketracker.Exchange{answer}
 
 	return []leafRow{
 		{name: "Delete", args: args, exchanges: sent, stdout: confirm + "\n"},
-		{
-			name:      "Delete JSON",
-			args:      with("--json", "id"),
-			exchanges: sent,
-			json:      `{"id": "` + id + `", "deleted": true}`,
-		},
+		{name: "Delete JSON", args: with("--json", "id"), exchanges: sent, json: `{"id": "` + id + `"}`},
+		{name: "Delete JSON of every field", args: with("--json", "id,deleted"), exchanges: sent,
+			json: `{"id": "` + id + `", "deleted": true}`},
 		{name: "Delete jq", args: with("--jq", ".deleted"), exchanges: sent, stdout: "true\n"},
 		{name: "Delete quiet", args: with("--quiet"), exchanges: sent, stdout: id + "\n"},
-		{name: "Delete field hint", args: with("--json="), exchanges: sent, stdout: confirm + "\n"},
+		named("Delete field hint", fieldHintRow(strings.Join(args[:2], " "), args[2:], "id", "deleted")),
 		{
-			name: "Delete unknown field", args: with("--json", "bogus"), exchanges: sent,
-			json: `{"id": "` + id + `", "deleted": true}`,
+			name: "Delete unknown field", args: with("--json", "bogus"), code: ytrerrors.ExitUserError,
+			stderr: []string{`"code":"invalid_field"`, `"invalidField":"bogus"`},
 		},
 	}
 }

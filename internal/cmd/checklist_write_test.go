@@ -227,8 +227,11 @@ func TestChecklistDelete(t *testing.T) {
 			"Tracker 404",
 			trackerFailure(http.MethodDelete, path, http.StatusNotFound, "Checklist item not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
-		helpRow("checklist delete", "Delete a checklist item from a Yandex Tracker issue.\n\n"+
-			"SEE ALSO\n  ytr checklist list    - List checklist items on issue\n"+
-			"  ytr checklist create  - Add checklist item to issue\n  ytr checklist edit    - Edit a checklist item\n"),
+		helpRow(
+			"checklist delete",
+			"Delete a checklist item from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n\n"+
+				"SEE ALSO\n  ytr checklist list    - List checklist items on issue\n"+
+				"  ytr checklist create  - Add checklist item to issue\n  ytr checklist edit    - Edit a checklist item\n",
+		),
 	}))
 }

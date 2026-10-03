@@ -200,7 +200,7 @@ func TestWorklogDelete(t *testing.T) {
 		},
 		failureRow("Tracker 404", trackerFailure(http.MethodDelete, path, http.StatusNotFound, "Worklog not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
-		helpRow("worklog delete", "Delete a worklog from a Yandex Tracker issue.\n\n"+
+		helpRow("worklog delete", "Delete a worklog from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n\n"+
 			"SEE ALSO\n  ytr worklog list    - List worklogs on issue\n  ytr worklog create  - Create a worklog\n"+
 			"  ytr worklog edit    - Edit a worklog\n"),
 	}))

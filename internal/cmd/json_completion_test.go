@@ -28,6 +28,7 @@ func TestJSONCompletionOffersEveryLeafItsFields(t *testing.T) {
 		"executionIssuePercent", "executionChunkPercent", "createdBy", "createdById", "createdAt",
 	}
 	component := []string{"id", "name", "queue", "lead", "leadId", "description", "assignAuto"}
+	deleted := []string{"id", "deleted"}
 	userDetail := []string{
 		"uid", "display", "login", "email", "firstName", "lastName", "dismissed", "hasLicense", "external",
 	}
@@ -45,14 +46,18 @@ func TestJSONCompletionOffersEveryLeafItsFields(t *testing.T) {
 		"issue update":     issueDetail,
 		"issue view":       issueDetail,
 		"comment create":   comment,
+		"comment delete":   deleted,
 		"comment edit":     comment,
 		"comment list":     comment,
 		"link create":      link,
+		"link delete":      deleted,
 		"link list":        link,
 		"worklog create":   worklog,
+		"worklog delete":   deleted,
 		"worklog edit":     worklog,
 		"worklog list":     worklog,
 		"checklist create": checklist,
+		"checklist delete": deleted,
 		"checklist edit":   checklist,
 		"checklist list":   checklist,
 		"bulk move":        bulk,
@@ -80,6 +85,7 @@ func TestJSONCompletionOffersEveryLeafItsFields(t *testing.T) {
 			"assignAuto", "allowExternals",
 		},
 		"component create": component,
+		"component delete": deleted,
 		"component edit":   component,
 		"component get":    component,
 		"component list":   component,
