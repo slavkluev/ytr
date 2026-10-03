@@ -11,24 +11,8 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-type userMyself interface {
-	Myself(ctx context.Context) (*tracker.User, *tracker.Response, error)
-}
-
-type userGetter interface {
-	Get(ctx context.Context, userID string) (*tracker.User, *tracker.Response, error)
-}
-
 type userLister interface {
 	List(ctx context.Context, opts *tracker.UserListOptions) ([]*tracker.User, *tracker.Response, error)
-}
-
-var newUserMyself = func(auth *config.ResolvedAuth) userMyself {
-	return api.NewClient(auth).Users
-}
-
-var newUserGetter = func(auth *config.ResolvedAuth) userGetter {
-	return api.NewClient(auth).Users
 }
 
 var newUserLister = func(auth *config.ResolvedAuth) userLister {
