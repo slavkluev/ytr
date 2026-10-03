@@ -89,6 +89,9 @@ func TestWorklogCreate(t *testing.T) {
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad"`},
 		},
 		fieldHintRow("worklog create", slices.Concat([]string{"PROJ-1"}, required), worklogFields...),
+		named("Field hint before --from-json is read",
+			fieldHintRow("worklog create", []string{"PROJ-1", "--from-json", `{"comment": "x", "bogus": 1}`},
+				worklogFields...)),
 		failureRow("Tracker 404", trackerFailure(http.MethodPost, path, http.StatusNotFound, "Issue not found"),
 			create(slices.Concat(required, []string{"--json", "id"})...)...),
 		failureRow(

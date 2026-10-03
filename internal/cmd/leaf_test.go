@@ -54,8 +54,12 @@ func runLeafRows(t *testing.T, rows []leafRow) {
 			if len(res.Requests) != len(row.exchanges) {
 				t.Errorf("requests = %+v, want %d", res.Requests, len(row.exchanges))
 			}
-			if row.body != "" && len(res.Requests) > 0 {
-				assertSameJSONAs(t, "request body", res.Requests[len(res.Requests)-1].Body, row.body)
+			if row.body != "" {
+				if len(res.Requests) == 0 {
+					t.Errorf("no request was sent, want one with body %s", row.body)
+				} else {
+					assertSameJSONAs(t, "request body", res.Requests[len(res.Requests)-1].Body, row.body)
+				}
 			}
 
 			switch {

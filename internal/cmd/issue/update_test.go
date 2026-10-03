@@ -172,7 +172,7 @@ func TestUpdateNoFlags(t *testing.T) {
 	}
 
 	if !strings.Contains(err.Error(), "nothing to update") {
-		t.Errorf("error %q should mention 'at least one field flag'", err.Error())
+		t.Errorf("error %q should say 'nothing to update'", err.Error())
 	}
 }
 

@@ -237,7 +237,7 @@ func TestTransitionMutualExclusion(t *testing.T) {
 	}
 
 	if !strings.Contains(err.Error(), "cannot combine --from-json with --transition") {
-		t.Errorf("expected 'cannot use' in error, got: %v", err)
+		t.Errorf("expected 'cannot combine --from-json with --transition' in error, got: %v", err)
 	}
 }
 
