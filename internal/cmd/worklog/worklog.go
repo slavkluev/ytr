@@ -2,49 +2,8 @@
 package worklog
 
 import (
-	"context"
-
-	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
-
-	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/config"
 )
-
-type worklogCreator interface {
-	CreateWorklog(
-		ctx context.Context,
-		issueKey string,
-		worklog *tracker.WorklogRequest,
-	) (*tracker.Worklog, *tracker.Response, error)
-}
-
-type worklogEditor interface {
-	EditWorklog(
-		ctx context.Context,
-		issueKey, worklogID string,
-		worklog *tracker.WorklogRequest,
-	) (*tracker.Worklog, *tracker.Response, error)
-}
-
-type worklogDeleter interface {
-	DeleteWorklog(
-		ctx context.Context,
-		issueKey, worklogID string,
-	) (*tracker.Response, error)
-}
-
-var newWorklogCreator = func(auth *config.ResolvedAuth) worklogCreator {
-	return api.NewClient(auth).Issues
-}
-
-var newWorklogEditor = func(auth *config.ResolvedAuth) worklogEditor {
-	return api.NewClient(auth).Issues
-}
-
-var newWorklogDeleter = func(auth *config.ResolvedAuth) worklogDeleter {
-	return api.NewClient(auth).Issues
-}
 
 // NewCmd creates the parent "worklog" command with subcommands.
 func NewCmd() *cobra.Command {

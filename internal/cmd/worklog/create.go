@@ -1,39 +1,18 @@
 package worklog
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
-	"time"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
-	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/validate"
 )
 
-var createBody = validate.Body{
-	Flags: []validate.BodyFlag{
-		{Name: "duration", Key: "duration"}, {Name: "start", Key: "start"}, {Name: "comment", Key: "comment"},
-	},
-	Required: []string{"start", "duration"},
-	FromJSON: true,
-}
-
 func newCreateCmd() *cobra.Command {
-	var (
-		durationFlag string
-		startFlag    string
-		commentFlag  string
-		fromJSON     string
-	)
-
-	cmd := &cobra.Command{
+	return runner.Write[tracker.WorklogRequest, *tracker.Worklog, worklogItem]{
 		Use:   "create ISSUE-KEY",
 		Short: "Create a worklog",
 		Long: `Create a new worklog on a Yandex Tracker issue.
@@ -41,13 +20,8 @@ func newCreateCmd() *cobra.Command {
 Durations use ISO 8601 format: PT1H30M (1h30m), PT45M (45min), P1D (1 day),
 P1DT2H (1 day 2 hours).
 
-Tracker requires both duration and start time when creating a worklog.
-
-JSON FIELDS
-  id, author, authorId, duration, start, comment
-
-SEE ALSO
-  ytr worklog list    - List worklogs on issue
+Tracker requires both duration and start time when creating a worklog.`,
+		SeeAlso: `  ytr worklog list    - List worklogs on issue
   ytr worklog edit    - Edit a worklog
   ytr worklog delete  - Delete a worklog`,
 		Example: `  # Log 1h30m of work
@@ -58,185 +32,28 @@ SEE ALSO
 
   # Create via JSON
   ytr worklog create PROJ-123 --from-json '{"start":"2026-03-30T10:00:00Z","duration":"PT1H","comment":"Bug fix"}'`,
-		Args: cobra.ExactArgs(1),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := validate.ValidateIssueKey(args[0]); err != nil {
-				return err
-			}
-
-			if err := createBody.CheckFlags(cmd.Flags().Changed); err != nil {
-				return err
-			}
-
-			return checkFlagValues(cmd, durationFlag, startFlag)
+		Args: []runner.Arg{runner.IssueKey},
+		Flags: []runner.Flag{
+			runner.Duration("duration", "Duration in ISO 8601 format (e.g., PT1H30M) (required)"),
+			runner.Time("start", "Start time in RFC 3339 format (e.g., 2026-03-30T10:00:00Z) (required)"),
+			runner.Text("comment", "Worklog comment"),
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCreate(cmd, args[0], durationFlag, startFlag, commentFlag, fromJSON)
+		FromJSON: `JSON input: inline '{"start":"2026-03-30T10:00:00Z","duration":"PT1H"}', @file, or - for stdin`,
+		Required: []string{"start", "duration"},
+		Call: func(
+			ctx context.Context, c *tracker.Client, args []string, req *tracker.WorklogRequest,
+		) (*tracker.Worklog, error) {
+			wl, _, err := c.Issues.CreateWorklog(ctx, args[0], req)
+			return wl, err
 		},
-	}
-
-	cmd.Flags().StringVar(&durationFlag, "duration", "", "Duration in ISO 8601 format (e.g., PT1H30M) (required)")
-	cmd.Flags().StringVar(
-		&startFlag, "start", "",
-		"Start time in RFC 3339 format (e.g., 2026-03-30T10:00:00Z) (required)",
-	)
-	cmd.Flags().StringVar(&commentFlag, "comment", "", "Worklog comment")
-	cmd.Flags().StringVar(
-		&fromJSON, "from-json", "",
-		`JSON input: inline '{"start":"2026-03-30T10:00:00Z","duration":"PT1H"}', @file, or - for stdin`,
-	)
-
-	runner.SetFields(cmd, WorklogFields)
-
-	return cmd
+		Item:  toWorklogItem,
+		Quiet: worklogID,
+		Confirm: func(args []string, wl *tracker.Worklog) string {
+			return fmt.Sprintf("Worklog %s created on %s", worklogID(wl), args[0])
+		},
+	}.Command()
 }
 
-func runCreate(
-	cmd *cobra.Command,
-	issueKey, durationFlag, startFlag, commentFlag, fromJSON string,
-) error {
-	opts := output.FromContext(cmd.Context())
-
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "worklog create", WorklogFields)
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = WorklogFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, WorklogFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, WorklogFields)
-	}
-
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
-	if err != nil {
-		return err
-	}
-
-	req, err := buildCreateRequest(cmd, durationFlag, startFlag, commentFlag, fromJSON)
-	if err != nil {
-		return err
-	}
-
-	creator := newWorklogCreator(auth)
-
-	wl, _, err := creator.CreateWorklog(cmd.Context(), issueKey, req)
-	if err != nil {
-		return api.MapAPIError(err)
-	}
-
-	return renderCreateOutput(cmd.OutOrStdout(), opts, wl, issueKey)
-}
-
-func renderCreateOutput(w io.Writer, opts *output.Options, wl *tracker.Worklog, issueKey string) error {
-	if opts.IsJSON() {
-		item := toWorklogItem(wl)
-		if opts.HasFieldSelection() {
-			filtered := output.FilterFields(item, opts.JSONFields)
-			if opts.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, opts.JQFilter)
-			}
-			return opts.PrintJSON(w, filtered)
-		}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(w, item, opts.JQFilter)
-		}
-		return opts.PrintJSON(w, item)
-	}
-
-	if opts.Quiet {
-		output.PrintQuiet(w, api.DerefFlexString(wl.ID, ""))
-		return nil
-	}
-
-	_, err := fmt.Fprintf(w, "Worklog %s created on %s\n", api.DerefFlexString(wl.ID, ""), issueKey)
-	return err
-}
-
-func parseDuration(s string) (*tracker.Duration, error) {
-	var d tracker.Duration
-
-	if err := json.Unmarshal([]byte(`"`+s+`"`), &d); err != nil {
-		return nil, errors.NewUserError(
-			fmt.Sprintf("invalid ISO 8601 duration %q", s),
-			"Use ISO 8601 format: PT1H30M (1h30m), PT45M (45min), P1D (1 day), P1DT2H (1 day 2 hours)",
-		)
-	}
-
-	return &d, nil
-}
-
-func parseTimestamp(s string) (*tracker.Timestamp, error) {
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		return nil, errors.NewUserError(
-			fmt.Sprintf("invalid timestamp %q", s),
-			"Use RFC 3339 format: 2026-03-30T10:00:00Z",
-		)
-	}
-
-	return &tracker.Timestamp{Time: t}, nil
-}
-
-func buildCreateRequest(cmd *cobra.Command, durationFlag, startFlag, commentFlag,
-	fromJSON string) (*tracker.WorklogRequest, error) {
-	if cmd.Flags().Changed("from-json") {
-		data, parseErr := validate.ParseJSONInput(fromJSON)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		req := &tracker.WorklogRequest{}
-		if decodeErr := createBody.Decode(data, req); decodeErr != nil {
-			return nil, decodeErr
-		}
-		return req, nil
-	}
-
-	req := &tracker.WorklogRequest{}
-
-	dur, durErr := parseDuration(durationFlag)
-	if durErr != nil {
-		return nil, durErr
-	}
-	req.Duration = dur
-
-	if cmd.Flags().Changed("start") {
-		ts, tsErr := parseTimestamp(startFlag)
-		if tsErr != nil {
-			return nil, tsErr
-		}
-		req.Start = ts
-	}
-
-	if cmd.Flags().Changed("comment") {
-		req.Comment = &commentFlag
-	}
-
-	return req, nil
-}
-
-// checkFlagValues parses the --duration and --start a run set, so a bad value
-// fails before the field hint and auth, as the other flag checks do.
-func checkFlagValues(cmd *cobra.Command, durationFlag, startFlag string) error {
-	if cmd.Flags().Changed("duration") {
-		if _, err := parseDuration(durationFlag); err != nil {
-			return err
-		}
-	}
-
-	if cmd.Flags().Changed("start") {
-		if _, err := parseTimestamp(startFlag); err != nil {
-			return err
-		}
-	}
-
-	return nil
+func worklogID(wl *tracker.Worklog) string {
+	return api.DerefFlexString(wl.ID, "")
 }

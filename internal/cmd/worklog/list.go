@@ -21,9 +21,6 @@ type worklogItem struct {
 	Comment  string `json:"comment,omitempty"`
 }
 
-// WorklogFields are the --json fields of every worklog command.
-var WorklogFields = runner.ItemFields[worklogItem]()
-
 func newListCmd() *cobra.Command {
 	return runner.List[*tracker.Worklog, worklogItem]{
 		Use:   "list ISSUE-KEY",
