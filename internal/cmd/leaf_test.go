@@ -35,6 +35,9 @@ type leafRow struct {
 	// stderr must hold each of these; with none, stderr must be empty.
 	stderr []string
 
+	// body, when set, is the JSON the last request must carry as its body.
+	body string
+
 	check func(t *testing.T, res cliResult)
 }
 
@@ -51,10 +54,13 @@ func runLeafRows(t *testing.T, rows []leafRow) {
 			if len(res.Requests) != len(row.exchanges) {
 				t.Errorf("requests = %+v, want %d", res.Requests, len(row.exchanges))
 			}
+			if row.body != "" && len(res.Requests) > 0 {
+				assertSameJSONAs(t, "request body", res.Requests[len(res.Requests)-1].Body, row.body)
+			}
 
 			switch {
 			case row.json != "":
-				assertSameJSON(t, res.Stdout, row.json)
+				assertSameJSONAs(t, "stdout", res.Stdout, row.json)
 			case len(row.holds) > 0:
 				for _, want := range row.holds {
 					if !strings.Contains(withoutANSI(res.Stdout), want) {
@@ -81,18 +87,18 @@ func runLeafRows(t *testing.T, rows []leafRow) {
 	}
 }
 
-func assertSameJSON(t *testing.T, got, want string) {
+func assertSameJSONAs(t *testing.T, label, got, want string) {
 	t.Helper()
 
 	var gotValue, wantValue any
 	if err := json.Unmarshal([]byte(got), &gotValue); err != nil {
-		t.Fatalf("stdout is not one JSON document: %v\n%s", err, got)
+		t.Fatalf("%s is not one JSON document: %v\n%s", label, err, got)
 	}
 	if err := json.Unmarshal([]byte(want), &wantValue); err != nil {
 		t.Fatalf("the row's JSON does not parse: %v\n%s", err, want)
 	}
 	if !reflect.DeepEqual(gotValue, wantValue) {
-		t.Errorf("stdout = %s,\nwant %s", got, want)
+		t.Errorf("%s = %s,\nwant %s", label, got, want)
 	}
 }
 
@@ -111,19 +117,67 @@ func trackerTime(t time.Time) string {
 	return t.Format("2006-01-02T15:04:05.000-0700")
 }
 
-func trackerNotFound(path string) faketracker.Exchange {
-	ex := trackerGET(path, `{"errorMessages":["Object not found"],"errors":{},"statusCode":404}`)
-	ex.Status = http.StatusNotFound
+// trackerWrite answers a write the way Tracker does: status, and body as JSON
+// unless it is empty, as the body of a 204 is.
+func trackerWrite(method, path string, status int, body string) faketracker.Exchange {
+	ex := faketracker.Exchange{Method: method, Path: path, Status: status}
+	if body != "" {
+		ex.Header = http.Header{"Content-Type": {"application/json"}}
+		ex.Body = []byte(body)
+	}
 
 	return ex
+}
+
+func trackerPOST(path, body string) faketracker.Exchange {
+	return trackerWrite(http.MethodPost, path, http.StatusCreated, body)
+}
+
+func trackerPATCH(path, body string) faketracker.Exchange {
+	return trackerWrite(http.MethodPatch, path, http.StatusOK, body)
+}
+
+func trackerDELETE(path string) faketracker.Exchange {
+	return trackerWrite(http.MethodDelete, path, http.StatusNoContent, "")
+}
+
+func trackerNotFound(path string) faketracker.Exchange {
+	return trackerFailure(http.MethodGet, path, http.StatusNotFound, "Object not found")
+}
+
+// trackerFailure answers method on path with status and Tracker's error body
+// carrying message.
+func trackerFailure(method, path string, status int, message string) faketracker.Exchange {
+	body, _ := json.Marshal(
+		map[string]any{"errorMessages": []string{message}, "errors": map[string]string{}, "statusCode": status},
+	)
+
+	return trackerWrite(method, path, status, string(body))
 }
 
 // notFoundRow asks for one JSON field of what path answers with a 404, and
 // wants stdout empty and the server's text in the one JSON error document.
 func notFoundRow(path string, args ...string) leafRow {
+	return failureRow("Tracker 404", trackerNotFound(path), args...)
+}
+
+// failureRow runs args, which ask for JSON, against ex, an exchange that
+// answers with Tracker's error body, and wants stdout empty and the server's
+// text in the one JSON error document, with the exit code its status maps to.
+func failureRow(name string, ex faketracker.Exchange, args ...string) leafRow {
+	var answer struct {
+		ErrorMessages []string `json:"errorMessages"`
+	}
+	_ = json.Unmarshal(ex.Body, &answer)
+
+	exit, code := ytrerrors.ExitUserError, ytrerrors.CodeUserError
+	if ex.Status == http.StatusNotFound {
+		exit, code = ytrerrors.ExitNotFound, ytrerrors.CodeNotFound
+	}
+
 	return leafRow{
-		name: "Tracker 404", args: args, exchanges: []faketracker.Exchange{trackerNotFound(path)},
-		code: ytrerrors.ExitNotFound, stderr: []string{`"code":"not_found"`},
+		name: name, args: args, exchanges: []faketracker.Exchange{ex},
+		code: exit, stderr: []string{`"code":"` + code + `"`},
 		check: func(t *testing.T, res cliResult) {
 			t.Helper()
 
@@ -131,8 +185,8 @@ func notFoundRow(path string, args ...string) leafRow {
 			if err := json.Unmarshal([]byte(res.Stderr), &doc); err != nil || strings.Count(res.Stderr, "\n") != 1 {
 				t.Fatalf("stderr = %q, want exactly one JSON document (%v)", res.Stderr, err)
 			}
-			if doc.Code != ytrerrors.CodeNotFound || doc.Message != "Object not found" {
-				t.Errorf("error = %+v, want code %q and the server's text", doc, ytrerrors.CodeNotFound)
+			if doc.Code != code || doc.Message != strings.Join(answer.ErrorMessages, "; ") {
+				t.Errorf("error = %+v, want code %q and the server's text", doc, code)
 			}
 		},
 	}
@@ -177,4 +231,29 @@ var ansiEscape = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
 func withoutANSI(s string) string {
 	return ansiEscape.ReplaceAllString(s, "")
+}
+
+// deleteRows are the output rows of the delete leaf args run, which Tracker
+// answers with answer: what it prints for id plainly, under --json, --jq and
+// --quiet, and for a field hint or an unknown field.
+func deleteRows(args []string, answer faketracker.Exchange, id, confirm string) []leafRow {
+	with := func(extra ...string) []string { return slices.Concat(args, extra) }
+	sent := []faketracker.Exchange{answer}
+
+	return []leafRow{
+		{name: "Delete", args: args, exchanges: sent, stdout: confirm + "\n"},
+		{
+			name:      "Delete JSON",
+			args:      with("--json", "id"),
+			exchanges: sent,
+			json:      `{"id": "` + id + `", "deleted": true}`,
+		},
+		{name: "Delete jq", args: with("--jq", ".deleted"), exchanges: sent, stdout: "true\n"},
+		{name: "Delete quiet", args: with("--quiet"), exchanges: sent, stdout: id + "\n"},
+		{name: "Delete field hint", args: with("--json="), exchanges: sent, stdout: confirm + "\n"},
+		{
+			name: "Delete unknown field", args: with("--json", "bogus"), exchanges: sent,
+			json: `{"id": "` + id + `", "deleted": true}`,
+		},
+	}
 }
