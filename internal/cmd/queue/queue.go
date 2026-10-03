@@ -15,10 +15,6 @@ type queueLister interface {
 	List(ctx context.Context, opts *tracker.QueueListOptions) ([]*tracker.Queue, *tracker.Response, error)
 }
 
-type queueGetter interface {
-	Get(ctx context.Context, key string, opts *tracker.QueueGetOptions) (*tracker.Queue, *tracker.Response, error)
-}
-
 type queueContextClient interface {
 	GetQueue(ctx context.Context, key string, opts *tracker.QueueGetOptions) (*tracker.Queue, *tracker.Response, error)
 	GetWorkflow(ctx context.Context, id string) (*tracker.Workflow, *tracker.Response, error)
@@ -80,10 +76,6 @@ func (c trackerContextClient) ListGlobalFields(ctx context.Context) ([]*tracker.
 }
 
 var newLister = func(auth *config.ResolvedAuth) queueLister {
-	return api.NewClient(auth).Queues
-}
-
-var newGetter = func(auth *config.ResolvedAuth) queueGetter {
 	return api.NewClient(auth).Queues
 }
 
