@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // mockChangelogGetter implements changelogGetter for testing.
@@ -21,10 +21,6 @@ type mockChangelogGetter struct {
 	resp     *tracker.Response
 	err      error
 	lastOpts *tracker.ChangelogOptions // captures last options received
-}
-
-func makeTimestamp(t time.Time) *tracker.Timestamp {
-	return &tracker.Timestamp{Time: t}
 }
 
 func (m *mockChangelogGetter) GetChangelog(
@@ -37,57 +33,6 @@ func (m *mockChangelogGetter) GetChangelog(
 		return nil, nil, m.err
 	}
 	return m.entries, m.resp, nil
-}
-
-// fieldRef creates a *tracker.FieldRef from a field ID string.
-func fieldRef(id string) *tracker.FieldRef {
-	fid := tracker.FlexString(id)
-	return &tracker.FieldRef{ID: &fid}
-}
-
-// sampleChangelog returns a slice of Changelog entries with a status change,
-// a summary change, and an entry where From is nil (field set for first time).
-func sampleChangelog() []*tracker.Changelog {
-	ts1 := tracker.Timestamp{Time: time.Date(2024, 3, 15, 10, 0, 0, 0, time.UTC)}
-	ts2 := tracker.Timestamp{Time: time.Date(2024, 3, 16, 14, 30, 0, 0, time.UTC)}
-
-	id1 := tracker.FlexString("cl-001")
-	id2 := tracker.FlexString("cl-002")
-
-	fieldStatus := fieldRef("status")
-	fieldSummary := fieldRef("summary")
-
-	return []*tracker.Changelog{
-		{
-			ID:        &id1,
-			UpdatedAt: &ts1,
-			UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Fields: []*tracker.ChangelogEvent{
-				{
-					Field: fieldStatus,
-					From:  map[string]any{"display": "Open", "key": "open"},
-					To:    map[string]any{"display": "In Progress", "key": "inprogress"},
-				},
-				{
-					Field: fieldSummary,
-					From:  "Old title",
-					To:    "New title",
-				},
-			},
-		},
-		{
-			ID:        &id2,
-			UpdatedAt: &ts2,
-			UpdatedBy: &tracker.User{Display: testutil.StrPtr("bob")},
-			Fields: []*tracker.ChangelogEvent{
-				{
-					Field: fieldStatus,
-					From:  nil,
-					To:    map[string]any{"display": "Done", "key": "done"},
-				},
-			},
-		},
-	}
 }
 
 func setupChangelogCmd(t *testing.T, mock *mockChangelogGetter, opts output.Options, args []string) (string, error) {
@@ -125,94 +70,13 @@ func TestChangelogTable(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Should contain column headers.
-	for _, want := range []string{"DATE", "AUTHOR", "FIELD", "FROM", "TO"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("table missing column %q; got:\n%s", want, out)
-		}
+	lines := strings.Split(out, "\n")
+	want := []string{
+		"DATE\tAUTHOR\tFIELD\tFROM\tTO",
+		"2024-03-15T10:00:00Z\talice\tstatus\tOpen\tIn Progress",
 	}
-
-	// Should contain data from the changelog entries.
-	for _, want := range []string{"alice", "bob", "status", "summary", "Open", "In Progress", "Old title", "New title"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("table missing value %q; got:\n%s", want, out)
-		}
-	}
-}
-
-func TestChangelogJSON(t *testing.T) {
-	mock := &mockChangelogGetter{
-		entries: sampleChangelog(),
-		resp:    &tracker.Response{},
-	}
-
-	out, err := setupChangelogCmd(t, mock, output.Options{JSONFields: IssueChangelogFields}, []string{"PROJ-123"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	var result map[string]any
-	if err := json.Unmarshal([]byte(out), &result); err != nil {
-		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
-	}
-
-	// Should have items array and pagination envelope.
-	items, ok := result["items"]
-	if !ok {
-		t.Fatal("JSON missing 'items' key")
-	}
-	if _, hasPagination := result["pagination"]; !hasPagination {
-		t.Fatal("JSON missing 'pagination' key")
-	}
-
-	itemSlice, ok := items.([]any)
-	if !ok {
-		t.Fatalf("items is not an array: %T", items)
-	}
-
-	// 2 entries (per-entry, not per-field).
-	if len(itemSlice) != 2 {
-		t.Errorf("expected 2 items (entries), got %d", len(itemSlice))
-	}
-
-	// First entry should have type and fields array.
-	firstItem, ok := itemSlice[0].(map[string]any)
-	if !ok {
-		t.Fatal("first item is not an object")
-	}
-	for _, field := range []string{"date", "author", "type", "fields"} {
-		if _, exists := firstItem[field]; !exists {
-			t.Errorf("item missing field %q", field)
-		}
-	}
-
-	// Fields should be an array with 2 changes (status + summary).
-	fields, ok := firstItem["fields"].([]any)
-	if !ok {
-		t.Fatalf("fields is not an array: %T", firstItem["fields"])
-	}
-	if len(fields) != 2 {
-		t.Errorf("expected 2 fields, got %d", len(fields))
-	}
-
-	// Verify raw values: status from/to should be objects with display/key.
-	firstField, ok := fields[0].(map[string]any)
-	if !ok {
-		t.Fatal("first field is not an object")
-	}
-	fromObj, ok := firstField["from"].(map[string]any)
-	if !ok {
-		t.Fatalf("from is not an object: %T", firstField["from"])
-	}
-	if fromObj["display"] != "Open" {
-		t.Errorf("expected from.display='Open', got %v", fromObj["display"])
-	}
-	toObj, ok := firstField["to"].(map[string]any)
-	if !ok {
-		t.Fatalf("to is not an object: %T", firstField["to"])
-	}
-	if toObj["display"] != "In Progress" {
-		t.Errorf("expected to.display='In Progress', got %v", toObj["display"])
+	if len(lines) < len(want) || !slices.Equal(lines[:len(want)], want) {
+		t.Errorf("table does not start with the header and the first change; got:\n%s", out)
 	}
 }
 
@@ -227,20 +91,44 @@ func TestChangelogQuiet(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	// 3 total events.
-	if len(lines) != 3 {
-		t.Errorf("expected 3 quiet lines, got %d: %v", len(lines), lines)
+	want := "status: Open -> In Progress\n" +
+		"summary: Old title -> New title\n" +
+		"status:  -> Done\n"
+	if out != want {
+		t.Errorf("quiet output = %q, want %q", out, want)
+	}
+}
+
+func TestChangelogJSONIsTheDocument(t *testing.T) {
+	entries := sampleChangelog()
+	mock := &mockChangelogGetter{entries: entries, resp: &tracker.Response{}}
+	fields := []string{"date", "author", "fields"}
+
+	out, err := setupChangelogCmd(t, mock, output.Options{JSONFields: fields}, []string{"PROJ-123", "--limit", "2"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Each line should be "field: from -> to" format.
-	for _, line := range lines {
-		if !strings.Contains(line, "->") {
-			t.Errorf("quiet line missing '->': %q", line)
-		}
-		if !strings.Contains(line, ":") {
-			t.Errorf("quiet line missing ':': %q", line)
-		}
+	page := output.PaginationMeta{Cursor: "cl-002", HasMore: true}
+	want, err := json.Marshal(changelogDocument(entries, fields, page))
+	if err != nil {
+		t.Fatalf("marshal document: %v", err)
+	}
+	if out != string(want)+"\n" {
+		t.Errorf("stdout is not the changelog document\ngot:  %s\nwant: %s", out, want)
+	}
+}
+
+func TestChangelogJQ(t *testing.T) {
+	mock := &mockChangelogGetter{entries: sampleChangelog(), resp: &tracker.Response{}}
+
+	out, err := setupChangelogCmd(t, mock, output.Options{JQFilter: ".items[].author"}, []string{"PROJ-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if want := "alice\nbob\n"; out != want {
+		t.Errorf("jq output = %q, want %q", out, want)
 	}
 }
 
@@ -258,96 +146,6 @@ func TestChangelogFieldFilter(t *testing.T) {
 	// Verify --field is passed to API as server-side filter.
 	if mock.lastOpts == nil || mock.lastOpts.Field != "status" {
 		t.Errorf("expected API field filter 'status', got opts: %+v", mock.lastOpts)
-	}
-}
-
-func TestChangelog_NilElementsDoNotPanic(t *testing.T) {
-	// A null element anywhere in an API changelog array (entry, event, comment
-	// ref, link, attachment, worklog, resolution) must be skipped, not panic.
-	entries := []*tracker.Changelog{
-		nil,
-		{
-			Type: testutil.StrPtr("IssueWorkflow"),
-			Fields: []*tracker.ChangelogEvent{
-				nil,
-				{Field: fieldRef("status"), From: "open", To: "closed"},
-			},
-			Comments: &tracker.ChangelogComments{
-				Added:   []*tracker.CommentRef{nil},
-				Removed: []*tracker.CommentRef{nil},
-				Updated: []*tracker.CommentUpdate{nil},
-			},
-			Links:              []*tracker.ChangelogLink{nil},
-			Attachments:        &tracker.ChangelogAttachments{Added: []*tracker.AttachmentRef{nil}},
-			Worklog:            []*tracker.ChangelogWorklog{nil},
-			RelatedResolutions: []*tracker.RelatedResolution{nil},
-		},
-	}
-
-	normalized := normalizeChangelog(entries)
-	if len(normalized) != 1 {
-		t.Fatalf("expected 1 normalized entry (nil entry skipped), got %d", len(normalized))
-	}
-	if len(normalized[0].Fields) != 1 {
-		t.Errorf("expected 1 field (nil event skipped), got %d", len(normalized[0].Fields))
-	}
-
-	items := flattenChangelog(entries)
-	if len(items) != 1 {
-		t.Errorf("expected 1 flattened item (only the real field event), got %d: %+v", len(items), items)
-	}
-}
-
-func TestLastChangelogCursorID(t *testing.T) {
-	id1 := tracker.FlexString("cl-001")
-	id2 := tracker.FlexString("cl-002")
-
-	tests := []struct {
-		name    string
-		entries []*tracker.Changelog
-		want    string
-	}{
-		{"nil slice", nil, ""},
-		{"empty slice", []*tracker.Changelog{}, ""},
-		{"normal last", []*tracker.Changelog{{ID: &id1}, {ID: &id2}}, "cl-002"},
-		{"nil last element skipped", []*tracker.Changelog{{ID: &id1}, nil}, "cl-001"},
-		{"all nil", []*tracker.Changelog{nil, nil}, ""},
-		{"nil last id pointer", []*tracker.Changelog{{ID: &id1}, {ID: nil}}, ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := lastChangelogCursorID(tt.entries); got != tt.want {
-				t.Errorf("lastChangelogCursorID(%+v) = %q, want %q", tt.entries, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestFetchChangelogPage_NullLastEntryNoPanic(t *testing.T) {
-	// A null element as the LAST entry of a full page must not panic during
-	// cursor extraction (regression for changelog.go:267, where the old code
-	// dereferenced entries[len-1].ID without a nil guard). The cursor should
-	// fall back to the last non-nil entry's ID.
-	id1 := tracker.FlexString("cl-001")
-	mock := &mockChangelogGetter{
-		entries: []*tracker.Changelog{{ID: &id1}, nil},
-	}
-
-	entries, hasMore, next, err := fetchChangelogPage(
-		context.Background(), mock, "PROJ-1", 2, "", false, "", "",
-	)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(entries) != 2 {
-		t.Errorf("expected 2 entries returned, got %d", len(entries))
-	}
-	if !hasMore {
-		t.Errorf("expected hasMore=true (full page of len==limit)")
-	}
-	if next != "cl-001" {
-		t.Errorf("expected next cursor %q (last non-nil entry), got %q", "cl-001", next)
 	}
 }
 
@@ -376,9 +174,8 @@ func (m *pagingChangelogGetter) GetChangelog(
 
 func TestFetchAllChangelog_NullLastEntryNoPanic(t *testing.T) {
 	// A null element as the LAST entry of a full page must not panic when
-	// fetchAllChangelog extracts the next cursor (regression for
-	// changelog.go:926). The cursor must advance to the last non-nil ID so the
-	// loop makes progress and terminates.
+	// fetchAllChangelog extracts the next cursor. The cursor must advance to
+	// the last non-nil ID so the loop makes progress and terminates.
 	id1 := tracker.FlexString("cl-001")
 	id3 := tracker.FlexString("cl-003")
 	mock := &pagingChangelogGetter{
@@ -456,37 +253,6 @@ func TestChangelogEmpty(t *testing.T) {
 	}
 }
 
-func TestChangelogEmptyJSON(t *testing.T) {
-	mock := &mockChangelogGetter{
-		entries: []*tracker.Changelog{},
-		resp:    &tracker.Response{},
-	}
-
-	out, err := setupChangelogCmd(t, mock, output.Options{JSONFields: IssueChangelogFields}, []string{"PROJ-123"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	var result map[string]any
-	if err := json.Unmarshal([]byte(out), &result); err != nil {
-		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
-	}
-
-	items, ok := result["items"]
-	if !ok {
-		t.Fatal("JSON missing 'items' key")
-	}
-
-	itemSlice, ok := items.([]any)
-	if !ok {
-		t.Fatalf("items is not an array: %T", items)
-	}
-
-	if len(itemSlice) != 0 {
-		t.Errorf("expected empty items array, got %d items", len(itemSlice))
-	}
-}
-
 func TestChangelogNoArgs(t *testing.T) {
 	mock := &mockChangelogGetter{
 		entries: sampleChangelog(),
@@ -529,7 +295,7 @@ func TestChangelogCursor(t *testing.T) {
 				{
 					ID:        &id1,
 					UpdatedAt: &tracker.Timestamp{Time: time.Date(2024, 3, 15, 10, 0, 0, 0, time.UTC)},
-					UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
+					UpdatedBy: &tracker.User{Display: new("alice")},
 					Fields: []*tracker.ChangelogEvent{
 						{Field: fieldRef("status"), From: "open", To: "closed"},
 					},
@@ -579,7 +345,7 @@ func TestChangelogAll(t *testing.T) {
 				{
 					ID:        &id1,
 					UpdatedAt: &tracker.Timestamp{Time: time.Date(2024, 3, 15, 10, 0, 0, 0, time.UTC)},
-					UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
+					UpdatedBy: &tracker.User{Display: new("alice")},
 					Fields:    []*tracker.ChangelogEvent{{Field: fieldRef("status"), From: "open", To: "inProgress"}},
 				},
 			},
@@ -587,7 +353,7 @@ func TestChangelogAll(t *testing.T) {
 				{
 					ID:        &id2,
 					UpdatedAt: &tracker.Timestamp{Time: time.Date(2024, 3, 16, 14, 0, 0, 0, time.UTC)},
-					UpdatedBy: &tracker.User{Display: testutil.StrPtr("bob")},
+					UpdatedBy: &tracker.User{Display: new("bob")},
 					Fields:    []*tracker.ChangelogEvent{{Field: fieldRef("status"), From: "inProgress", To: "done"}},
 				},
 			},
@@ -626,601 +392,5 @@ func TestChangelogAll(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "alice") || !strings.Contains(out, "bob") {
 		t.Errorf("expected data from both pages; got:\n%s", out)
-	}
-}
-
-// sampleChangelogAllTypes returns entries covering all new event types.
-func sampleChangelogAllTypes() []*tracker.Changelog {
-	ts := tracker.Timestamp{Time: time.Date(2024, 3, 15, 10, 0, 0, 0, time.UTC)}
-	id := tracker.FlexString("cl-100")
-	typUpdated := "IssueUpdated"
-	typLinked := "IssueLinked"
-	typUnlinked := "IssueUnlinked"
-	typCommentAdded := "IssueCommentAdded"
-	typCommentRemoved := "IssueCommentRemoved"
-	typCommentUpdated := "IssueCommentUpdated"
-	typReactionAdded := "IssueCommentReactionAdded"
-	typReactionRemoved := "IssueCommentReactionRemoved"
-	typAttachAdded := "IssueAttachmentAdded"
-	typAttachRemoved := "IssueAttachmentRemoved"
-	typResolution := "RelatedIssueResolutionChanged"
-
-	commentID := tracker.FlexString("7")
-	attachID := tracker.FlexString("4")
-	worklogID := tracker.FlexString("1")
-	linkTypeRelates := tracker.IssueLinkType{
-		ID:      testutil.FlexStringPtr("relates"),
-		Inward:  testutil.StrPtr("Related"),
-		Outward: testutil.StrPtr("Related"),
-	}
-	linkTypeDepends := tracker.IssueLinkType{
-		ID:      testutil.FlexStringPtr("depends"),
-		Inward:  testutil.StrPtr("Blocker"),
-		Outward: testutil.StrPtr("Depends on"),
-	}
-	dirOut := "outward"
-	dirIn := "inward"
-	linkedIssue := tracker.Issue{Key: testutil.StrPtr("SIG-1"), Display: testutil.StrPtr("Linked issue")}
-	depIssue := tracker.Issue{Key: testutil.StrPtr("SIG-7"), Display: testutil.StrPtr("Dep issue")}
-
-	dur1h := tracker.Duration{}
-	_ = dur1h.UnmarshalJSON([]byte(`"PT1H"`))
-	dur30m := tracker.Duration{}
-	_ = dur30m.UnmarshalJSON([]byte(`"PT30M"`))
-	wlStart := tracker.Timestamp{Time: time.Date(2024, 3, 15, 12, 0, 0, 0, time.UTC)}
-
-	reaction := "like"
-	reactionHeart := "heart"
-
-	return []*tracker.Changelog{
-		// Comment added
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typCommentAdded,
-			Comments: &tracker.ChangelogComments{
-				Added: []*tracker.CommentRef{{ID: &commentID, Display: testutil.StrPtr("Test comment")}},
-			},
-		},
-		// Comment removed
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typCommentRemoved,
-			Comments: &tracker.ChangelogComments{
-				Removed: []*tracker.CommentRef{{ID: &commentID, Display: testutil.StrPtr("Old comment")}},
-			},
-		},
-		// Comment updated
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typCommentUpdated,
-			Comments: &tracker.ChangelogComments{
-				Updated: []*tracker.CommentUpdate{{
-					Comment: &tracker.CommentRef{ID: &commentID},
-					From:    "old text",
-					To:      "new text",
-				}},
-			},
-		},
-		// Reaction added
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typReactionAdded,
-			Comments: &tracker.ChangelogComments{
-				Updated: []*tracker.CommentUpdate{{
-					Comment:       &tracker.CommentRef{ID: &commentID},
-					AddedReaction: &reaction,
-				}},
-			},
-		},
-		// Reaction removed
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typReactionRemoved,
-			Comments: &tracker.ChangelogComments{
-				Updated: []*tracker.CommentUpdate{{
-					Comment:         &tracker.CommentRef{ID: &commentID},
-					RemovedReaction: &reactionHeart,
-				}},
-			},
-		},
-		// Link added (outward relates)
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typLinked,
-			Links: []*tracker.ChangelogLink{{
-				To: &tracker.ChangelogLinkValue{Direction: &dirOut, Object: &linkedIssue, Type: &linkTypeRelates},
-			}},
-		},
-		// Link removed (inward depends)
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typUnlinked,
-			Links: []*tracker.ChangelogLink{{
-				From: &tracker.ChangelogLinkValue{Direction: &dirIn, Object: &depIssue, Type: &linkTypeDepends},
-			}},
-		},
-		// Attachment added
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typAttachAdded,
-			Attachments: &tracker.ChangelogAttachments{
-				Added: []*tracker.AttachmentRef{{ID: &attachID, Display: testutil.StrPtr("test.txt")}},
-			},
-		},
-		// Attachment removed
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typAttachRemoved,
-			Attachments: &tracker.ChangelogAttachments{
-				Removed: []*tracker.AttachmentRef{{ID: &attachID, Display: testutil.StrPtr("test.txt")}},
-			},
-		},
-		// Worklog added (fields + worklog hybrid)
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typUpdated,
-			Fields: []*tracker.ChangelogEvent{
-				{Field: fieldRef("spent"), From: nil, To: "PT1H"},
-			},
-			Worklog: []*tracker.ChangelogWorklog{{
-				Record: &tracker.WorklogRef{ID: &worklogID, Display: testutil.StrPtr("Work done")},
-				To:     &tracker.ChangelogWorklogValue{Duration: &dur1h, Start: &wlStart},
-			}},
-		},
-		// Worklog updated (from + to)
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typUpdated,
-			Worklog: []*tracker.ChangelogWorklog{{
-				Record: &tracker.WorklogRef{ID: &worklogID, Display: testutil.StrPtr("Updated")},
-				From:   &tracker.ChangelogWorklogValue{Duration: &dur30m, Start: &wlStart},
-				To:     &tracker.ChangelogWorklogValue{Duration: &dur1h, Start: &wlStart},
-			}},
-		},
-		// Related resolution changed
-		{
-			ID: &id, UpdatedAt: &ts, UpdatedBy: &tracker.User{Display: testutil.StrPtr("alice")},
-			Type: &typResolution,
-			RelatedResolutions: []*tracker.RelatedResolution{{
-				Direction: &dirOut,
-				Issue:     &depIssue,
-				LinkType:  &linkTypeDepends,
-				NewResolution: &tracker.Resolution{
-					Key:     testutil.StrPtr("fixed"),
-					Display: testutil.StrPtr("Resolved"),
-				},
-			}},
-		},
-	}
-}
-
-func TestChangelogTableAllTypes(t *testing.T) {
-	mock := &mockChangelogGetter{
-		entries: sampleChangelogAllTypes(),
-		resp:    &tracker.Response{},
-	}
-
-	out, err := setupChangelogCmd(t, mock, output.Options{}, []string{"PROJ-123"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Verify all event types produce rows with expected field names and values.
-	for _, want := range []string{
-		"comment", "reaction", "link", "attachment", "worklog", "relatedResolution",
-		"Test comment", "Old comment", "like", "heart",
-		"Related", "Blocker", "SIG-7",
-		"test.txt", "PT1H", "PT30M",
-		"Resolve",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("table output missing %q; got:\n%s", want, out)
-		}
-	}
-}
-
-func TestChangelogJSONAllTypes(t *testing.T) {
-	mock := &mockChangelogGetter{
-		entries: sampleChangelogAllTypes(),
-		resp:    &tracker.Response{},
-	}
-
-	out, err := setupChangelogCmd(t, mock, output.Options{JSONFields: IssueChangelogFields}, []string{"PROJ-123"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	var result map[string]any
-	if err := json.Unmarshal([]byte(out), &result); err != nil {
-		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
-	}
-
-	itemSlice, ok := result["items"].([]any)
-	if !ok {
-		t.Fatal("items is not an array")
-	}
-
-	// 12 entries total.
-	if len(itemSlice) != 12 {
-		t.Fatalf("expected 12 items, got %d", len(itemSlice))
-	}
-
-	// Check comment added entry has comments array.
-	entry0 := itemSlice[0].(map[string]any)
-	if entry0["type"] != "IssueCommentAdded" {
-		t.Errorf("entry 0: expected type IssueCommentAdded, got %v", entry0["type"])
-	}
-	comments, ok := entry0["comments"].([]any)
-	if !ok || len(comments) == 0 {
-		t.Fatal("entry 0: missing comments array")
-	}
-	c := comments[0].(map[string]any)
-	if c["action"] != "added" || c["to"] != "Test comment" {
-		t.Errorf("entry 0: unexpected comment: %v", c)
-	}
-
-	// Check link entry has links array with nested to object.
-	entry5 := itemSlice[5].(map[string]any)
-	if entry5["type"] != "IssueLinked" {
-		t.Errorf("entry 5: expected type IssueLinked, got %v", entry5["type"])
-	}
-	links, ok := entry5["links"].([]any)
-	if !ok || len(links) == 0 {
-		t.Fatal("entry 5: missing links array")
-	}
-	link := links[0].(map[string]any)
-	linkTo, ok := link["to"].(map[string]any)
-	if !ok {
-		t.Fatal("entry 5: link missing 'to' object")
-	}
-	if linkTo["issue"] != "SIG-1" || linkTo["linkType"] != "relates" || linkTo["linkTypeName"] != "Related" {
-		t.Errorf("entry 5: unexpected link to: %v", linkTo)
-	}
-
-	// Check worklog entry has both fields and worklog.
-	entry9 := itemSlice[9].(map[string]any)
-	if _, hasFields := entry9["fields"]; !hasFields {
-		t.Error("entry 9 (worklog+fields): missing fields")
-	}
-	wl, hasWL := entry9["worklog"].([]any)
-	if !hasWL || len(wl) == 0 {
-		t.Fatal("entry 9: missing worklog array")
-	}
-	wlItem := wl[0].(map[string]any)
-	wlTo, hasTo := wlItem["to"].(map[string]any)
-	if !hasTo {
-		t.Fatal("entry 9: worklog missing 'to' object")
-	}
-	if wlTo["duration"] != "PT1H" {
-		t.Errorf("entry 9: expected worklog duration PT1H, got %v", wlTo["duration"])
-	}
-
-	// Check related resolution entry.
-	entry11 := itemSlice[11].(map[string]any)
-	if entry11["type"] != "RelatedIssueResolutionChanged" {
-		t.Errorf("entry 11: expected type RelatedIssueResolutionChanged, got %v", entry11["type"])
-	}
-	rr, ok := entry11["relatedResolutions"].([]any)
-	if !ok || len(rr) == 0 {
-		t.Fatal("entry 11: missing relatedResolutions array")
-	}
-	rrItem := rr[0].(map[string]any)
-	if rrItem["issue"] != "SIG-7" || rrItem["resolution"] != "fixed" || rrItem["linkTypeName"] != "Depends on" {
-		t.Errorf("entry 11: unexpected relatedResolution: %v", rrItem)
-	}
-}
-
-func TestStripSelfURLs(t *testing.T) {
-	tests := []struct {
-		name  string
-		input any
-		want  any
-	}{
-		{"nil", nil, nil},
-		{"string passthrough", "hello", "hello"},
-		{"number passthrough", float64(42), float64(42)},
-		{
-			"map removes self",
-			map[string]any{"display": "Open", "self": "https://example.com", "key": "open"},
-			map[string]any{"display": "Open", "key": "open"},
-		},
-		{
-			"nested map removes self",
-			map[string]any{"inner": map[string]any{"self": "url", "id": "1"}},
-			map[string]any{"inner": map[string]any{"id": "1"}},
-		},
-		{
-			"array recurses",
-			[]any{map[string]any{"self": "url", "display": "A"}, "plain"},
-			[]any{map[string]any{"display": "A"}, "plain"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := stripSelfURLs(tt.input)
-			gotJSON, _ := json.Marshal(got)
-			wantJSON, _ := json.Marshal(tt.want)
-			if string(gotJSON) != string(wantJSON) {
-				t.Errorf("stripSelfURLs() = %s, want %s", gotJSON, wantJSON)
-			}
-		})
-	}
-}
-
-func TestNormalizeLinkValue(t *testing.T) {
-	outward := "outward"
-	inward := "inward"
-
-	relatesType := tracker.IssueLinkType{
-		ID:      testutil.FlexStringPtr("relates"),
-		Inward:  testutil.StrPtr("Related"),
-		Outward: testutil.StrPtr("Related"),
-	}
-	dependsType := tracker.IssueLinkType{
-		ID:      testutil.FlexStringPtr("depends"),
-		Inward:  testutil.StrPtr("Blocker"),
-		Outward: testutil.StrPtr("Depends on"),
-	}
-	issue := tracker.Issue{Key: testutil.StrPtr("SIG-1"), Display: testutil.StrPtr("Test issue")}
-
-	t.Run("nil returns nil", func(t *testing.T) {
-		if got := normalizeLinkValue(nil); got != nil {
-			t.Errorf("expected nil, got %+v", got)
-		}
-	})
-
-	t.Run("outward relates", func(t *testing.T) {
-		got := normalizeLinkValue(&tracker.ChangelogLinkValue{
-			Direction: &outward, Object: &issue, Type: &relatesType,
-		})
-		if got.Direction != "outward" || got.Issue != "SIG-1" ||
-			got.LinkType != "relates" || got.LinkTypeName != "Related" {
-			t.Errorf("unexpected: %+v", got)
-		}
-	})
-
-	t.Run("inward depends uses Inward name", func(t *testing.T) {
-		got := normalizeLinkValue(&tracker.ChangelogLinkValue{
-			Direction: &inward, Object: &issue, Type: &dependsType,
-		})
-		if got.LinkTypeName != "Blocker" {
-			t.Errorf("expected linkTypeName='Blocker', got %q", got.LinkTypeName)
-		}
-	})
-
-	t.Run("outward depends uses Outward name", func(t *testing.T) {
-		got := normalizeLinkValue(&tracker.ChangelogLinkValue{
-			Direction: &outward, Object: &issue, Type: &dependsType,
-		})
-		if got.LinkTypeName != "Depends on" {
-			t.Errorf("expected linkTypeName='Depends on', got %q", got.LinkTypeName)
-		}
-	})
-}
-
-func TestFormatDurationISO(t *testing.T) {
-	t.Run("nil returns empty", func(t *testing.T) {
-		if got := formatDurationISO(nil); got != "" {
-			t.Errorf("expected empty, got %q", got)
-		}
-	})
-
-	t.Run("PT1H", func(t *testing.T) {
-		d := &tracker.Duration{}
-		_ = d.UnmarshalJSON([]byte(`"PT1H"`))
-		if got := formatDurationISO(d); got != "PT1H" {
-			t.Errorf("expected PT1H, got %q", got)
-		}
-	})
-
-	t.Run("PT30M", func(t *testing.T) {
-		d := &tracker.Duration{}
-		_ = d.UnmarshalJSON([]byte(`"PT30M"`))
-		if got := formatDurationISO(d); got != "PT30M" {
-			t.Errorf("expected PT30M, got %q", got)
-		}
-	})
-
-	t.Run("P1D", func(t *testing.T) {
-		d := &tracker.Duration{}
-		_ = d.UnmarshalJSON([]byte(`"P1D"`))
-		if got := formatDurationISO(d); got != "P1D" {
-			t.Errorf("expected P1D, got %q", got)
-		}
-	})
-}
-
-func TestFormatLinkValueString(t *testing.T) {
-	outward := "outward"
-	lt := tracker.IssueLinkType{
-		ID:      testutil.FlexStringPtr("relates"),
-		Outward: testutil.StrPtr("Related"),
-	}
-	issue := tracker.Issue{Key: testutil.StrPtr("SIG-1")}
-
-	t.Run("nil returns empty", func(t *testing.T) {
-		if got := formatLinkValueString(nil); got != "" {
-			t.Errorf("expected empty, got %q", got)
-		}
-	})
-
-	t.Run("formats as LinkTypeName → IssueKey", func(t *testing.T) {
-		got := formatLinkValueString(&tracker.ChangelogLinkValue{
-			Direction: &outward, Object: &issue, Type: &lt,
-		})
-		if got != "Related → SIG-1" {
-			t.Errorf("expected 'Related → SIG-1', got %q", got)
-		}
-	})
-}
-
-func TestNormalizeChangeValue(t *testing.T) {
-	tests := []struct {
-		name  string
-		input any
-		want  string
-	}{
-		{
-			name:  "nil returns empty string",
-			input: nil,
-			want:  "",
-		},
-		{
-			name:  "string returns as-is",
-			input: "hello",
-			want:  "hello",
-		},
-		{
-			name:  "float64 formats as number",
-			input: float64(42.5),
-			want:  "42.5",
-		},
-		{
-			name:  "float64 integer formats without decimal",
-			input: float64(100),
-			want:  "100",
-		},
-		{
-			name:  "map with display key returns display",
-			input: map[string]any{"display": "Open", "key": "open"},
-			want:  "Open",
-		},
-		{
-			name:  "map with only key returns key",
-			input: map[string]any{"key": "open"},
-			want:  "open",
-		},
-		{
-			name:  "map with only id returns id",
-			input: map[string]any{"id": "42"},
-			want:  "42",
-		},
-		{
-			name:  "array of objects joins display values",
-			input: []any{map[string]any{"display": "Alice"}, map[string]any{"display": "Bob"}},
-			want:  "Alice, Bob",
-		},
-		{
-			name:  "array of strings joins with comma",
-			input: []any{"foo", "bar"},
-			want:  "foo, bar",
-		},
-		{
-			name:  "empty array returns empty string",
-			input: []any{},
-			want:  "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := normalizeChangeValue(tt.input)
-			if got != tt.want {
-				t.Errorf("normalizeChangeValue(%v) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestChangelogNamesakesKeepDistinctAuthorIDs(t *testing.T) {
-	entry := func(entryID, userID string) *tracker.Changelog {
-		return &tracker.Changelog{
-			ID:        testutil.FlexStringPtr(entryID),
-			UpdatedAt: makeTimestamp(time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC)),
-			UpdatedBy: &tracker.User{
-				Display: testutil.StrPtr("Иван Петров"),
-				ID:      testutil.FlexStringPtr(userID),
-			},
-			Type: testutil.StrPtr("IssueUpdated"),
-		}
-	}
-
-	mock := &mockChangelogGetter{
-		entries: []*tracker.Changelog{entry("cl-1", "uid-a"), entry("cl-2", "uid-b")},
-		resp:    &tracker.Response{},
-	}
-
-	out, err := setupChangelogCmd(t, mock, output.Options{JSONFields: IssueChangelogFields}, []string{"PROJ-123"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	var result map[string]any
-	if err := json.Unmarshal([]byte(out), &result); err != nil {
-		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
-	}
-	items, ok := result["items"].([]any)
-	if !ok || len(items) != 2 {
-		t.Fatalf("expected 2 items, got %v", result["items"])
-	}
-
-	first, _ := items[0].(map[string]any)
-	second, _ := items[1].(map[string]any)
-	if first["author"] != second["author"] {
-		t.Fatalf("test premise broken: display names should collide, got %v and %v",
-			first["author"], second["author"])
-	}
-	if first["authorId"] != "uid-a" || second["authorId"] != "uid-b" {
-		t.Errorf("expected authorIds uid-a and uid-b, got %v and %v",
-			first["authorId"], second["authorId"])
-	}
-}
-
-func TestChangelogFieldSelectionOmitsEmptySections(t *testing.T) {
-	ts := makeTimestamp(time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC))
-	dirOut := "outward"
-	linked := &tracker.Changelog{
-		ID:        testutil.FlexStringPtr("cl-1"),
-		UpdatedAt: ts,
-		Type:      testutil.StrPtr("IssueLinked"),
-		Links: []*tracker.ChangelogLink{{
-			To: &tracker.ChangelogLinkValue{
-				Direction: &dirOut,
-				Object:    &tracker.Issue{Key: testutil.StrPtr("SIG-1")},
-				Type:      &tracker.IssueLinkType{ID: testutil.FlexStringPtr("relates")},
-			},
-		}},
-	}
-	unlinked := &tracker.Changelog{
-		ID:        testutil.FlexStringPtr("cl-2"),
-		UpdatedAt: ts,
-		Type:      testutil.StrPtr("IssueUpdated"),
-		Fields:    []*tracker.ChangelogEvent{{Field: fieldRef("summary"), From: "Old", To: "New"}},
-	}
-
-	mock := &mockChangelogGetter{
-		entries: []*tracker.Changelog{linked, unlinked},
-		resp:    &tracker.Response{},
-	}
-
-	out, err := setupChangelogCmd(t, mock, output.Options{JSONFields: []string{"date", "links"}}, []string{"PROJ-123"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	var result struct {
-		Items []map[string]any `json:"items"`
-	}
-	if err := json.Unmarshal([]byte(out), &result); err != nil {
-		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
-	}
-	if len(result.Items) != 2 {
-		t.Fatalf("expected 2 items, got %d\nraw: %s", len(result.Items), out)
-	}
-
-	if _, ok := result.Items[0]["links"]; !ok {
-		t.Errorf("entry with links lost its links key: %v", result.Items[0])
-	}
-	if links, ok := result.Items[1]["links"]; ok {
-		t.Errorf("entry without links has links = %v, want no links key", links)
-	}
-	for i, item := range result.Items {
-		if _, ok := item["date"]; !ok {
-			t.Errorf("item %d has no date key: %v", i, item)
-		}
-		if _, ok := item["fields"]; ok {
-			t.Errorf("item %d has fields, which was not selected: %v", i, item)
-		}
 	}
 }
