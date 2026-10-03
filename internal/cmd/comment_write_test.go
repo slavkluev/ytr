@@ -51,10 +51,6 @@ func TestCommentCreate(t *testing.T) {
 			stdout: "uid-a\n",
 		},
 		{
-			name: "Missing", args: create(), code: ytrerrors.ExitUserError,
-			stderr: []string{`required flag(s) "body" not set`},
-		},
-		{
 			name: "Bad value", args: create("--body", "hello\x00world"), code: ytrerrors.ExitUserError,
 			stderr: []string{"Error: control character U+0000 at position 5 in body\n"},
 		},
@@ -122,18 +118,6 @@ func TestCommentEdit(t *testing.T) {
 		{
 			name: "JSON", args: edit("--body", "x", "--json", "id,author,authorId,body,createdAt,updatedAt"),
 			exchanges: []faketracker.Exchange{edited}, json: commentItemJSON,
-		},
-		{
-			name: "Conflict", args: edit("--body", "x", "--from-json", `{"text": "y"}`), code: ytrerrors.ExitUserError,
-			stderr: []string{"cannot use --body and --from-json together"},
-		},
-		{
-			name: "Nothing to update", args: edit(), code: ytrerrors.ExitUserError,
-			stderr: []string{"either --body or --from-json is required"},
-		},
-		{
-			name: "Nothing to update in JSON", args: edit("--from-json", `{}`),
-			exchanges: []faketracker.Exchange{edited}, body: `{}`, stdout: "Comment 555 updated on PROJ-1\n",
 		},
 		{
 			name: "Bad value", args: edit("--body", "hello\x00world"), code: ytrerrors.ExitUserError,

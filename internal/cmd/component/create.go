@@ -10,10 +10,20 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
+
+var createBody = validate.Body{
+	Flags:    componentFlags,
+	Required: []string{"name", "queue"},
+	FromJSON: true,
+}
+
+var componentFlags = []validate.BodyFlag{
+	{Name: "name", Key: "name"}, {Name: "queue", Key: "queue"}, {Name: "description", Key: "description"},
+	{Name: "lead", Key: "lead"}, {Name: "assign-auto", Key: "assignAuto"},
+}
 
 func newCreateCmd() *cobra.Command {
 	var (
@@ -50,26 +60,7 @@ SEE ALSO
   ytr component create --from-json '{"name":"Backend","queue":"PROJ"}'`,
 		Args: cobra.NoArgs,
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
-			if cmd.Flags().Changed("from-json") &&
-				(cmd.Flags().Changed("name") || cmd.Flags().Changed("queue") ||
-					cmd.Flags().Changed("description") || cmd.Flags().Changed("lead") ||
-					cmd.Flags().Changed("assign-auto")) {
-				return errors.NewUserError(
-					"cannot use individual flags and --from-json together",
-					"Use --name, --queue, etc. for individual flags, or --from-json for full JSON input",
-				)
-			}
-
-			if !cmd.Flags().Changed("from-json") {
-				if !cmd.Flags().Changed("name") || !cmd.Flags().Changed("queue") {
-					return errors.NewUserError(
-						"--name and --queue are required",
-						"Provide --name and --queue for the component, or --from-json for full JSON input",
-					)
-				}
-			}
-
-			return nil
+			return createBody.CheckFlags(cmd.Flags().Changed)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runCreate(cmd, nameFlag, queueFlag, descriptionFlag, leadFlag, assignAutoFlag, fromJSON)
@@ -150,8 +141,8 @@ func buildCreateRequest(
 			return nil, parseErr
 		}
 		req := &tracker.ComponentRequest{}
-		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
-			return nil, unmarshalErr
+		if decodeErr := createBody.Decode(data, req); decodeErr != nil {
+			return nil, decodeErr
 		}
 		return req, nil
 	}

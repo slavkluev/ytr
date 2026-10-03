@@ -43,37 +43,6 @@ func TestLinkCreate(t *testing.T) {
 			exchanges: []faketracker.Exchange{created}, stdout: "depends on\n",
 		},
 		{
-			name: "Conflict", args: create("--type", "relates", "--from-json", `{"relationship": "relates"}`),
-			code: ytrerrors.ExitUserError, stderr: []string{"cannot use --type/--issue and --from-json together"},
-		},
-		{
-			name:   "Conflict on the issue",
-			args:   create("--issue", "PROJ-2", "--from-json", `{"relationship": "relates"}`),
-			code:   ytrerrors.ExitUserError,
-			stderr: []string{"cannot use --type/--issue and --from-json together"},
-		},
-		{
-			name: "Missing", args: create(), code: ytrerrors.ExitUserError,
-			stderr: []string{"both --type and --issue are required"},
-		},
-		{
-			name: "Missing type", args: create("--issue", "PROJ-2"), code: ytrerrors.ExitUserError,
-			stderr: []string{"both --type and --issue are required"},
-		},
-		{
-			name: "Missing issue", args: create("--type", "relates"), code: ytrerrors.ExitUserError,
-			stderr: []string{"both --type and --issue are required"},
-		},
-		{
-			name: "Missing in JSON",
-			args: create("--from-json", `{"issue": "PROJ-2"}`),
-			exchanges: []faketracker.Exchange{
-				created,
-			},
-			body:   `{"issue": "PROJ-2"}`,
-			stdout: "Link 101 created on PROJ-1\n",
-		},
-		{
 			name: "Bad value", args: create("--type", "relates", "--issue", "bad-key"), code: ytrerrors.ExitUserError,
 			stderr: []string{`Error: invalid issue key "bad-key": expected format QUEUE-123`},
 		},

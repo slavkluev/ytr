@@ -236,7 +236,7 @@ func TestTransitionMutualExclusion(t *testing.T) {
 		t.Fatal("expected mutual exclusion error, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "cannot use") {
+	if !strings.Contains(err.Error(), "cannot combine --from-json with --transition") {
 		t.Errorf("expected 'cannot use' in error, got: %v", err)
 	}
 }
@@ -250,8 +250,8 @@ func TestTransitionMissingTransition(t *testing.T) {
 		t.Fatal("expected error for missing --transition, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "--transition is required") {
-		t.Errorf("expected '--transition is required' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "missing --transition") {
+		t.Errorf("expected 'missing --transition' in error, got: %v", err)
 	}
 }
 

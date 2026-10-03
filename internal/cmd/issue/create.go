@@ -2,7 +2,6 @@ package issue
 
 import (
 	"io"
-	"slices"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -53,7 +51,7 @@ SEE ALSO
   ytr issue create --queue PROJ --summary "Bug" --json key --jq '.key'`,
 		Args: cobra.NoArgs,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return validateCreateFlags(cmd)
+			return createBody.CheckFlags(cmd.Flags().Changed)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, queue, summary, description, issueType,
@@ -75,34 +73,15 @@ SEE ALSO
 	return cmd
 }
 
-func validateCreateFlags(cmd *cobra.Command) error {
-	if cmd.Flags().Changed("from-json") {
-		fieldFlags := []string{"summary", "description", "type", "priority", "assignee", "parent"}
-		if slices.ContainsFunc(fieldFlags, func(flag string) bool {
-			return cmd.Flags().Changed(flag)
-		}) {
-			return errors.NewUserError(
-				"Use --from-json OR individual flags, not both",
-				"Remove --from-json to use individual flags, or remove individual flags to use --from-json",
-			)
-		}
-		return nil
-	}
+var createBody = validate.Body{
+	Flags:    append([]validate.BodyFlag{{Name: "queue", Key: "queue"}}, issueFlags...),
+	Required: []string{"queue", "summary"},
+	FromJSON: true,
+}
 
-	if !cmd.Flags().Changed("queue") {
-		return errors.NewUserError(
-			"required flag \"queue\" not set",
-			"Provide --queue with the target queue key",
-		)
-	}
-	if !cmd.Flags().Changed("summary") {
-		return errors.NewUserError(
-			"required flag \"summary\" not set",
-			"Provide --summary with the issue title",
-		)
-	}
-
-	return nil
+var issueFlags = []validate.BodyFlag{
+	{Name: "summary", Key: "summary"}, {Name: "description", Key: "description"}, {Name: "type", Key: "type"},
+	{Name: "priority", Key: "priority"}, {Name: "assignee", Key: "assignee"}, {Name: "parent", Key: "parent"},
 }
 
 func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
@@ -151,7 +130,7 @@ func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
 func buildCreateRequest(cmd *cobra.Command, queue, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) (*tracker.IssueRequest, error) {
 	if cmd.Flags().Changed("from-json") {
-		return parseIssueRequestFromJSON(fromJSON)
+		return parseIssueRequestFromJSON(fromJSON, createBody)
 	}
 
 	if valErr := validate.ValidateNoControlChars("summary", summary); valErr != nil {
@@ -186,14 +165,14 @@ func buildCreateRequest(cmd *cobra.Command, queue, summary, description, issueTy
 	return req, nil
 }
 
-func parseIssueRequestFromJSON(fromJSON string) (*tracker.IssueRequest, error) {
+func parseIssueRequestFromJSON(fromJSON string, body validate.Body) (*tracker.IssueRequest, error) {
 	data, parseErr := validate.ParseJSONInput(fromJSON)
 	if parseErr != nil {
 		return nil, parseErr
 	}
 	req := &tracker.IssueRequest{}
-	if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
-		return nil, unmarshalErr
+	if decodeErr := body.Decode(data, req); decodeErr != nil {
+		return nil, decodeErr
 	}
 	return req, nil
 }

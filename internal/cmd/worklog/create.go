@@ -17,6 +17,14 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
+var createBody = validate.Body{
+	Flags: []validate.BodyFlag{
+		{Name: "duration", Key: "duration"}, {Name: "start", Key: "start"}, {Name: "comment", Key: "comment"},
+	},
+	Required: []string{"start", "duration"},
+	FromJSON: true,
+}
+
 func newCreateCmd() *cobra.Command {
 	var (
 		durationFlag string
@@ -56,30 +64,11 @@ SEE ALSO
 				return err
 			}
 
-			if cmd.Flags().Changed("from-json") &&
-				(cmd.Flags().Changed("duration") || cmd.Flags().Changed("start") ||
-					cmd.Flags().Changed("comment")) {
-				return errors.NewUserError(
-					"cannot use individual flags and --from-json together",
-					"Use --duration, --start, --comment for individual flags, or --from-json for full JSON input",
-				)
+			if err := createBody.CheckFlags(cmd.Flags().Changed); err != nil {
+				return err
 			}
 
-			if !cmd.Flags().Changed("from-json") && !cmd.Flags().Changed("duration") {
-				return errors.NewUserError(
-					"--duration is required",
-					"Provide --duration with ISO 8601 format (e.g., PT1H30M), or --from-json for full JSON input",
-				)
-			}
-
-			if !cmd.Flags().Changed("from-json") && !cmd.Flags().Changed("start") {
-				return errors.NewUserError(
-					"--start is required",
-					"Provide --start in RFC 3339 format (e.g., 2026-03-30T10:00:00Z), or --from-json for full JSON input",
-				)
-			}
-
-			return nil
+			return checkFlagValues(cmd, durationFlag, startFlag)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, args[0], durationFlag, startFlag, commentFlag, fromJSON)
@@ -135,9 +124,6 @@ func runCreate(
 	req, err := buildCreateRequest(cmd, durationFlag, startFlag, commentFlag, fromJSON)
 	if err != nil {
 		return err
-	}
-	if validErr := validateCreateRequest(req); validErr != nil {
-		return validErr
 	}
 
 	creator := newWorklogCreator(auth)
@@ -208,8 +194,8 @@ func buildCreateRequest(cmd *cobra.Command, durationFlag, startFlag, commentFlag
 			return nil, parseErr
 		}
 		req := &tracker.WorklogRequest{}
-		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
-			return nil, unmarshalErr
+		if decodeErr := createBody.Decode(data, req); decodeErr != nil {
+			return nil, decodeErr
 		}
 		return req, nil
 	}
@@ -237,19 +223,19 @@ func buildCreateRequest(cmd *cobra.Command, durationFlag, startFlag, commentFlag
 	return req, nil
 }
 
-func validateCreateRequest(req *tracker.WorklogRequest) error {
-	if req.Duration == nil {
-		return errors.NewUserError(
-			`missing required field "duration"`,
-			`Provide --duration with ISO 8601 format, or include "duration" in --from-json`,
-		)
+// checkFlagValues parses the --duration and --start a run set, so a bad value
+// fails before the field hint and auth, as the other flag checks do.
+func checkFlagValues(cmd *cobra.Command, durationFlag, startFlag string) error {
+	if cmd.Flags().Changed("duration") {
+		if _, err := parseDuration(durationFlag); err != nil {
+			return err
+		}
 	}
 
-	if req.Start == nil {
-		return errors.NewUserError(
-			`missing required field "start"`,
-			`Provide --start in RFC 3339 format, or include "start" in --from-json`,
-		)
+	if cmd.Flags().Changed("start") {
+		if _, err := parseTimestamp(startFlag); err != nil {
+			return err
+		}
 	}
 
 	return nil

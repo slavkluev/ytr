@@ -220,7 +220,7 @@ func TestCreateMissingStart(t *testing.T) {
 		t.Fatal("expected error for missing start, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "--start is required") {
+	if !strings.Contains(err.Error(), "missing --start") {
 		t.Errorf("expected missing start error, got: %v", err)
 	}
 }
@@ -253,7 +253,7 @@ func TestCreateFromJSONMissingStart(t *testing.T) {
 		t.Fatal("expected error for missing start in JSON, got nil")
 	}
 
-	if !strings.Contains(err.Error(), `missing required field "start"`) {
+	if !strings.Contains(err.Error(), "missing --start") {
 		t.Errorf("expected missing start validation error, got: %v", err)
 	}
 }
@@ -268,7 +268,7 @@ func TestCreateFromJSONMissingDuration(t *testing.T) {
 		t.Fatal("expected error for missing duration in JSON, got nil")
 	}
 
-	if !strings.Contains(err.Error(), `missing required field "duration"`) {
+	if !strings.Contains(err.Error(), "missing --duration") {
 		t.Errorf("expected missing duration validation error, got: %v", err)
 	}
 }
@@ -283,7 +283,7 @@ func TestCreateMutualExclusion(t *testing.T) {
 		t.Fatal("expected mutual exclusion error, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "cannot use individual flags and --from-json together") {
+	if !strings.Contains(err.Error(), "cannot combine --from-json with --duration") {
 		t.Errorf("expected mutual exclusion error, got: %v", err)
 	}
 }
@@ -296,7 +296,7 @@ func TestCreateMissingDuration(t *testing.T) {
 		t.Fatal("expected error for missing --duration, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "--duration is required") {
+	if !strings.Contains(err.Error(), "missing --duration") {
 		t.Errorf("expected duration required error, got: %v", err)
 	}
 }

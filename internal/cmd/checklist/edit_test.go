@@ -262,7 +262,7 @@ func TestEditMutualExclusion(t *testing.T) {
 		t.Fatal("expected error for mutual exclusion, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "cannot use individual flags and --from-json together") {
+	if !strings.Contains(err.Error(), "cannot combine --from-json with --text") {
 		t.Errorf("expected mutual exclusion error, got: %v", err)
 	}
 }
@@ -275,7 +275,7 @@ func TestEditNoFlags(t *testing.T) {
 		t.Fatal("expected error for no flags, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "at least one of") {
+	if !strings.Contains(err.Error(), "nothing to update") {
 		t.Errorf("expected missing flags error, got: %v", err)
 	}
 }

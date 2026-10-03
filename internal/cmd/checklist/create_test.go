@@ -209,7 +209,7 @@ func TestCreateMutualExclusion(t *testing.T) {
 		t.Fatal("expected error for mutual exclusion, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "cannot use individual flags and --from-json together") {
+	if !strings.Contains(err.Error(), "cannot combine --from-json with --text") {
 		t.Errorf("expected mutual exclusion error, got: %v", err)
 	}
 }
@@ -222,7 +222,7 @@ func TestCreateMissingText(t *testing.T) {
 		t.Fatal("expected error for missing --text, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "--text or --from-json is required") {
+	if !strings.Contains(err.Error(), "missing --text") {
 		t.Errorf("expected missing text error, got: %v", err)
 	}
 }

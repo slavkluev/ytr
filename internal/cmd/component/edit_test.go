@@ -155,13 +155,13 @@ func TestEdit(t *testing.T) {
 			name:    "mutual exclusion error",
 			mock:    &mockComponentEditor{},
 			args:    []string{"42", "--name", "Test", "--from-json", `{"name":"Test"}`},
-			wantErr: "cannot use individual flags and --from-json together",
+			wantErr: "cannot combine --from-json with --name",
 		},
 		{
 			name:    "no flags error",
 			mock:    &mockComponentEditor{},
 			args:    []string{"42"},
-			wantErr: "at least one of --name, --queue, --description, --lead, --assign-auto, or --from-json is required",
+			wantErr: "nothing to update",
 		},
 		{
 			name:    "invalid component id",

@@ -10,10 +10,15 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
+
+var editBody = validate.Body{
+	Flags:    []validate.BodyFlag{{Name: "body", Key: "text"}},
+	FromJSON: true,
+	Update:   true,
+}
 
 func newEditCmd() *cobra.Command {
 	var (
@@ -52,18 +57,8 @@ SEE ALSO
 				return err
 			}
 
-			if cmd.Flags().Changed("body") && cmd.Flags().Changed("from-json") {
-				return errors.NewUserError(
-					"cannot use --body and --from-json together",
-					"Use --body for simple text updates, or --from-json for full JSON input",
-				)
-			}
-
-			if !cmd.Flags().Changed("body") && !cmd.Flags().Changed("from-json") {
-				return errors.NewUserError(
-					"either --body or --from-json is required",
-					"Provide --body \"text\" or --from-json '{\"text\": \"...\"}'",
-				)
+			if err := editBody.CheckFlags(cmd.Flags().Changed); err != nil {
+				return err
 			}
 
 			if cmd.Flags().Changed("body") {
@@ -119,8 +114,8 @@ func runEdit(cmd *cobra.Command, issueKey string, commentID string, body, fromJS
 			return parseErr
 		}
 		req = &tracker.CommentRequest{}
-		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
-			return unmarshalErr
+		if decodeErr := editBody.Decode(data, req); decodeErr != nil {
+			return decodeErr
 		}
 	} else {
 		req = &tracker.CommentRequest{Text: new(body)}

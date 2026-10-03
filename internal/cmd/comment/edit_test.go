@@ -131,13 +131,13 @@ func TestEdit(t *testing.T) {
 			name:    "body and from-json conflict",
 			mock:    &mockCommentEditor{},
 			args:    []string{"PROJ-123", "42", "--body", "text", "--from-json", `{"text":"x"}`},
-			wantErr: "cannot use --body and --from-json together",
+			wantErr: "cannot combine --from-json with --body",
 		},
 		{
 			name:    "neither body nor from-json",
 			mock:    &mockCommentEditor{},
 			args:    []string{"PROJ-123", "42"},
-			wantErr: "either --body or --from-json is required",
+			wantErr: "nothing to update",
 		},
 		{
 			name:    "invalid issue key",

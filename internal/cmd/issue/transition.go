@@ -24,6 +24,8 @@ type transitionResult struct {
 	Transition string `json:"transition"`
 }
 
+var transitionBody = validate.Body{Flags: []validate.BodyFlag{{Name: "to", Key: "to"}}, Required: []string{"to"}}
+
 func newTransitionCmd() *cobra.Command {
 	var toFlag string
 
@@ -49,7 +51,10 @@ SEE ALSO
   ytr issue transition PROJ-123 --to "Done" --json key,transition`,
 		Args: cobra.ExactArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return validate.ValidateIssueKey(args[0])
+			if err := validate.ValidateIssueKey(args[0]); err != nil {
+				return err
+			}
+			return transitionBody.CheckFlags(cmd.Flags().Changed)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTransition(cmd, args[0], toFlag)
@@ -57,7 +62,6 @@ SEE ALSO
 	}
 
 	cmd.Flags().StringVar(&toFlag, "to", "", "Target status key or display name (required)")
-	cmd.MarkFlagRequired("to") //nolint:errcheck // Cobra flag is known to exist
 
 	runner.SetFields(cmd, IssueTransitionFields)
 

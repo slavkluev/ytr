@@ -9,7 +9,6 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -50,7 +49,7 @@ SEE ALSO
   ytr bulk update --from-json '{"issues":["PROJ-1"],"values":{"priority":"critical"}}'`,
 		Args: cobra.ArbitraryArgs,
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
-			return validateUpdateFlags(cmd)
+			return updateBody.CheckFlags(cmd.Flags().Changed)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUpdate(cmd, args, fieldFlags, fromJSON, timeoutFlag)
@@ -66,23 +65,13 @@ SEE ALSO
 	return cmd
 }
 
-func validateUpdateFlags(cmd *cobra.Command) error {
-	if cmd.Flags().Changed("from-json") && cmd.Flags().Changed("field") {
-		return errors.NewUserError(
-			"cannot use --field and --from-json together",
-			"Use --field for individual flags, or --from-json for full JSON input",
-		)
-	}
-
-	if !cmd.Flags().Changed("from-json") && !cmd.Flags().Changed("field") {
-		return errors.NewUserError(
-			"--field is required",
-			"Provide at least one --field key=value, or use --from-json for full JSON input",
-		)
-	}
-
-	return nil
+var updateBody = validate.Body{
+	Flags:    []validate.BodyFlag{fieldFlag},
+	Required: []string{fieldFlag.Key},
+	FromJSON: true,
 }
+
+var fieldFlag = validate.BodyFlag{Name: "field", Key: "values"}
 
 func runUpdate(
 	cmd *cobra.Command,

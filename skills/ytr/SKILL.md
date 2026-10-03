@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "8.0"
+  version: "9.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -461,6 +461,18 @@ body has no field for. The JSON error lists every offending key in
 `invalidFields` and the accepted ones in `validFields`. Local queue fields are
 among the rejected keys: the API supports them, `--from-json` does not yet.
 
+Every create, edit and update command words its flag errors the same way, and
+each exits 1 before any request:
+
+- `cannot combine --from-json with --summary, --type`: a request flag next to
+  `--from-json`, naming the flags you set. Pass the request one way or the other.
+- `missing --name, --queue`: a create without a required flag, or a
+  `--from-json` without the matching key (here `"name"`, `"queue"`); the
+  suggestion names the keys. `comment create --body` and
+  `issue transition --to` are required the same way.
+- `nothing to update`: an edit or `issue update` with no request flag, or with a
+  `--from-json` object that has no key, such as `'{}'`.
+
 ### Bad invocations
 
 Any invocation ytr cannot serve exits 1, leaves stdout empty, and writes one
@@ -504,7 +516,7 @@ the help text to stdout and exit 0, even on a mistyped command path
 | `--token` | Global auth override | Override auth token |
 | `--org-id` | Global auth override | Override organization ID |
 | `--org-type` | Global auth override | Override organization type: `360` or `cloud` |
-| `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin); keys the request body has no field for are rejected, not dropped |
+| `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin); keys the request body has no field for are rejected, not dropped; cannot be combined with the command's request flags; a create needs its required keys and an edit at least one key |
 | `--query` | `issue list` | Search using Tracker query language; mutually exclusive with `--filter` and `--order-by` |
 | `--filter k=v` | `issue list` | Filter by field (repeatable); mutually exclusive with `--query` |
 | `--order-by` | `issue list` | Sort by field (descending by default); cannot be used with `--query` |

@@ -236,7 +236,7 @@ func TestUpdateMutualExclusion(t *testing.T) {
 		t.Fatal("expected mutual exclusion error, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "cannot use") {
+	if !strings.Contains(err.Error(), "cannot combine --from-json with --field") {
 		t.Errorf("expected 'cannot use' in error, got: %v", err)
 	}
 }
@@ -250,8 +250,8 @@ func TestUpdateMissingField(t *testing.T) {
 		t.Fatal("expected error for missing --field, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "--field is required") {
-		t.Errorf("expected '--field is required' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "missing --field") {
+		t.Errorf("expected 'missing --field' in error, got: %v", err)
 	}
 }
 

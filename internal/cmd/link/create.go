@@ -10,10 +10,15 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
+
+var createBody = validate.Body{
+	Flags:    []validate.BodyFlag{{Name: "type", Key: "relationship"}, {Name: "issue", Key: "issue"}},
+	Required: []string{"relationship", "issue"},
+	FromJSON: true,
+}
 
 func newCreateCmd() *cobra.Command {
 	var (
@@ -49,21 +54,8 @@ SEE ALSO
 				return err
 			}
 
-			if cmd.Flags().Changed("from-json") &&
-				(cmd.Flags().Changed("type") || cmd.Flags().Changed("issue")) {
-				return errors.NewUserError(
-					"cannot use --type/--issue and --from-json together",
-					"Use --type and --issue for individual flags, or --from-json for full JSON input",
-				)
-			}
-
-			if !cmd.Flags().Changed("from-json") {
-				if !cmd.Flags().Changed("type") || !cmd.Flags().Changed("issue") {
-					return errors.NewUserError(
-						"both --type and --issue are required",
-						"Use --type \"depends on\" --issue PROJ-456, or --from-json for JSON input",
-					)
-				}
+			if err := createBody.CheckFlags(cmd.Flags().Changed); err != nil {
+				return err
 			}
 
 			if cmd.Flags().Changed("issue") {
@@ -126,8 +118,8 @@ func runCreate(cmd *cobra.Command, issueKey, typeFlag, issueFlag, fromJSON strin
 			return parseErr
 		}
 		req = &tracker.LinkRequest{}
-		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
-			return unmarshalErr
+		if decodeErr := createBody.Decode(data, req); decodeErr != nil {
+			return decodeErr
 		}
 	} else {
 		req = &tracker.LinkRequest{

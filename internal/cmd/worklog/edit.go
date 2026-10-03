@@ -10,10 +10,17 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
+
+var editBody = validate.Body{
+	Flags: []validate.BodyFlag{
+		{Name: "duration", Key: "duration"}, {Name: "comment", Key: "comment"}, {Name: "start", Key: "start"},
+	},
+	FromJSON: true,
+	Update:   true,
+}
 
 func newEditCmd() *cobra.Command {
 	var (
@@ -54,25 +61,11 @@ SEE ALSO
 				return err
 			}
 
-			if cmd.Flags().Changed("from-json") &&
-				(cmd.Flags().Changed("duration") || cmd.Flags().Changed("comment") ||
-					cmd.Flags().Changed("start")) {
-				return errors.NewUserError(
-					"cannot use individual flags and --from-json together",
-					"Use --duration, --comment, --start for individual flags, or --from-json for full JSON input",
-				)
+			if err := editBody.CheckFlags(cmd.Flags().Changed); err != nil {
+				return err
 			}
 
-			if !cmd.Flags().Changed("from-json") &&
-				!cmd.Flags().Changed("duration") && !cmd.Flags().Changed("comment") &&
-				!cmd.Flags().Changed("start") {
-				return errors.NewUserError(
-					"at least one of --duration, --comment, --start, or --from-json is required",
-					"Provide at least one flag to update, or --from-json for JSON input",
-				)
-			}
-
-			return nil
+			return checkFlagValues(cmd, durationFlag, startFlag)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			worklogID, _ := validate.ValidateStringID(args[1], "worklog ID")
@@ -170,8 +163,8 @@ func buildEditRequest(
 			return nil, parseErr
 		}
 		req := &tracker.WorklogRequest{}
-		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
-			return nil, unmarshalErr
+		if decodeErr := editBody.Decode(data, req); decodeErr != nil {
+			return nil, decodeErr
 		}
 		return req, nil
 	}

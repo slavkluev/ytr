@@ -10,10 +10,15 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
+
+var createBody = validate.Body{
+	Flags:    []validate.BodyFlag{{Name: "text", Key: "text"}, {Name: "assignee", Key: "assignee"}},
+	Required: []string{"text"},
+	FromJSON: true,
+}
 
 func newCreateCmd() *cobra.Command {
 	var (
@@ -50,22 +55,7 @@ SEE ALSO
 				return err
 			}
 
-			if cmd.Flags().Changed("from-json") &&
-				(cmd.Flags().Changed("text") || cmd.Flags().Changed("assignee")) {
-				return errors.NewUserError(
-					"cannot use individual flags and --from-json together",
-					"Use --text and --assignee for individual flags, or --from-json for full JSON input",
-				)
-			}
-
-			if !cmd.Flags().Changed("text") && !cmd.Flags().Changed("from-json") {
-				return errors.NewUserError(
-					"--text or --from-json is required",
-					"Provide --text \"item text\" or --from-json '{\"text\": \"...\"}'",
-				)
-			}
-
-			return nil
+			return createBody.CheckFlags(cmd.Flags().Changed)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, args[0], textFlag, assigneeFlag, fromJSON)
@@ -119,8 +109,8 @@ func runCreate(cmd *cobra.Command, issueKey, textFlag, assigneeFlag, fromJSON st
 			return parseErr
 		}
 		req = &tracker.ChecklistItemRequest{}
-		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
-			return unmarshalErr
+		if decodeErr := createBody.Decode(data, req); decodeErr != nil {
+			return decodeErr
 		}
 	} else {
 		req = &tracker.ChecklistItemRequest{

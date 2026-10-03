@@ -54,7 +54,7 @@ SEE ALSO
   ytr bulk move --from-json '{"queue":"TARGET","issues":["PROJ-1"],"moveAllFields":true}'`,
 		Args: cobra.ArbitraryArgs,
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
-			return validateMoveFlags(cmd)
+			return moveBody.CheckFlags(cmd.Flags().Changed)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runMove(cmd, args, queueFlag, fieldFlags, fromJSON, timeoutFlag)
@@ -71,23 +71,10 @@ SEE ALSO
 	return cmd
 }
 
-func validateMoveFlags(cmd *cobra.Command) error {
-	if cmd.Flags().Changed("from-json") &&
-		(cmd.Flags().Changed("queue") || cmd.Flags().Changed("field")) {
-		return errors.NewUserError(
-			"cannot use --queue/--field and --from-json together",
-			"Use --queue and --field for individual flags, or --from-json for full JSON input",
-		)
-	}
-
-	if !cmd.Flags().Changed("from-json") && !cmd.Flags().Changed("queue") {
-		return errors.NewUserError(
-			"--queue is required",
-			"Provide --queue with the target queue key, or use --from-json for full JSON input",
-		)
-	}
-
-	return nil
+var moveBody = validate.Body{
+	Flags:    []validate.BodyFlag{{Name: "queue", Key: "queue"}, fieldFlag},
+	Required: []string{"queue"},
+	FromJSON: true,
 }
 
 func runMove(

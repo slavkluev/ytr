@@ -10,10 +10,17 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
+
+var editBody = validate.Body{
+	Flags: []validate.BodyFlag{
+		{Name: "text", Key: "text"}, {Name: "checked", Key: "checked"}, {Name: "assignee", Key: "assignee"},
+	},
+	FromJSON: true,
+	Update:   true,
+}
 
 func newEditCmd() *cobra.Command {
 	var (
@@ -56,25 +63,7 @@ SEE ALSO
 				return err
 			}
 
-			if cmd.Flags().Changed("from-json") &&
-				(cmd.Flags().Changed("text") || cmd.Flags().Changed("checked") ||
-					cmd.Flags().Changed("assignee")) {
-				return errors.NewUserError(
-					"cannot use individual flags and --from-json together",
-					"Use --text, --checked, etc. for individual flags, or --from-json for full JSON input",
-				)
-			}
-
-			if !cmd.Flags().Changed("from-json") &&
-				!cmd.Flags().Changed("text") && !cmd.Flags().Changed("checked") &&
-				!cmd.Flags().Changed("assignee") {
-				return errors.NewUserError(
-					"at least one of --text, --checked, --assignee, or --from-json is required",
-					"Provide at least one flag to update, or --from-json for JSON input",
-				)
-			}
-
-			return nil
+			return editBody.CheckFlags(cmd.Flags().Changed)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			itemID, _ := validate.ValidateStringID(args[1], "checklist item ID")
@@ -135,8 +124,8 @@ func runEdit(
 			return parseErr
 		}
 		req = &tracker.ChecklistItemRequest{}
-		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
-			return unmarshalErr
+		if decodeErr := editBody.Decode(data, req); decodeErr != nil {
+			return decodeErr
 		}
 	} else {
 		req = buildEditRequest(cmd, textFlag, checkedFlag, assigneeFlag)

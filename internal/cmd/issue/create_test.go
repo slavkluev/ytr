@@ -218,7 +218,7 @@ func TestCreateFromJSONMutualExclusion(t *testing.T) {
 		t.Fatal("expected mutual exclusion error, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "from-json OR individual flags") {
+	if !strings.Contains(err.Error(), "cannot combine --from-json with --summary") {
 		t.Errorf("error %q should mention mutual exclusion", err.Error())
 	}
 

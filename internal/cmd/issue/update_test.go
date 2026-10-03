@@ -151,7 +151,7 @@ func TestUpdateFromJSONMutualExclusion(t *testing.T) {
 		t.Fatal("expected mutual exclusion error, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "from-json OR individual flags") {
+	if !strings.Contains(err.Error(), "cannot combine --from-json with --summary") {
 		t.Errorf("error %q should mention mutual exclusion", err.Error())
 	}
 
@@ -171,7 +171,7 @@ func TestUpdateNoFlags(t *testing.T) {
 		t.Fatal("expected error for no flags, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "at least one field flag or --from-json required") {
+	if !strings.Contains(err.Error(), "nothing to update") {
 		t.Errorf("error %q should mention 'at least one field flag'", err.Error())
 	}
 }

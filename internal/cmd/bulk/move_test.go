@@ -291,7 +291,7 @@ func TestMoveMutualExclusion(t *testing.T) {
 		t.Fatal("expected mutual exclusion error, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "cannot use") {
+	if !strings.Contains(err.Error(), "cannot combine --from-json with --queue") {
 		t.Errorf("expected 'cannot use' in error, got: %v", err)
 	}
 }
@@ -305,8 +305,8 @@ func TestMoveMissingQueue(t *testing.T) {
 		t.Fatal("expected error for missing --queue, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "--queue is required") {
-		t.Errorf("expected '--queue is required' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "missing --queue") {
+		t.Errorf("expected 'missing --queue' in error, got: %v", err)
 	}
 }
 

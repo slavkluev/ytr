@@ -59,26 +59,6 @@ func TestComponentCreate(t *testing.T) {
 			exchanges: []faketracker.Exchange{created}, stdout: "42\n",
 		},
 		{
-			name: "Conflict", args: create("--name", "Test", "--from-json", `{"name": "Test"}`),
-			code: ytrerrors.ExitUserError, stderr: []string{"cannot use individual flags and --from-json together"},
-		},
-		{
-			name: "Missing", args: create(), code: ytrerrors.ExitUserError,
-			stderr: []string{"--name and --queue are required"},
-		},
-		{
-			name: "Missing name", args: create("--queue", "PROJ"), code: ytrerrors.ExitUserError,
-			stderr: []string{"--name and --queue are required"},
-		},
-		{
-			name: "Missing queue", args: create("--name", "Backend"), code: ytrerrors.ExitUserError,
-			stderr: []string{"--name and --queue are required"},
-		},
-		{
-			name: "Missing in JSON", args: create("--from-json", `{"name": "Backend"}`),
-			exchanges: []faketracker.Exchange{created}, body: `{"name": "Backend"}`, stdout: "Component 42 created\n",
-		},
-		{
 			name:   "Unknown key",
 			args:   create("--from-json", `{"name": "x", "queue": "PROJ", "bogus": 1}`, "--json", "id"),
 			code:   ytrerrors.ExitUserError,
@@ -144,25 +124,6 @@ func TestComponentEdit(t *testing.T) {
 		{
 			name: "ID as given", args: []string{"component", "edit", "042", "--name", "Backend"},
 			exchanges: []faketracker.Exchange{trackerPATCH("/v3/components/042", componentAnswer)},
-			stdout:    "Component 42 updated\n",
-		},
-		{
-			name:   "Conflict",
-			args:   edit("--name", "Test", "--from-json", `{"name": "Test"}`),
-			code:   ytrerrors.ExitUserError,
-			stderr: []string{"cannot use individual flags and --from-json together"},
-		},
-		{
-			name: "Nothing to update", args: edit(), code: ytrerrors.ExitUserError,
-			stderr: []string{
-				"at least one of --name, --queue, --description, --lead, --assign-auto, or --from-json is required",
-			},
-		},
-		{
-			name:      "Nothing to update in JSON",
-			args:      edit("--from-json", `{}`),
-			exchanges: []faketracker.Exchange{edited},
-			body:      `{}`,
 			stdout:    "Component 42 updated\n",
 		},
 		{

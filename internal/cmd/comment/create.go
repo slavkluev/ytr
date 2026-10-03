@@ -13,6 +13,11 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
+var createBody = validate.Body{
+	Flags:    []validate.BodyFlag{{Name: "body", Key: "text"}},
+	Required: []string{"text"},
+}
+
 func newCreateCmd() *cobra.Command {
 	var bodyFlag string
 
@@ -37,6 +42,9 @@ SEE ALSO
 			if err := validate.ValidateIssueKey(args[0]); err != nil {
 				return err
 			}
+			if err := createBody.CheckFlags(cmd.Flags().Changed); err != nil {
+				return err
+			}
 			return validate.ValidateNoControlChars("body", bodyFlag)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -45,7 +53,6 @@ SEE ALSO
 	}
 
 	cmd.Flags().StringVar(&bodyFlag, "body", "", "Comment text (required)")
-	_ = cmd.MarkFlagRequired("body")
 
 	runner.SetFields(cmd, CommentFields)
 

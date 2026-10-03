@@ -9,7 +9,6 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -52,7 +51,7 @@ SEE ALSO
   ytr bulk transition --from-json '{"transition":"close","issues":["PROJ-1"]}'`,
 		Args: cobra.ArbitraryArgs,
 		PreRunE: func(cmd *cobra.Command, _ []string) error {
-			return validateTransitionFlags(cmd)
+			return transitionBody.CheckFlags(cmd.Flags().Changed)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTransition(cmd, args, transitionFlag, fieldFlags, fromJSON, timeoutFlag)
@@ -69,23 +68,10 @@ SEE ALSO
 	return cmd
 }
 
-func validateTransitionFlags(cmd *cobra.Command) error {
-	if cmd.Flags().Changed("from-json") &&
-		(cmd.Flags().Changed("transition") || cmd.Flags().Changed("field")) {
-		return errors.NewUserError(
-			"cannot use --transition/--field and --from-json together",
-			"Use --transition and --field for individual flags, or --from-json for full JSON input",
-		)
-	}
-
-	if !cmd.Flags().Changed("from-json") && !cmd.Flags().Changed("transition") {
-		return errors.NewUserError(
-			"--transition is required",
-			"Provide --transition with the transition ID, or use --from-json for full JSON input",
-		)
-	}
-
-	return nil
+var transitionBody = validate.Body{
+	Flags:    []validate.BodyFlag{{Name: "transition", Key: "transition"}, fieldFlag},
+	Required: []string{"transition"},
+	FromJSON: true,
 }
 
 func runTransition(

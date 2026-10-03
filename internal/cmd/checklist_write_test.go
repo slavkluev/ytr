@@ -87,19 +87,6 @@ func TestChecklistCreate(t *testing.T) {
 			stdout:    "Checklist item  created on PROJ-1\n",
 		},
 		{
-			name: "Conflict", args: create("--text", "Hello", "--from-json", `{"text": "World"}`),
-			code: ytrerrors.ExitUserError, stderr: []string{"cannot use individual flags and --from-json together"},
-		},
-		{
-			name: "Missing", args: create(), code: ytrerrors.ExitUserError,
-			stderr: []string{"--text or --from-json is required"},
-		},
-		{
-			name: "Missing in JSON", args: create("--from-json", `{"assignee": "uid-b"}`),
-			exchanges: []faketracker.Exchange{created}, body: `{"assignee": "uid-b"}`,
-			stdout: "Checklist item item-other created on PROJ-1\n",
-		},
-		{
 			name: "Unknown key", args: create("--from-json", `{"text": "x", "bogus": 1}`, "--json", "id"),
 			code: ytrerrors.ExitUserError, stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
 		},
@@ -187,23 +174,6 @@ func TestChecklistEdit(t *testing.T) {
 		{
 			name: "Trimmed ID", args: []string{"checklist", "edit", "PROJ-1", " item-2 ", "--checked", "--quiet"},
 			exchanges: []faketracker.Exchange{edited}, stdout: "item-2\n",
-		},
-		{
-			name:   "Conflict",
-			args:   edit("--checked", "--from-json", `{"checked": true}`),
-			code:   ytrerrors.ExitUserError,
-			stderr: []string{"cannot use individual flags and --from-json together"},
-		},
-		{
-			name: "Nothing to update", args: edit(), code: ytrerrors.ExitUserError,
-			stderr: []string{"at least one of --text, --checked, --assignee, or --from-json is required"},
-		},
-		{
-			name:      "Nothing to update in JSON",
-			args:      edit("--from-json", `{}`),
-			exchanges: []faketracker.Exchange{edited},
-			body:      `{}`,
-			stdout:    "Checklist item item-2 updated on PROJ-1\n",
 		},
 		{
 			name:   "Unknown key",

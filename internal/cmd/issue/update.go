@@ -1,8 +1,6 @@
 package issue
 
 import (
-	"slices"
-
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 
 	"github.com/spf13/cobra"
@@ -10,10 +8,11 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
+
+var updateBody = validate.Body{Flags: issueFlags, FromJSON: true, Update: true}
 
 func newUpdateCmd() *cobra.Command {
 	var (
@@ -71,30 +70,7 @@ func validateUpdateFlags(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if cmd.Flags().Changed("from-json") {
-		fieldFlags := []string{"summary", "description", "type", "priority", "assignee", "parent"}
-		if slices.ContainsFunc(fieldFlags, func(flag string) bool {
-			return cmd.Flags().Changed(flag)
-		}) {
-			return errors.NewUserError(
-				"Use --from-json OR individual flags, not both",
-				"Remove --from-json to use individual flags, or remove individual flags to use --from-json",
-			)
-		}
-		return nil
-	}
-
-	fieldFlags := []string{"summary", "description", "type", "priority", "assignee", "parent"}
-	if slices.ContainsFunc(fieldFlags, func(flag string) bool {
-		return cmd.Flags().Changed(flag)
-	}) {
-		return nil
-	}
-
-	return errors.NewUserError(
-		"at least one field flag or --from-json required",
-		"Provide --summary, --description, or other field flags, or use --from-json",
-	)
+	return updateBody.CheckFlags(cmd.Flags().Changed)
 }
 
 func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
@@ -143,7 +119,7 @@ func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
 func buildUpdateRequest(cmd *cobra.Command, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) (*tracker.IssueRequest, error) {
 	if cmd.Flags().Changed("from-json") {
-		return parseIssueRequestFromJSON(fromJSON)
+		return parseIssueRequestFromJSON(fromJSON, updateBody)
 	}
 
 	req := &tracker.IssueRequest{}

@@ -61,35 +61,17 @@ func TestWorklogCreate(t *testing.T) {
 			exchanges: []faketracker.Exchange{created}, stdout: "PT1H30M\n",
 		},
 		{
-			name: "Conflict", args: create("--from-json", `{"duration": "PT1H"}`, "--duration", "PT2H"),
-			code: ytrerrors.ExitUserError, stderr: []string{"cannot use individual flags and --from-json together"},
-		},
-		{
-			name: "Missing", args: create(), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: --duration is required\n"},
-		},
-		{
-			name: "Missing start", args: create("--duration", "PT1H"), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: --start is required\n"},
-		},
-		{
-			name: "Missing duration", args: create("--start", "2026-03-30T10:00:00Z"), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: --duration is required\n"},
-		},
-		{
-			name: "Missing in JSON", args: create("--from-json", `{"duration": "PT1H", "comment": "x"}`),
-			code: ytrerrors.ExitUserError, stderr: []string{`Error: missing required field "start"`},
-		},
-		{
-			name: "Missing duration in JSON", args: create("--from-json", `{"start": "2026-03-30T10:00:00Z"}`),
-			code: ytrerrors.ExitUserError, stderr: []string{`Error: missing required field "duration"`},
-		},
-		{
 			name: "Bad duration", args: create("--duration", "1h", "--start", "2026-03-30T10:00:00Z"),
 			code: ytrerrors.ExitUserError, stderr: []string{
 				"Error: invalid ISO 8601 duration \"1h\"\n" +
 					"Use ISO 8601 format: PT1H30M (1h30m), PT45M (45min), P1D (1 day), P1DT2H (1 day 2 hours)\n",
 			},
+		},
+		{
+			name:   "Bad value before the hint",
+			args:   create("--duration", "1h", "--start", "2026-03-30T10:00:00Z", "--json="),
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{`Error: invalid ISO 8601 duration "1h"`},
 		},
 		{
 			name: "Bad start", args: create("--duration", "PT1H", "--start", "x"), code: ytrerrors.ExitUserError,
@@ -166,21 +148,6 @@ func TestWorklogEdit(t *testing.T) {
 		{
 			name: "Trimmed ID", args: []string{"worklog", "edit", "PROJ-1", " 101 ", "--comment", "x"},
 			exchanges: []faketracker.Exchange{edited}, stdout: "Worklog 101 updated on PROJ-1\n",
-		},
-		{
-			name: "Conflict", args: edit("--from-json", `{"duration": "PT1H"}`, "--comment", "x"),
-			code: ytrerrors.ExitUserError, stderr: []string{"cannot use individual flags and --from-json together"},
-		},
-		{
-			name: "Nothing to update", args: edit(), code: ytrerrors.ExitUserError,
-			stderr: []string{"at least one of --duration, --comment, --start, or --from-json is required"},
-		},
-		{
-			name:      "Nothing to update in JSON",
-			args:      edit("--from-json", `{}`),
-			exchanges: []faketracker.Exchange{edited},
-			body:      `{}`,
-			stdout:    "Worklog 101 updated on PROJ-1\n",
 		},
 		{
 			name: "Bad duration", args: edit("--duration", "1h"), code: ytrerrors.ExitUserError,

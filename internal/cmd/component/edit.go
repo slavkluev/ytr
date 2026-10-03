@@ -10,10 +10,11 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
+
+var editBody = validate.Body{Flags: componentFlags, FromJSON: true, Update: true}
 
 func newEditCmd() *cobra.Command {
 	var (
@@ -54,27 +55,7 @@ SEE ALSO
 				return err
 			}
 
-			if cmd.Flags().Changed("from-json") &&
-				(cmd.Flags().Changed("name") || cmd.Flags().Changed("queue") ||
-					cmd.Flags().Changed("description") || cmd.Flags().Changed("lead") ||
-					cmd.Flags().Changed("assign-auto")) {
-				return errors.NewUserError(
-					"cannot use individual flags and --from-json together",
-					"Use --name, --queue, etc. for individual flags, or --from-json for full JSON input",
-				)
-			}
-
-			if !cmd.Flags().Changed("from-json") &&
-				!cmd.Flags().Changed("name") && !cmd.Flags().Changed("queue") &&
-				!cmd.Flags().Changed("description") && !cmd.Flags().Changed("lead") &&
-				!cmd.Flags().Changed("assign-auto") {
-				return errors.NewUserError(
-					"at least one of --name, --queue, --description, --lead, --assign-auto, or --from-json is required",
-					"Provide at least one flag to update, or --from-json for JSON input",
-				)
-			}
-
-			return nil
+			return editBody.CheckFlags(cmd.Flags().Changed)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runEdit(cmd, args[0], nameFlag, queueFlag, descriptionFlag, leadFlag, assignAutoFlag, fromJSON)
@@ -153,8 +134,8 @@ func buildEditRequest(
 			return nil, parseErr
 		}
 		req := &tracker.ComponentRequest{}
-		if unmarshalErr := validate.UnmarshalRequestJSON(data, req); unmarshalErr != nil {
-			return nil, unmarshalErr
+		if decodeErr := editBody.Decode(data, req); decodeErr != nil {
+			return nil, decodeErr
 		}
 		return req, nil
 	}
