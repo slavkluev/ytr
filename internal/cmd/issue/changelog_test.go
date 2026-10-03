@@ -23,6 +23,10 @@ type mockChangelogGetter struct {
 	lastOpts *tracker.ChangelogOptions // captures last options received
 }
 
+func makeTimestamp(t time.Time) *tracker.Timestamp {
+	return &tracker.Timestamp{Time: t}
+}
+
 func (m *mockChangelogGetter) GetChangelog(
 	_ context.Context,
 	_ string,

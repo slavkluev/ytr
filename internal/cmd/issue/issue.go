@@ -19,10 +19,6 @@ type issueSearcher interface {
 	) ([]*tracker.Issue, *tracker.Response, error)
 }
 
-type issueGetter interface {
-	Get(ctx context.Context, key string, opts *tracker.IssueGetOptions) (*tracker.Issue, *tracker.Response, error)
-}
-
 type issueCreator interface {
 	Create(ctx context.Context, issue *tracker.IssueRequest) (*tracker.Issue, *tracker.Response, error)
 }
@@ -47,10 +43,6 @@ type issueTransitioner interface {
 }
 
 var newSearcher = func(auth *config.ResolvedAuth) issueSearcher {
-	return api.NewClient(auth).Issues
-}
-
-var newGetter = func(auth *config.ResolvedAuth) issueGetter {
 	return api.NewClient(auth).Issues
 }
 

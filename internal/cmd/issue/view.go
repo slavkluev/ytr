@@ -1,34 +1,16 @@
 package issue
 
 import (
-	"io"
+	"context"
 	"time"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
-
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
-	"github.com/slavkluev/ytr/internal/config"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/output"
 )
-
-// IssueDetailFields lists the available JSON field names for issue detail output.
-var IssueDetailFields = []string{
-	"key",
-	"summary",
-	"status",
-	"priority",
-	"type",
-	"author",
-	"authorId",
-	"assignee",
-	"assigneeId",
-	"createdAt",
-	"updatedAt",
-	"description",
-}
 
 // Uses value types with json tags to avoid null fields from pointer types.
 type issueDetail struct {
@@ -45,6 +27,9 @@ type issueDetail struct {
 	UpdatedAt   string `json:"updatedAt,omitempty"`
 	Description string `json:"description,omitempty"`
 }
+
+// IssueDetailFields are the --json fields of issue view, create and update.
+var IssueDetailFields = runner.ItemFields[issueDetail]()
 
 func toIssueDetail(issue *tracker.Issue) issueDetail {
 	detail := issueDetail{
@@ -75,16 +60,11 @@ func toIssueDetail(issue *tracker.Issue) issueDetail {
 }
 
 func newViewCmd() *cobra.Command {
-	cmd := &cobra.Command{
+	return runner.Get[*tracker.Issue, issueDetail]{
 		Use:   "view ISSUE-KEY",
 		Short: "View issue details",
-		Long: `Display detailed information about a Yandex Tracker issue.
-
-JSON FIELDS
-  key, summary, status, priority, type, author, authorId, assignee, assigneeId, createdAt, updatedAt, description
-
-SEE ALSO
-  ytr issue list        - List issues
+		Long:  `Display detailed information about a Yandex Tracker issue.`,
+		SeeAlso: `  ytr issue list        - List issues
   ytr issue update      - Update an issue
   ytr issue transition  - Transition issue status`,
 		Example: `  # View issue details
@@ -95,82 +75,18 @@ SEE ALSO
 
   # Get just the description
   ytr issue view PROJ-123 --json description --jq '.description'`,
-		Args: cobra.ExactArgs(1),
-		RunE: runView,
-	}
-
-	jsonfields.Register("ytr issue view", IssueDetailFields)
-
-	return cmd
+		Args: []runner.Arg{runner.AnyArg},
+		Call: func(ctx context.Context, c *tracker.Client, args []string) (*tracker.Issue, error) {
+			issue, _, err := c.Issues.Get(ctx, args[0], nil)
+			return issue, err
+		},
+		Item:   toIssueDetail,
+		Detail: issueCard,
+		Quiet:  func(issue *tracker.Issue) string { return api.DerefString(issue.Key, "") },
+	}.Command()
 }
 
-func runView(cmd *cobra.Command, args []string) error {
-	opts := output.FromContext(cmd.Context())
-
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue view", IssueDetailFields)
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = IssueDetailFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, IssueDetailFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueDetailFields)
-	}
-
-	issueKey := args[0]
-
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
-	if err != nil {
-		return err
-	}
-
-	getter := newGetter(auth)
-
-	issue, _, err := getter.Get(cmd.Context(), issueKey, nil)
-	if err != nil {
-		return api.MapAPIError(err)
-	}
-
-	return renderDetailOutput(cmd.OutOrStdout(), opts, issue)
-}
-
-func renderDetailOutput(w io.Writer, opts *output.Options, issue *tracker.Issue) error {
-	if opts.IsJSON() {
-		detail := toIssueDetail(issue)
-
-		if opts.HasFieldSelection() {
-			filtered := output.FilterFields(detail, opts.JSONFields)
-			if opts.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, opts.JQFilter)
-			}
-			return opts.PrintJSON(w, filtered)
-		}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(w, detail, opts.JQFilter)
-		}
-		return opts.PrintJSON(w, detail)
-	}
-
-	if opts.Quiet {
-		output.PrintQuiet(w, api.DerefString(issue.Key, ""))
-		return nil
-	}
-
-	return renderDetailTable(w, opts, issue)
-}
-
-func renderDetailTable(w io.Writer, opts *output.Options, issue *tracker.Issue) error {
-	d := opts.NewDetail(w)
-
+func issueCard(d *output.DetailPrinter, opts *output.Options, issue *tracker.Issue) {
 	d.Field("Key", api.DerefString(issue.Key, "-"))
 	d.Field("Title", api.DerefString(issue.Summary, "-"))
 	d.Field("Status", issueStatusDisplay(issue))
@@ -205,6 +121,4 @@ func renderDetailTable(w io.Writer, opts *output.Options, issue *tracker.Issue) 
 	if issue.Description != nil && *issue.Description != "" {
 		d.Block("Description", *issue.Description)
 	}
-
-	return d.Err()
 }

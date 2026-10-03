@@ -11,6 +11,7 @@ import (
 	"github.com/slavkluev/ytr/internal/output"
 )
 
+// Uses value types with json tags to avoid null fields from pointer types.
 type queueDetail struct {
 	Key             string `json:"key"`
 	Name            string `json:"name"`
