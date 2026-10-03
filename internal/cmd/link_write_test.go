@@ -54,13 +54,7 @@ func TestLinkCreate(t *testing.T) {
 			name: "Bad arg", args: []string{"link", "create", "bad-key", "--type", "relates", "--issue", "PROJ-2"},
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad-key"`},
 		},
-		fieldHintRow("link create", []string{"PROJ-1", "--type", "relates", "--issue", "PROJ-2"}, "id", "type", "issue",
-			"summary"),
-		failureRow("Tracker 404", trackerFailure(http.MethodPost, path, http.StatusNotFound, "Issue not found"),
-			create("--type", "relates", "--issue", "PROJ-2", "--json", "id")...),
-		failureRow(
-			"Tracker 500",
-			trackerFailure(http.MethodPost, path, http.StatusInternalServerError, "Internal error"),
+		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
 			create("--type", "relates", "--issue", "PROJ-2", "--json", "id")...),
 		helpRow(
 			"link create",
@@ -88,7 +82,7 @@ func TestLinkDelete(t *testing.T) {
 			name: "Bad issue key", args: []string{"link", "delete", "bad", "101"}, code: ytrerrors.ExitUserError,
 			stderr: []string{`invalid issue key "bad"`},
 		},
-		failureRow("Tracker 404", trackerFailure(http.MethodDelete, path, http.StatusNotFound, "Link not found"),
+		failureRow(trackerNotFoundOn(http.MethodDelete, path, "Link not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
 		helpRow("link delete", "Delete a link from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n\n"+
 			"SEE ALSO\n  ytr link list    - List links on issue\n  ytr link create  - Create a link to another issue\n"),

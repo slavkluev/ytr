@@ -107,8 +107,6 @@ func TestFieldList(t *testing.T) {
 			exchanges: []faketracker.Exchange{trackerGET(path, `[`+badOptionsField+`]`)},
 			code:      ytrerrors.ExitUserError, stderr: []string{optionDecodeError(t)},
 		},
-		fieldHintRow("field list", nil, "id", "key", "name", "schema", "items", "readonly",
-			"options", "queueOptions", "defaultOptions"),
 		named(
 			"Field hint for local fields",
 			fieldHintRow("field list", []string{"--queue", "PROJ"}, "id", "key", "name", "schema", "items",
@@ -217,8 +215,6 @@ func TestFieldGet(t *testing.T) {
 			exchanges: []faketracker.Exchange{trackerGET("/v3/fields/size", badOptionsField)},
 			code:      ytrerrors.ExitUserError, stderr: []string{optionDecodeError(t)},
 		},
-		fieldHintRow("field get", []string{"summary"}, "id", "key", "name", "type", "schema", "items",
-			"required", "readonly", "category", "queue", "options", "queueOptions", "defaultOptions", "description"),
 		notFoundRow("/v3/queues/PROJ/localFields/nope", "field", "get", "nope", "--queue", "PROJ", "--json", "id"),
 		helpRow("field get", "JSON FIELDS\n  id, key, name, type, schema, items, required, readonly, category, "+
 			"queue, options, queueOptions, defaultOptions, description\n\n"+

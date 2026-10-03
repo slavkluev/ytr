@@ -266,3 +266,43 @@ func TestFakeRejectsAnExchangeWithoutStatus(t *testing.T) {
 		t.Errorf("failures = %q, want one naming exchange 0", tb.failures)
 	}
 }
+
+func TestFailingAnswersEveryRequestWithItsErrorAndFailsNoTest(t *testing.T) {
+	tb := &recordingTB{}
+	fake := Failing(tb, http.StatusInternalServerError, "Internal server error")
+
+	client := tracker.NewClient(tracker.WithHTTPClient(&http.Client{Transport: fake}))
+	_, _, statusErr := client.Statuses.List(t.Context(), nil)
+	_, _, issueErr := client.Issues.Get(t.Context(), "PROJ-1", nil)
+
+	for _, err := range []error{statusErr, issueErr} {
+		var errResp *tracker.ErrorResponse
+		if !errors.As(err, &errResp) {
+			t.Fatalf("error = %v, want a *tracker.ErrorResponse", err)
+		}
+		if errResp.Response.StatusCode != http.StatusInternalServerError {
+			t.Errorf("status = %d, want 500", errResp.Response.StatusCode)
+		}
+		if !slices.Equal(errResp.ErrorMessages, []string{"Internal server error"}) {
+			t.Errorf("errorMessages = %q, want the given message alone", errResp.ErrorMessages)
+		}
+	}
+
+	if got := fake.Requests(); len(got) != 2 || got[0].Path != "/v3/statuses" || got[1].Path != "/v3/issues/PROJ-1" {
+		t.Errorf("requests = %+v, want GET /v3/statuses then GET /v3/issues/PROJ-1", got)
+	}
+
+	tb.runCleanups()
+	if len(tb.failures) != 0 {
+		t.Errorf("failures = %q, want none", tb.failures)
+	}
+}
+
+func TestFailingRejectsAnUnknownStatus(t *testing.T) {
+	tb := &recordingTB{}
+	Failing(tb, 999, "x")
+
+	if len(tb.failures) != 1 || !strings.Contains(tb.failures[0], "999") {
+		t.Errorf("failures = %q, want one naming status 999", tb.failures)
+	}
+}

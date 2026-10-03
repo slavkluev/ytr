@@ -22,16 +22,24 @@ type Request struct {
 	Body   string
 }
 
-// Fake is an http.RoundTripper that answers each request with the first
-// unused exchange of equal method, path and query, and records every request
-// it gets. It fails its test on a request no exchange matches and, when the
-// test ends, on every exchange no request used.
+// Fake is an http.RoundTripper that records every request it gets. One from
+// New answers each request with the first unused exchange of equal method,
+// path and query; it fails its test on a request no exchange matches and,
+// when the test ends, on every exchange no request used.
 type Fake struct {
 	t         testing.TB
 	mu        sync.Mutex
 	exchanges []Exchange
 	used      []bool
 	requests  []Request
+
+	// failure, when set, answers every request in place of the exchanges.
+	failure *failure
+}
+
+type failure struct {
+	status  int
+	message string
 }
 
 // New returns a Fake serving exchanges, checked against t. It fails t at once
@@ -53,6 +61,19 @@ func New(t testing.TB, exchanges []Exchange) *Fake {
 	t.Cleanup(f.checkAllUsed)
 
 	return f
+}
+
+// Failing returns a Fake that answers every request with status and
+// Tracker's error body carrying message, and records it. Unlike New's, its
+// requests fail no test: whether one was sent is for the caller to judge.
+func Failing(t testing.TB, status int, message string) *Fake {
+	t.Helper()
+
+	if http.StatusText(status) == "" {
+		t.Fatalf("faketracker: Failing needs a known status, not %d", status)
+	}
+
+	return &Fake{t: t, failure: &failure{status: status, message: message}}
 }
 
 // RoundTrip serves req in process, so no port opens and the client's URL
@@ -98,9 +119,17 @@ func (f *Fake) serve(w http.ResponseWriter, got Request) {
 	ex, ok := f.take(got)
 	f.mu.Unlock()
 
+	if f.failure != nil {
+		writeError(w, f.failure.status, f.failure.message)
+		return
+	}
+
 	if !ok {
-		f.t.Errorf("faketracker: no exchange matches %s", describe(got.Method, got.Path, got.Query))
-		writeUnmatched(w, got)
+		unmatched := "no exchange matches " + describe(got.Method, got.Path, got.Query)
+		f.t.Errorf("faketracker: %s", unmatched)
+		// Tracker's error shape makes the command fail the way it would on a
+		// real error instead of on a body it cannot decode.
+		writeError(w, http.StatusNotImplemented, "faketracker: "+unmatched)
 		return
 	}
 
@@ -143,15 +172,14 @@ func describe(method, path string, query url.Values) string {
 	return fmt.Sprintf("%s %s query %q", method, path, query.Encode())
 }
 
-// writeUnmatched answers in Tracker's error shape, so the command fails the
-// way it would on a real error instead of on a body it cannot decode.
-func writeUnmatched(w http.ResponseWriter, got Request) {
+func writeError(w http.ResponseWriter, status int, message string) {
 	body, _ := json.Marshal(map[string]any{
-		"errorMessages": []string{"faketracker: no exchange matches " + describe(got.Method, got.Path, got.Query)},
+		"errorMessages": []string{message},
 		"errors":        map[string]string{},
+		"statusCode":    status,
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
+	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }

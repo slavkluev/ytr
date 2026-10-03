@@ -146,41 +146,42 @@ func trackerDELETE(path string) faketracker.Exchange {
 }
 
 func trackerNotFound(path string) faketracker.Exchange {
-	return trackerFailure(http.MethodGet, path, http.StatusNotFound, "Object not found")
+	return trackerNotFoundOn(http.MethodGet, path, "Object not found")
 }
 
-// trackerFailure answers method on path with status and Tracker's error body
+// trackerNotFoundOn answers method on path with a 404 and Tracker's error body
 // carrying message.
-func trackerFailure(method, path string, status int, message string) faketracker.Exchange {
+func trackerNotFoundOn(method, path, message string) faketracker.Exchange {
 	body, _ := json.Marshal(
-		map[string]any{"errorMessages": []string{message}, "errors": map[string]string{}, "statusCode": status},
+		map[string]any{
+			"errorMessages": []string{message},
+			"errors":        map[string]string{},
+			"statusCode":    http.StatusNotFound,
+		},
 	)
 
-	return trackerWrite(method, path, status, string(body))
+	return trackerWrite(method, path, http.StatusNotFound, string(body))
 }
 
 // notFoundRow asks for one JSON field of what path answers with a 404, and
 // wants stdout empty and the server's text in the one JSON error document.
 func notFoundRow(path string, args ...string) leafRow {
-	return failureRow("Tracker 404", trackerNotFound(path), args...)
+	return failureRow(trackerNotFound(path), args...)
 }
 
 // failureRow runs args, which ask for JSON, against ex, an exchange that
-// answers with Tracker's error body, and wants stdout empty and the server's
-// text in the one JSON error document, with the exit code its status maps to.
-func failureRow(name string, ex faketracker.Exchange, args ...string) leafRow {
+// answers with a 404 and Tracker's error body, and wants stdout empty and the
+// server's text in the one JSON error document, with the not-found exit code.
+func failureRow(ex faketracker.Exchange, args ...string) leafRow {
 	var answer struct {
 		ErrorMessages []string `json:"errorMessages"`
 	}
 	_ = json.Unmarshal(ex.Body, &answer)
 
-	exit, code := ytrerrors.ExitUserError, ytrerrors.CodeUserError
-	if ex.Status == http.StatusNotFound {
-		exit, code = ytrerrors.ExitNotFound, ytrerrors.CodeNotFound
-	}
+	exit, code := ytrerrors.ExitNotFound, ytrerrors.CodeNotFound
 
 	return leafRow{
-		name: name, args: args, exchanges: []faketracker.Exchange{ex},
+		name: "Tracker 404", args: args, exchanges: []faketracker.Exchange{ex},
 		code: exit, stderr: []string{`"code":"` + code + `"`},
 		check: func(t *testing.T, res cliResult) {
 			t.Helper()
@@ -205,14 +206,17 @@ func named(name string, row leafRow) leafRow {
 // fieldHintRow wants --json= on the leaf at path, given args, to name its
 // fields in order before any request.
 func fieldHintRow(path string, args []string, fields ...string) leafRow {
-	hint := "Specify one or more comma-separated field names for JSON output.\n\n" +
-		"Available fields for " + path + ":\n  " + strings.Join(fields, "\n  ") + "\nError: no fields specified\n"
-
 	return leafRow{
 		name: "Field hint", args: slices.Concat(strings.Fields(path), args, []string{"--json="}),
 		code:   ytrerrors.ExitUserError,
-		stderr: []string{hint},
+		stderr: []string{fieldHint(path, fields)},
 	}
+}
+
+// fieldHint is what --json= prints to stderr for the leaf at path.
+func fieldHint(path string, fields []string) string {
+	return "Specify one or more comma-separated field names for JSON output.\n\n" +
+		"Available fields for " + path + ":\n  " + strings.Join(fields, "\n  ") + "\nError: no fields specified\n"
 }
 
 // helpRow wants the leaf's --help to carry its JSON FIELDS and SEE ALSO
@@ -239,7 +243,7 @@ func withoutANSI(s string) string {
 
 // deleteRows are the output rows of the delete leaf args run, which Tracker
 // answers with answer: what it prints for id plainly, under --json, --jq and
-// --quiet, and the field hint and an unknown field, which send no request.
+// --quiet.
 func deleteRows(args []string, answer faketracker.Exchange, id, confirm string) []leafRow {
 	with := func(extra ...string) []string { return slices.Concat(args, extra) }
 	sent := []faketracker.Exchange{answer}
@@ -251,10 +255,5 @@ func deleteRows(args []string, answer faketracker.Exchange, id, confirm string) 
 			json: `{"id": "` + id + `", "deleted": true}`},
 		{name: "Delete jq", args: with("--jq", ".deleted"), exchanges: sent, stdout: "true\n"},
 		{name: "Delete quiet", args: with("--quiet"), exchanges: sent, stdout: id + "\n"},
-		named("Delete field hint", fieldHintRow(strings.Join(args[:2], " "), args[2:], "id", "deleted")),
-		{
-			name: "Delete unknown field", args: with("--json", "bogus"), code: ytrerrors.ExitUserError,
-			stderr: []string{`"code":"invalid_field"`, `"invalidField":"bogus"`},
-		},
 	}
 }

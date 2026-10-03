@@ -70,11 +70,6 @@ func TestComponentCreate(t *testing.T) {
 			code:   ytrerrors.ExitUserError,
 			stderr: []string{`unknown command "42" for "ytr component create"`},
 		},
-		fieldHintRow("component create", []string{"--name", "Backend", "--queue", "PROJ"}, componentFields...),
-		failureRow(
-			"Tracker 500",
-			trackerFailure(http.MethodPost, path, http.StatusInternalServerError, "Internal error"),
-			create("--name", "Backend", "--queue", "PROJ", "--json", "id")...),
 		helpRow(
 			"component create",
 			"Provide --name and --queue for required fields, or --from-json for full JSON input.\n\n"+
@@ -136,8 +131,7 @@ func TestComponentEdit(t *testing.T) {
 			name: "Bad arg", args: []string{"component", "edit", "abc", "--name", "x"}, code: ytrerrors.ExitUserError,
 			stderr: []string{`invalid component ID "abc": expected a positive integer`},
 		},
-		fieldHintRow("component edit", []string{"42", "--name", "x"}, componentFields...),
-		failureRow("Tracker 404", trackerFailure(http.MethodPatch, path, http.StatusNotFound, "Component not found"),
+		failureRow(trackerNotFoundOn(http.MethodPatch, path, "Component not found"),
 			edit("--name", "x", "--json", "id")...),
 		helpRow("component edit", "Provide one or more flags to update, or --from-json for full JSON input.\n\n"+
 			"JSON FIELDS\n  id, name, queue, lead, leadId, description, assignAuto\n\n"+
@@ -159,7 +153,7 @@ func TestComponentDelete(t *testing.T) {
 			name: "Bad arg", args: []string{"component", "delete", "abc"}, code: ytrerrors.ExitUserError,
 			stderr: []string{`invalid component ID "abc": expected a positive integer`},
 		},
-		failureRow("Tracker 404", trackerFailure(http.MethodDelete, path, http.StatusNotFound, "Component not found"),
+		failureRow(trackerNotFoundOn(http.MethodDelete, path, "Component not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
 		helpRow("component delete", "Delete a project component from Yandex Tracker.\n\nJSON FIELDS\n  id, deleted\n\n"+
 			"SEE ALSO\n  ytr component list    - List all components\n  ytr component get     - Show component details\n"+

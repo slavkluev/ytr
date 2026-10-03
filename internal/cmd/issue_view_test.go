@@ -76,8 +76,6 @@ func TestIssueView(t *testing.T) {
 			name: "Extra arg", args: []string{"issue", "view", "PROJ-1", "PROJ-2"}, code: ytrerrors.ExitUserError,
 			stderr: []string{"accepts 1 arg(s), received 2"},
 		},
-		fieldHintRow("issue view", []string{"PROJ-123"}, "key", "summary", "status", "priority", "type",
-			"author", "authorId", "assignee", "assigneeId", "createdAt", "updatedAt", "description"),
 		notFoundRow("/v3/issues/NOEXIST-1", "issue", "view", "NOEXIST-1", "--json", "key"),
 		helpRow("issue view", "JSON FIELDS\n  key, summary, status, priority, type, author, authorId, "+
 			"assignee, assigneeId, createdAt, updatedAt, description\n\n"+

@@ -9,8 +9,6 @@ import (
 	"github.com/slavkluev/ytr/internal/faketracker"
 )
 
-var checklistFields = []string{"id", "text", "checked", "assignee", "assigneeId"}
-
 // checklistAnswer is the issue Tracker answers a checklist write with, its
 // checklist holding items.
 func checklistAnswer(method, path, items string) faketracker.Exchange {
@@ -94,12 +92,7 @@ func TestChecklistCreate(t *testing.T) {
 			name: "Bad arg", args: []string{"checklist", "create", "bad", "--text", "x"}, code: ytrerrors.ExitUserError,
 			stderr: []string{`invalid issue key "bad"`},
 		},
-		fieldHintRow("checklist create", []string{"PROJ-1", "--text", "x"}, checklistFields...),
-		failureRow("Tracker 404", trackerFailure(http.MethodPost, path, http.StatusNotFound, "Issue not found"),
-			create("--text", "x", "--json", "id")...),
-		failureRow(
-			"Tracker 500",
-			trackerFailure(http.MethodPost, path, http.StatusInternalServerError, "Internal error"),
+		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
 			create("--text", "x", "--json", "id")...),
 		helpRow("checklist create", "Deadline is supported only via --from-json (not as a separate flag).\n\n"+
 			"JSON FIELDS\n  id, text, checked, assignee, assigneeId\n\n"+
@@ -191,10 +184,8 @@ func TestChecklistEdit(t *testing.T) {
 			name: "Bad issue key", args: []string{"checklist", "edit", "bad", "item-2", "--checked"},
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad"`},
 		},
-		fieldHintRow("checklist edit", []string{"PROJ-1", "item-2", "--checked"}, checklistFields...),
 		failureRow(
-			"Tracker 404",
-			trackerFailure(http.MethodPatch, path, http.StatusNotFound, "Checklist item not found"),
+			trackerNotFoundOn(http.MethodPatch, path, "Checklist item not found"),
 			edit("--checked", "--json", "id")...),
 		helpRow("checklist edit", "Use --checked to mark an item as done, --checked=false to unmark it.\n\n"+
 			"JSON FIELDS\n  id, text, checked, assignee, assigneeId\n\n"+
@@ -224,8 +215,7 @@ func TestChecklistDelete(t *testing.T) {
 			stderr: []string{`invalid issue key "bad"`},
 		},
 		failureRow(
-			"Tracker 404",
-			trackerFailure(http.MethodDelete, path, http.StatusNotFound, "Checklist item not found"),
+			trackerNotFoundOn(http.MethodDelete, path, "Checklist item not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
 		helpRow(
 			"checklist delete",

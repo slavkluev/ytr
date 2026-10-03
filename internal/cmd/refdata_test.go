@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
 )
 
@@ -183,48 +182,6 @@ func refdataRows() []refdataRow {
 			},
 		},
 		{
-			name: "Field hint", args: []string{"list", "--json="}, code: ytrerrors.ExitUserError,
-			check: func(t *testing.T, leaf refdataLeaf, _ []refdataItem, res cliResult) {
-				t.Helper()
-				assertEmpty(t, "stdout", res.Stdout)
-
-				if want := "Available fields for " + leaf.noun + " list:\n  id\n  key\n  name\n"; !strings.Contains(
-					res.Stderr, want,
-				) {
-					t.Errorf("stderr = %q, want it to list the fields as %q", res.Stderr, want)
-				}
-			},
-		},
-		{
-			name: "Bad field", args: []string{"list", "--json", "bogus"}, code: ytrerrors.ExitUserError,
-			check: func(t *testing.T, _ refdataLeaf, _ []refdataItem, res cliResult) {
-				t.Helper()
-				assertEmpty(t, "stdout", res.Stdout)
-
-				var doc errorDocument
-				if err := json.Unmarshal([]byte(res.Stderr), &doc); err != nil ||
-					strings.Count(res.Stderr, "\n") != 1 {
-					t.Fatalf("stderr = %q, want exactly one JSON document (%v)", res.Stderr, err)
-				}
-				if doc.Code != ytrerrors.CodeInvalidField {
-					t.Errorf("code = %q, want %q", doc.Code, ytrerrors.CodeInvalidField)
-				}
-			},
-		},
-		{
-			name: "Tracker 500", args: []string{"list", "--json", "id"}, exchanges: refdataServerError,
-			code: ytrerrors.ExitUserError,
-			check: func(t *testing.T, leaf refdataLeaf, _ []refdataItem, res cliResult) {
-				t.Helper()
-				assertEmpty(t, "stdout", res.Stdout)
-
-				doc := decodeOneJSONError(t, "ytr "+leaf.noun+" list --json id", res.Stderr)
-				if !strings.Contains(doc.Message, "Internal server error") {
-					t.Errorf("message = %q, want the server's text", doc.Message)
-				}
-			},
-		},
-		{
 			name: "Completion", prefix: []string{"__complete"}, args: []string{"list", "--json", ""},
 			check: func(t *testing.T, _ refdataLeaf, _ []refdataItem, res cliResult) {
 				t.Helper()
@@ -272,23 +229,7 @@ func loadRefdataFixture(t *testing.T, leaf refdataLeaf) []faketracker.Exchange {
 }
 
 func emptyRefdataList(_ *testing.T, leaf refdataLeaf) []faketracker.Exchange {
-	return []faketracker.Exchange{refdataExchange(leaf, http.StatusOK, `[]`)}
-}
-
-func refdataServerError(_ *testing.T, leaf refdataLeaf) []faketracker.Exchange {
-	return []faketracker.Exchange{refdataExchange(
-		leaf, http.StatusInternalServerError, `{"errorMessages":["Internal server error"],"errors":{}}`,
-	)}
-}
-
-func refdataExchange(leaf refdataLeaf, status int, body string) faketracker.Exchange {
-	return faketracker.Exchange{
-		Method: http.MethodGet,
-		Path:   leaf.path,
-		Status: status,
-		Header: http.Header{"Content-Type": {"application/json"}},
-		Body:   []byte(body),
-	}
+	return []faketracker.Exchange{trackerGET(leaf.path, `[]`)}
 }
 
 func expectRecordedKeys(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {

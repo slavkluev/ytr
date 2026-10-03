@@ -21,10 +21,6 @@ const (
 	userHelpFields = "JSON FIELDS\n  uid, display, login, email, firstName, lastName, dismissed, hasLicense, external\n\n"
 )
 
-var userFields = []string{
-	"uid", "display", "login", "email", "firstName", "lastName", "dismissed", "hasLicense", "external",
-}
-
 func TestUserMyself(t *testing.T) {
 	const path = "/v3/myself"
 	user := trackerGET(path, trackerUser)
@@ -62,7 +58,6 @@ func TestUserMyself(t *testing.T) {
 			name: "jq", args: []string{"user", "myself", "--jq", ".login"},
 			exchanges: []faketracker.Exchange{user}, stdout: "john.doe\n",
 		},
-		fieldHintRow("user myself", nil, userFields...),
 		notFoundRow(path, "user", "myself", "--json", "uid"),
 		helpRow("user myself", userHelpFields+"SEE ALSO\n  ytr user get     - Show user details by UID\n"+
 			"  ytr user list    - List organization users\n"),
@@ -110,7 +105,6 @@ func TestUserGet(t *testing.T) {
 			name: "Bad arg before the hint", args: []string{"user", "get", " ", "--json="},
 			code: ytrerrors.ExitUserError, stderr: []string{"invalid user ID"},
 		},
-		fieldHintRow("user get", []string{"12345"}, userFields...),
 		notFoundRow(path, "user", "get", "12345", "--json", "uid"),
 		helpRow("user get", userHelpFields+"SEE ALSO\n  ytr user myself   - Show current user\n"+
 			"  ytr user list     - List organization users\n"),

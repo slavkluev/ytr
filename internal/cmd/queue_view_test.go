@@ -91,8 +91,6 @@ func TestQueueView(t *testing.T) {
 			name: "Blank key", args: []string{"queue", "view", " ", "--quiet"},
 			code: ytrerrors.ExitUserError, stderr: []string{"invalid queue key: expected a non-empty value"},
 		},
-		fieldHintRow("queue view", []string{"MYQUEUE"}, "key", "name", "description", "lead", "leadId",
-			"defaultType", "defaultPriority", "assignAuto", "allowExternals"),
 		notFoundRow("/v3/queues/NOEXIST", "queue", "view", "NOEXIST", "--json", "key"),
 		helpRow("queue view", "JSON FIELDS\n  key, name, description, lead, leadId, defaultType, defaultPriority, "+
 			"assignAuto, allowExternals\n\n"+

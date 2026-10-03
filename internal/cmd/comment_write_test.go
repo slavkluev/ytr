@@ -9,8 +9,6 @@ import (
 	"github.com/slavkluev/ytr/internal/faketracker"
 )
 
-var commentFields = []string{"id", "author", "authorId", "body", "createdAt", "updatedAt"}
-
 const (
 	commentAnswer = `{"id": 555, "longId": "5fa15a24ac894475000000aa", "text": "Fixed in abc123",
 		"createdBy": {"id": "uid-a", "display": "Иван Петров"},
@@ -64,12 +62,7 @@ func TestCommentCreate(t *testing.T) {
 			name: "Extra arg", args: []string{"comment", "create", "PROJ-1", "PROJ-2", "--body", "x"},
 			code: ytrerrors.ExitUserError, stderr: []string{"accepts 1 arg(s), received 2"},
 		},
-		fieldHintRow("comment create", []string{"PROJ-1", "--body", "x"}, commentFields...),
-		failureRow("Tracker 404", trackerFailure(http.MethodPost, path, http.StatusNotFound, "Issue not found"),
-			create("--body", "x", "--json", "id")...),
-		failureRow(
-			"Tracker 500",
-			trackerFailure(http.MethodPost, path, http.StatusInternalServerError, "Internal error"),
+		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
 			create("--body", "x", "--json", "id")...),
 		helpRow("comment create", "JSON FIELDS\n  id, author, authorId, body, createdAt, updatedAt\n\n"+
 			"SEE ALSO\n  ytr comment list  - List comments on issue\n  ytr issue view    - View issue details\n"),
@@ -144,8 +137,7 @@ func TestCommentEdit(t *testing.T) {
 			name: "Bad issue key", args: []string{"comment", "edit", "bad", "555", "--body", "x"},
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad"`},
 		},
-		fieldHintRow("comment edit", []string{"PROJ-1", "555", "--body", "x"}, commentFields...),
-		failureRow("Tracker 404", trackerFailure(http.MethodPatch, path, http.StatusNotFound, "Comment not found"),
+		failureRow(trackerNotFoundOn(http.MethodPatch, path, "Comment not found"),
 			edit("--body", "x", "--json", "id")...),
 		helpRow("comment edit", "JSON FIELDS\n  id, author, authorId, body, createdAt, updatedAt\n\n"+
 			"SEE ALSO\n  ytr comment list    - List comments on issue\n  ytr comment create  - Add comment to issue\n"+
@@ -171,7 +163,7 @@ func TestCommentDelete(t *testing.T) {
 			name: "Bad issue key", args: []string{"comment", "delete", "bad", "555"}, code: ytrerrors.ExitUserError,
 			stderr: []string{`invalid issue key "bad"`},
 		},
-		failureRow("Tracker 404", trackerFailure(http.MethodDelete, path, http.StatusNotFound, "Comment not found"),
+		failureRow(trackerNotFoundOn(http.MethodDelete, path, "Comment not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
 		helpRow("comment delete", "Delete a comment from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n\n"+
 			"SEE ALSO\n  ytr comment list    - List comments on issue\n  ytr comment create  - Add comment to issue\n"+

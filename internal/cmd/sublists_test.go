@@ -73,7 +73,6 @@ func TestWorklogList(t *testing.T) {
 			name: "Bad arg before the hint", args: []string{"worklog", "list", "bad", "--json="},
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad"`},
 		},
-		fieldHintRow("worklog list", []string{"PROJ-1"}, "id", "author", "authorId", "duration", "start", "comment"),
 		notFoundRow(path, "worklog", "list", "PROJ-1", "--json", "id"),
 		helpRow("worklog list", "JSON FIELDS\n  id, author, authorId, duration, start, comment\n\n"+
 			"SEE ALSO\n  ytr worklog create  - Create a worklog\n  ytr worklog edit    - Edit a worklog\n"+
@@ -135,7 +134,6 @@ func TestLinkList(t *testing.T) {
 			name: "Bad arg", args: []string{"link", "list", "bad"}, code: ytrerrors.ExitUserError,
 			stderr: []string{`invalid issue key "bad": expected format QUEUE-123`},
 		},
-		fieldHintRow("link list", []string{"PROJ-1"}, "id", "type", "issue", "summary"),
 		notFoundRow(path, "link", "list", "PROJ-1", "--json", "id"),
 		helpRow("link list", "JSON FIELDS\n  id, type, issue, summary\n\n"+
 			"SEE ALSO\n  ytr link create  - Create a link to another issue\n  ytr link delete  - Delete a link\n"),
@@ -195,7 +193,6 @@ func TestChecklistList(t *testing.T) {
 			name: "Bad arg", args: []string{"checklist", "list", "bad"}, code: ytrerrors.ExitUserError,
 			stderr: []string{`invalid issue key "bad": expected format QUEUE-123`},
 		},
-		fieldHintRow("checklist list", []string{"PROJ-1"}, "id", "text", "checked", "assignee", "assigneeId"),
 		notFoundRow(path, "checklist", "list", "PROJ-1", "--json", "id"),
 		helpRow("checklist list", "JSON FIELDS\n  id, text, checked, assignee, assigneeId\n\n"+
 			"SEE ALSO\n  ytr checklist create  - Add checklist item to issue\n"+

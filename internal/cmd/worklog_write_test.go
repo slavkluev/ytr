@@ -88,15 +88,10 @@ func TestWorklogCreate(t *testing.T) {
 			name: "Bad arg", args: []string{"worklog", "create", "bad", "--duration", "PT1H", "--start", "x"},
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad"`},
 		},
-		fieldHintRow("worklog create", slices.Concat([]string{"PROJ-1"}, required), worklogFields...),
 		named("Field hint before --from-json is read",
 			fieldHintRow("worklog create", []string{"PROJ-1", "--from-json", `{"comment": "x", "bogus": 1}`},
 				worklogFields...)),
-		failureRow("Tracker 404", trackerFailure(http.MethodPost, path, http.StatusNotFound, "Issue not found"),
-			create(slices.Concat(required, []string{"--json", "id"})...)...),
-		failureRow(
-			"Tracker 500",
-			trackerFailure(http.MethodPost, path, http.StatusInternalServerError, "Internal error"),
+		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
 			create(slices.Concat(required, []string{"--json", "id"})...)...),
 		helpRow("worklog create", "Tracker requires both duration and start time when creating a worklog.\n\n"+
 			"JSON FIELDS\n  id, author, authorId, duration, start, comment\n\n"+
@@ -174,8 +169,7 @@ func TestWorklogEdit(t *testing.T) {
 			name: "Bad issue key", args: []string{"worklog", "edit", "bad", "101", "--comment", "x"},
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad"`},
 		},
-		fieldHintRow("worklog edit", []string{"PROJ-1", "101", "--comment", "x"}, worklogFields...),
-		failureRow("Tracker 404", trackerFailure(http.MethodPatch, path, http.StatusNotFound, "Worklog not found"),
+		failureRow(trackerNotFoundOn(http.MethodPatch, path, "Worklog not found"),
 			edit("--comment", "x", "--json", "id")...),
 		helpRow("worklog edit", "Provide one or more flags to update, or --from-json for full JSON input.\n\n"+
 			"JSON FIELDS\n  id, author, authorId, duration, start, comment\n\n"+
@@ -201,7 +195,7 @@ func TestWorklogDelete(t *testing.T) {
 			name: "Bad issue key", args: []string{"worklog", "delete", "bad", "101"}, code: ytrerrors.ExitUserError,
 			stderr: []string{`invalid issue key "bad"`},
 		},
-		failureRow("Tracker 404", trackerFailure(http.MethodDelete, path, http.StatusNotFound, "Worklog not found"),
+		failureRow(trackerNotFoundOn(http.MethodDelete, path, "Worklog not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
 		helpRow("worklog delete", "Delete a worklog from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n\n"+
 			"SEE ALSO\n  ytr worklog list    - List worklogs on issue\n  ytr worklog create  - Create a worklog\n"+

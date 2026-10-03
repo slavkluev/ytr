@@ -8,8 +8,6 @@ import (
 	"github.com/slavkluev/ytr/internal/output"
 )
 
-var componentFields = []string{"id", "name", "queue", "lead", "leadId", "description", "assignAuto"}
-
 func TestComponentList(t *testing.T) {
 	const path = "/v3/components"
 	components := trackerGET(path, `[
@@ -61,7 +59,6 @@ func TestComponentList(t *testing.T) {
 			name: "Empty", args: []string{"component", "list"},
 			exchanges: []faketracker.Exchange{trackerGET(path, `[]`)}, stdout: "No components found\n",
 		},
-		fieldHintRow("component list", nil, componentFields...),
 		notFoundRow(path, "component", "list", "--json", "id"),
 		helpRow("component list", "JSON FIELDS\n  id, name, queue, lead, leadId, description, assignAuto\n\n"+
 			"SEE ALSO\n  ytr component get     - Show component details\n"+
@@ -124,7 +121,6 @@ func TestComponentGet(t *testing.T) {
 			name: "Bad arg before the hint", args: []string{"component", "get", "abc", "--json="},
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid component ID "abc"`},
 		},
-		fieldHintRow("component get", []string{"42"}, componentFields...),
 		notFoundRow(path, "component", "get", "42", "--json", "id"),
 		helpRow("component get", "JSON FIELDS\n  id, name, queue, lead, leadId, description, assignAuto\n\n"+
 			"SEE ALSO\n  ytr component list    - List all components\n  ytr component edit    - Edit a component\n"+
