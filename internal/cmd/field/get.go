@@ -101,8 +101,7 @@ is omitted: queueOptions maps each queue key to its list, and defaultOptions
 holds Tracker's defaults list.
 
 JSON FIELDS
-  id, key, name, type, schema, items, required, readonly, category, queue, options,
-  queueOptions, defaultOptions, description
+  id, key, name, type, schema, items, required, readonly, category, queue, options, queueOptions, defaultOptions, description
 
 SEE ALSO
   ytr field list  - List available fields`,
