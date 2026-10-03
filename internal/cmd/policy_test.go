@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"unicode"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -464,86 +463,33 @@ type invocation struct {
 	positional []int
 }
 
-// exampleInvocation returns the first line of leaf's Example that starts with
-// ytr and selects leaf, read as a shell would up to the first pipe,
-// redirection or command separator.
+// exampleInvocation returns the first command of leaf's Example that starts
+// with ytr and selects leaf. A line a shell cannot parse runs nothing, so it is
+// left to TestExampleInvocationsRunAsWritten to report.
 func exampleInvocation(leaf *cobra.Command) (invocation, bool) {
 	for line := range strings.Lines(leaf.Example) {
-		words := shellWords(line)
-		if len(words) < 2 || words[0] != "ytr" {
+		commands, err := shellCommands(line)
+		if err != nil {
 			continue
 		}
 
-		found, _, err := leaf.Root().Find(words[1:])
-		if err != nil || found != leaf {
-			continue
+		for _, words := range commands {
+			if len(words) < 2 || words[0] != "ytr" {
+				continue
+			}
+
+			found, _, err := leaf.Root().Find(words[1:])
+			if err != nil || found != leaf {
+				continue
+			}
+
+			args := withoutOutputFlags(words[1:])
+
+			return invocation{args: args, positional: positionals(leaf, args)}, true
 		}
-
-		args := withoutOutputFlags(words[1:])
-
-		return invocation{args: args, positional: positionals(leaf, args)}, true
 	}
 
 	return invocation{}, false
-}
-
-// shellWords splits line into words as a POSIX shell would, honouring single
-// and double quotes and backslashes, and stops at the first unquoted |, <, >,
-// ;, & or comment, which ends the command the line starts with.
-func shellWords(line string) []string {
-	var (
-		words  []string
-		word   strings.Builder
-		inWord bool
-		quote  rune
-	)
-	endWord := func() {
-		if inWord {
-			words = append(words, word.String())
-			word.Reset()
-			inWord = false
-		}
-	}
-
-	runes := []rune(line)
-	for i := 0; i < len(runes); i++ {
-		r := runes[i]
-		switch {
-		case quote == '\'':
-			if r == '\'' {
-				quote = 0
-			} else {
-				word.WriteRune(r)
-			}
-		case quote == '"':
-			switch {
-			case r == '"':
-				quote = 0
-			case r == '\\' && i+1 < len(runes) && strings.ContainsRune("\"\\$`", runes[i+1]):
-				i++
-				word.WriteRune(runes[i])
-			default:
-				word.WriteRune(r)
-			}
-		case r == '\'' || r == '"':
-			quote, inWord = r, true
-		case r == '\\' && i+1 < len(runes):
-			i++
-			word.WriteRune(runes[i])
-			inWord = true
-		case strings.ContainsRune("|<>;&", r), r == '#' && !inWord:
-			endWord()
-			return words
-		case unicode.IsSpace(r):
-			endWord()
-		default:
-			word.WriteRune(r)
-			inWord = true
-		}
-	}
-	endWord()
-
-	return words
 }
 
 // withoutOutputFlags drops --json, --jq and --quiet with their values, which
