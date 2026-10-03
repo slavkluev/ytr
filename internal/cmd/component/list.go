@@ -21,9 +21,6 @@ type componentItem struct {
 	AssignAuto  bool   `json:"assignAuto"`
 }
 
-// ComponentListFields are the --json fields of every component command.
-var ComponentListFields = runner.ItemFields[componentItem]()
-
 func toComponentItem(c *tracker.Component) componentItem {
 	return componentItem{
 		ID:          api.DerefFlexString(c.ID, ""),

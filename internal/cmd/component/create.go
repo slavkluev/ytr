@@ -1,52 +1,23 @@
 package component
 
 import (
-	"fmt"
-	"io"
+	"context"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/validate"
 )
 
-var createBody = validate.Body{
-	Flags:    componentFlags,
-	Required: []string{"name", "queue"},
-	FromJSON: true,
-}
-
-var componentFlags = []validate.BodyFlag{
-	{Name: "name", Key: "name"}, {Name: "queue", Key: "queue"}, {Name: "description", Key: "description"},
-	{Name: "lead", Key: "lead"}, {Name: "assign-auto", Key: "assignAuto"},
-}
-
 func newCreateCmd() *cobra.Command {
-	var (
-		nameFlag        string
-		queueFlag       string
-		descriptionFlag string
-		leadFlag        string
-		assignAutoFlag  bool
-		fromJSON        string
-	)
-
-	cmd := &cobra.Command{
+	return runner.Write[tracker.ComponentRequest, *tracker.Component, componentItem]{
 		Use:   "create",
 		Short: "Create a component",
 		Long: `Create a new project component in Yandex Tracker.
 
-Provide --name and --queue for required fields, or --from-json for full JSON input.
-
-JSON FIELDS
-  id, name, queue, lead, leadId, description, assignAuto
-
-SEE ALSO
-  ytr component list    - List all components
+Provide --name and --queue for required fields, or --from-json for full JSON input.`,
+		SeeAlso: `  ytr component list    - List all components
   ytr component get     - Show component details
   ytr component edit    - Edit a component
   ytr component delete  - Delete a component`,
@@ -58,132 +29,35 @@ SEE ALSO
 
   # Create via JSON
   ytr component create --from-json '{"name":"Backend","queue":"PROJ"}'`,
-		Args: cobra.NoArgs,
-		PreRunE: func(cmd *cobra.Command, _ []string) error {
-			return createBody.CheckFlags(cmd.Flags().Changed)
+		Flags:    componentFlags("Component name (required)", "Queue key (required)"),
+		FromJSON: `JSON input: inline '{"name":"...","queue":"..."}', @file, or - for stdin`,
+		Required: []string{"name", "queue"},
+		Call: func(
+			ctx context.Context, c *tracker.Client, _ []string, req *tracker.ComponentRequest,
+		) (*tracker.Component, error) {
+			component, _, err := c.Components.Create(ctx, req)
+			return component, err
 		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runCreate(cmd, nameFlag, queueFlag, descriptionFlag, leadFlag, assignAutoFlag, fromJSON)
+		Item:  toComponentItem,
+		Quiet: componentID,
+		Confirm: func(_ []string, component *tracker.Component) string {
+			return "Component " + componentID(component) + " created"
 		},
-	}
-
-	cmd.Flags().StringVar(&nameFlag, "name", "", "Component name (required)")
-	cmd.Flags().StringVar(&queueFlag, "queue", "", "Queue key (required)")
-	cmd.Flags().StringVar(&descriptionFlag, "description", "", "Component description")
-	cmd.Flags().StringVar(&leadFlag, "lead", "", "Lead user ID")
-	cmd.Flags().BoolVar(&assignAutoFlag, "assign-auto", false, "Auto-assign issues to lead")
-	cmd.Flags().StringVar(
-		&fromJSON, "from-json", "",
-		`JSON input: inline '{"name":"...","queue":"..."}', @file, or - for stdin`,
-	)
-
-	runner.SetFields(cmd, ComponentListFields)
-
-	return cmd
+	}.Command()
 }
 
-func runCreate(
-	cmd *cobra.Command,
-	nameFlag, queueFlag, descriptionFlag, leadFlag string,
-	assignAutoFlag bool,
-	fromJSON string,
-) error {
-	opts := output.FromContext(cmd.Context())
-
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "component create", ComponentListFields)
+// componentFlags are the request flags of create and edit, which word only
+// the help of --name and --queue differently.
+func componentFlags(name, queue string) []runner.Flag {
+	return []runner.Flag{
+		runner.Text("name", name),
+		runner.Text("queue", queue),
+		runner.Text("description", "Component description"),
+		runner.Text("lead", "Lead user ID"),
+		runner.Bool("assign-auto", "Auto-assign issues to lead").Key("assignAuto"),
 	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = ComponentListFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, ComponentListFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, ComponentListFields)
-	}
-
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
-	if err != nil {
-		return err
-	}
-
-	req, buildErr := buildCreateRequest(cmd, nameFlag, queueFlag, descriptionFlag, leadFlag, assignAutoFlag, fromJSON)
-	if buildErr != nil {
-		return buildErr
-	}
-
-	creator := newComponentCreator(auth)
-
-	component, _, err := creator.Create(cmd.Context(), req)
-	if err != nil {
-		return api.MapAPIError(err)
-	}
-
-	return renderCreateOutput(cmd.OutOrStdout(), opts, component)
 }
 
-func buildCreateRequest(
-	cmd *cobra.Command,
-	nameFlag, queueFlag, descriptionFlag, leadFlag string,
-	assignAutoFlag bool,
-	fromJSON string,
-) (*tracker.ComponentRequest, error) {
-	if cmd.Flags().Changed("from-json") {
-		data, parseErr := validate.ParseJSONInput(fromJSON)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		req := &tracker.ComponentRequest{}
-		if decodeErr := createBody.Decode(data, req); decodeErr != nil {
-			return nil, decodeErr
-		}
-		return req, nil
-	}
-
-	req := &tracker.ComponentRequest{
-		Name:  &nameFlag,
-		Queue: &queueFlag,
-	}
-	if cmd.Flags().Changed("description") {
-		req.Description = &descriptionFlag
-	}
-	if cmd.Flags().Changed("lead") {
-		req.Lead = &leadFlag
-	}
-	if cmd.Flags().Changed("assign-auto") {
-		req.AssignAuto = &assignAutoFlag
-	}
-	return req, nil
-}
-
-func renderCreateOutput(w io.Writer, opts *output.Options, component *tracker.Component) error {
-	if opts.IsJSON() {
-		item := toComponentItem(component)
-		if opts.HasFieldSelection() {
-			filtered := output.FilterFields(item, opts.JSONFields)
-			if opts.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, opts.JQFilter)
-			}
-			return opts.PrintJSON(w, filtered)
-		}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(w, item, opts.JQFilter)
-		}
-		return opts.PrintJSON(w, item)
-	}
-
-	if opts.Quiet {
-		output.PrintQuiet(w, api.DerefFlexString(component.ID, ""))
-		return nil
-	}
-
-	_, err := fmt.Fprintf(w, "Component %s created\n", api.DerefFlexString(component.ID, ""))
-	return err
+func componentID(c *tracker.Component) string {
+	return api.DerefFlexString(c.ID, "")
 }
