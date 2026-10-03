@@ -54,7 +54,7 @@ ytr worklog create PROJ-123 --duration PT2H --start 2026-03-30T10:00:00Z
 
 # Bulk operations
 ytr bulk move PROJ-1 PROJ-2 PROJ-3 --queue TARGET
-echo "PROJ-1\nPROJ-2" | ytr bulk update --field priority=critical
+printf 'PROJ-1\nPROJ-2\n' | ytr bulk update --field priority=critical
 
 # Reference data
 ytr status list --json key,name

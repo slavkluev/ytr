@@ -82,7 +82,7 @@ SEE ALSO
   ytr issue list --filter queue=PROJ
 
   # Multiple filters
-  ytr issue list --filter queue=PROJ --filter status=open --filter assignee=me()
+  ytr issue list --filter queue=PROJ --filter status=open --filter 'assignee=me()'
 
   # Search with Tracker query language
   ytr issue list --query 'Queue: PROJ AND Status: open "Sort By": Updated DESC'

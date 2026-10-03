@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "11.0"
+  version: "11.1"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -49,7 +49,7 @@ Notes:
 
 | Command | Description | Key Flags |
 |---------|-------------|-----------|
-| `ytr issue create` | Create an issue | `--queue`, `--summary`, `--description`, `--from-json` |
+| `ytr issue create` | Create an issue | `--queue`, `--summary`, `--description`, `--type`, `--priority`, `--assignee`, `--parent`, `--from-json` |
 | `ytr issue list` | List issues | `--query`, `--filter`, `--order-by`, `--order-asc`, `--limit`, `--all`, `--cursor` |
 | `ytr issue view ISSUE-KEY` | View issue details | |
 | `ytr issue update ISSUE-KEY` | Update an issue | `--summary`, `--description`, `--type`, `--priority`, `--assignee`, `--parent`, `--from-json` |
@@ -118,6 +118,7 @@ Notes:
 | `ytr completion bash` | Generate bash completion script | |
 | `ytr completion zsh` | Generate zsh completion script | |
 | `ytr completion fish` | Generate fish completion script | |
+| `ytr help [command]` | Show help for any command | |
 
 ## Workflow Examples
 
@@ -136,7 +137,7 @@ Common `--filter` keys (camelCase, from API JSON field names):
 
 Note: `--filter` uses camelCase API field names (`createdBy`, `createdAt`), while `--query` uses Title Case display names (`Author`, `Created`). See [query-language.md](query-language.md) for query syntax.
 
-Special value: `me()` for current user (e.g., `--filter assignee=me()`).
+Special value: `me()` for current user (e.g., `--filter 'assignee=me()'`).
 Discover all fields: `ytr field list --queue QUEUE --json id,key,name,schema,options`.
 `id` is the full field id (`<queueId>--<key>` for local fields); `options` lists the
 allowed values for enum fields in the JSON type Tracker sent, so numeric options
@@ -156,7 +157,7 @@ ytr issue list --query 'Queue: PROJ AND Status: open "Sort By": Updated DESC'
 ytr issue list --filter queue=PROJ --filter priority=critical
 
 # Multiple filters
-ytr issue list --filter queue=PROJ --filter status=open --filter assignee=me()
+ytr issue list --filter queue=PROJ --filter status=open --filter 'assignee=me()'
 
 # Sort by field (descending by default)
 ytr issue list --filter queue=PROJ --order-by updatedAt
@@ -197,7 +198,7 @@ ytr checklist create PROJ-123 --text "Write unit tests"
 ytr bulk move PROJ-1 PROJ-2 PROJ-3 --queue TARGET
 
 # Bulk update via stdin pipe
-echo "PROJ-1\nPROJ-2" | ytr bulk update --field priority=critical
+printf 'PROJ-1\nPROJ-2\n' | ytr bulk update --field priority=critical
 
 # Bulk transition with timeout
 ytr bulk transition PROJ-1 PROJ-2 --transition close --timeout 10m

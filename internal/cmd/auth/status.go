@@ -17,7 +17,7 @@ func newStatusCmd() *cobra.Command {
 		Long: `Show the current authentication state. Validates the token via API call and displays
 the token source, organization, and authenticated user.
 
-Use --json to get machine-readable output with fixed structure (no field selection).
+Use --jq . to get machine-readable output with fixed structure (no field selection).
 
 SEE ALSO
   ytr auth login    - Authenticate with Yandex Tracker
@@ -26,7 +26,7 @@ SEE ALSO
   ytr auth status
 
   # Check auth status as JSON
-  ytr auth status --json`,
+  ytr auth status --jq .`,
 		Args: cobra.NoArgs,
 		RunE: runStatus,
 	}

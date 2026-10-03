@@ -110,6 +110,44 @@ func TestStatus_Authenticated_JSON(t *testing.T) {
 	}
 }
 
+// The Example and help text name `ytr auth status --jq .` as the way to get the
+// JSON document.
+func TestStatus_Authenticated_JQ(t *testing.T) {
+	dir := setupConfigDir(t)
+	writeConfig(t, dir, "valid-token", "org-123", "cloud")
+
+	display := "JQ Status User"
+	withMockValidator(t, &mockUserValidator{
+		user: &tracker.User{Display: &display},
+	})
+
+	opts := output.Options{JQFilter: "."}
+
+	statusCmd := newStatusCmd()
+	stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
+	statusCmd.SetOut(stdout)
+	statusCmd.SetErr(stderr)
+	statusCmd.SetArgs([]string{})
+
+	if err := statusCmd.ExecuteContext(output.NewContext(t.Context(), &opts)); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result map[string]string
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("stdout is not a JSON document: %v (stdout: %q)", err, stdout.String())
+	}
+	if result["status"] != "authenticated" {
+		t.Errorf("status = %q, want %q", result["status"], "authenticated")
+	}
+	if result["user"] != "JQ Status User" {
+		t.Errorf("user = %q, want %q", result["user"], "JQ Status User")
+	}
+	if stderr.Len() > 0 {
+		t.Errorf("stderr = %q, want empty", stderr.String())
+	}
+}
+
 func TestStatus_NotAuthenticated(t *testing.T) {
 	setupConfigDir(t) // empty dir, no config
 
