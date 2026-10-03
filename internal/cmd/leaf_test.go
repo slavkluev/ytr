@@ -132,6 +132,12 @@ func notFoundRow(path string, args ...string) leafRow {
 	}
 }
 
+func named(name string, row leafRow) leafRow {
+	row.name = name
+
+	return row
+}
+
 // fieldHintRow wants --json= on the leaf at path, given args, to name its
 // fields in order before any request.
 func fieldHintRow(path string, args []string, fields ...string) leafRow {
