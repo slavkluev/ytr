@@ -11,14 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-type componentLister interface {
-	List(ctx context.Context) ([]*tracker.Component, *tracker.Response, error)
-}
-
-type componentGetter interface {
-	Get(ctx context.Context, componentID string) (*tracker.Component, *tracker.Response, error)
-}
-
 type componentCreator interface {
 	Create(ctx context.Context, component *tracker.ComponentRequest) (*tracker.Component, *tracker.Response, error)
 }
@@ -33,14 +25,6 @@ type componentEditor interface {
 
 type componentDeleter interface {
 	Delete(ctx context.Context, componentID string) (*tracker.Response, error)
-}
-
-var newComponentLister = func(auth *config.ResolvedAuth) componentLister {
-	return api.NewClient(auth).Components
-}
-
-var newComponentGetter = func(auth *config.ResolvedAuth) componentGetter {
-	return api.NewClient(auth).Components
 }
 
 var newComponentCreator = func(auth *config.ResolvedAuth) componentCreator {

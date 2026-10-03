@@ -1,20 +1,15 @@
 package component
 
 import (
-	"fmt"
-	"io"
+	"context"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
-	"github.com/slavkluev/ytr/internal/config"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/output"
 )
-
-// ComponentListFields lists the available JSON field names for component list output.
-var ComponentListFields = []string{"id", "name", "queue", "lead", "leadId", "description", "assignAuto"}
 
 type componentItem struct {
 	ID          string `json:"id"`
@@ -26,16 +21,14 @@ type componentItem struct {
 	AssignAuto  bool   `json:"assignAuto"`
 }
 
-func toComponentItem(c *tracker.Component) componentItem {
-	queue := ""
-	if c.Queue != nil {
-		queue = api.DerefString(c.Queue.Key, "")
-	}
+// ComponentListFields are the --json fields of every component command.
+var ComponentListFields = runner.ItemFields[componentItem]()
 
+func toComponentItem(c *tracker.Component) componentItem {
 	return componentItem{
 		ID:          api.DerefFlexString(c.ID, ""),
 		Name:        api.DerefString(c.Name, ""),
-		Queue:       queue,
+		Queue:       componentQueue(c, ""),
 		Lead:        c.Lead.DisplayOr(""),
 		LeadID:      c.Lead.IDOr(""),
 		Description: api.DerefString(c.Description, ""),
@@ -43,125 +36,41 @@ func toComponentItem(c *tracker.Component) componentItem {
 	}
 }
 
+func componentQueue(c *tracker.Component, fallback string) string {
+	if c.Queue == nil {
+		return fallback
+	}
+
+	return api.DerefString(c.Queue.Key, fallback)
+}
+
 func newListCmd() *cobra.Command {
-	cmd := &cobra.Command{
+	return runner.List[*tracker.Component, componentItem]{
 		Use:   "list",
 		Short: "List components",
-		Long: `List all project components in Yandex Tracker.
-
-JSON FIELDS
-  id, name, queue, lead, leadId, description, assignAuto
-
-SEE ALSO
-  ytr component get     - Show component details
+		Long:  `List all project components in Yandex Tracker.`,
+		SeeAlso: `  ytr component get     - Show component details
   ytr component create  - Create a component`,
 		Example: `  # List all components
   ytr component list
 
   # Get components as JSON
   ytr component list --json id,name,queue`,
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runList(cmd)
+		Empty: "No components found",
+		Call: func(ctx context.Context, c *tracker.Client, _ []string) ([]*tracker.Component, error) {
+			components, _, err := c.Components.List(ctx)
+			return components, err
 		},
-	}
-
-	jsonfields.Register("ytr component list", ComponentListFields)
-
-	return cmd
-}
-
-func runList(cmd *cobra.Command) error {
-	opts := output.FromContext(cmd.Context())
-
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "component list", ComponentListFields)
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = ComponentListFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, ComponentListFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, ComponentListFields)
-	}
-
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
-	if err != nil {
-		return err
-	}
-
-	lister := newComponentLister(auth)
-
-	components, _, err := lister.List(cmd.Context())
-	if err != nil {
-		return api.MapAPIError(err)
-	}
-
-	return renderListOutput(cmd.OutOrStdout(), opts, components)
-}
-
-func renderListOutput(w io.Writer, opts *output.Options, components []*tracker.Component) error {
-	if opts.IsJSON() {
-		items := make([]componentItem, len(components))
-		for i, c := range components {
-			items[i] = toComponentItem(c)
-		}
-
-		if opts.HasFieldSelection() {
-			filtered := make([]map[string]any, len(items))
-			for i, item := range items {
-				filtered[i] = output.FilterFields(item, opts.JSONFields)
+		Item:   toComponentItem,
+		Header: []string{"ID", "NAME", "QUEUE", "LEAD"},
+		Row: func(_ *output.Options, c *tracker.Component) []string {
+			return []string{
+				api.DerefFlexString(c.ID, ""),
+				api.DerefString(c.Name, "-"),
+				componentQueue(c, "-"),
+				c.Lead.DisplayOr("-"),
 			}
-			if opts.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, opts.JQFilter)
-			}
-			return opts.PrintJSON(w, filtered)
-		}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(w, items, opts.JQFilter)
-		}
-		return opts.PrintJSON(w, items)
-	}
-
-	if opts.Quiet {
-		ids := make([]string, len(components))
-		for i, c := range components {
-			ids[i] = api.DerefFlexString(c.ID, "")
-		}
-		output.PrintQuiet(w, ids...)
-		return nil
-	}
-
-	if len(components) == 0 {
-		_, err := fmt.Fprintln(w, "No components found")
-		return err
-	}
-
-	tbl := opts.NewTable(w)
-	tbl.AddHeader("ID", "NAME", "QUEUE", "LEAD")
-
-	for _, c := range components {
-		queue := "-"
-		if c.Queue != nil {
-			queue = api.DerefString(c.Queue.Key, "-")
-		}
-
-		tbl.AddRow(
-			api.DerefFlexString(c.ID, ""),
-			api.DerefString(c.Name, "-"),
-			queue,
-			c.Lead.DisplayOr("-"),
-		)
-	}
-
-	tbl.Render()
-	return nil
+		},
+		Quiet: func(c *tracker.Component) string { return api.DerefFlexString(c.ID, "") },
+	}.Command()
 }

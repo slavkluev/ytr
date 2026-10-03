@@ -90,6 +90,48 @@ func (l List[T, Item]) render(w io.Writer, opts *output.Options, values []T) err
 	return nil
 }
 
+// Get declares a command that fetches one T from Tracker and prints it as a
+// card of labeled rows. Item is the flat struct T becomes under --json; its
+// json tags are the fields the command accepts, in order.
+type Get[T, Item any] struct {
+	// Long is the description; Command adds the JSON FIELDS section after it,
+	// then SeeAlso as the SEE ALSO section.
+	Use, Short, Long, SeeAlso, Example string
+
+	Args []Arg
+
+	Call   func(ctx context.Context, c *tracker.Client, args []string) (T, error)
+	Item   func(T) Item
+	Detail func(*output.DetailPrinter, *output.Options, T)
+	Quiet  func(T) string
+}
+
+// Command returns the cobra command g declares.
+func (g Get[T, Item]) Command() *cobra.Command {
+	fields := ItemFields[Item]()
+
+	return newCommand(help{g.Use, g.Short, g.Long, g.SeeAlso, g.Example}, g.Args, fields,
+		func(cmd *cobra.Command, args []string) error {
+			return run(cmd, args, g.Args, fields, g.Call, g.render)
+		})
+}
+
+func (g Get[T, Item]) render(w io.Writer, opts *output.Options, value T) error {
+	if opts.IsJSON() {
+		return printJSON(w, opts, output.FilterFields(g.Item(value), opts.JSONFields))
+	}
+
+	if opts.Quiet {
+		output.PrintQuiet(w, g.Quiet(value))
+		return nil
+	}
+
+	card := opts.NewDetail(w)
+	g.Detail(card, opts, value)
+
+	return card.Err()
+}
+
 // Arg is one positional argument: the check it must pass before anything else
 // runs, and the value Call receives in its place.
 type Arg struct {

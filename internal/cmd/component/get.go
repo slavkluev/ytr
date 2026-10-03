@@ -1,59 +1,22 @@
 package component
 
 import (
-	"io"
+	"context"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
-	"github.com/slavkluev/ytr/internal/config"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// ComponentGetFields lists the available JSON field names for component get output.
-var ComponentGetFields = []string{"id", "name", "queue", "lead", "leadId", "description", "assignAuto"}
-
-type componentDetail struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Queue       string `json:"queue,omitempty"`
-	Lead        string `json:"lead,omitempty"`
-	LeadID      string `json:"leadId"`
-	Description string `json:"description,omitempty"`
-	AssignAuto  bool   `json:"assignAuto"`
-}
-
-func toComponentDetail(c *tracker.Component) componentDetail {
-	queue := ""
-	if c.Queue != nil {
-		queue = api.DerefString(c.Queue.Key, "")
-	}
-
-	return componentDetail{
-		ID:          api.DerefFlexString(c.ID, ""),
-		Name:        api.DerefString(c.Name, ""),
-		Queue:       queue,
-		Lead:        c.Lead.DisplayOr(""),
-		LeadID:      c.Lead.IDOr(""),
-		Description: api.DerefString(c.Description, ""),
-		AssignAuto:  api.DerefBool(c.AssignAuto, false),
-	}
-}
-
 func newGetCmd() *cobra.Command {
-	cmd := &cobra.Command{
+	return runner.Get[*tracker.Component, componentItem]{
 		Use:   "get COMPONENT-ID",
 		Short: "Show component details",
-		Long: `Display detailed information about a Yandex Tracker component.
-
-JSON FIELDS
-  id, name, queue, lead, leadId, description, assignAuto
-
-SEE ALSO
-  ytr component list    - List all components
+		Long:  `Display detailed information about a Yandex Tracker component.`,
+		SeeAlso: `  ytr component list    - List all components
   ytr component edit    - Edit a component
   ytr component delete  - Delete a component`,
 		Example: `  # View component details
@@ -61,97 +24,24 @@ SEE ALSO
 
   # Get specific fields as JSON
   ytr component get 42 --json name,queue,lead`,
-		Args: cobra.ExactArgs(1),
-		PreRunE: func(_ *cobra.Command, args []string) error {
-			_, err := validate.ValidateNumericID(args[0], "component ID")
-			return err
+		Args: []runner.Arg{runner.NumericID("component ID")},
+		Call: func(ctx context.Context, c *tracker.Client, args []string) (*tracker.Component, error) {
+			component, _, err := c.Components.Get(ctx, args[0])
+			return component, err
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runGet(cmd, args[0])
-		},
-	}
-
-	jsonfields.Register("ytr component get", ComponentGetFields)
-
-	return cmd
+		Item:   toComponentItem,
+		Detail: componentCard,
+		Quiet:  func(c *tracker.Component) string { return api.DerefFlexString(c.ID, "") },
+	}.Command()
 }
 
-func runGet(cmd *cobra.Command, componentID string) error {
-	opts := output.FromContext(cmd.Context())
-
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "component get", ComponentGetFields)
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = ComponentGetFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, ComponentGetFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, ComponentGetFields)
-	}
-
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
-	if err != nil {
-		return err
-	}
-
-	getter := newComponentGetter(auth)
-
-	component, _, err := getter.Get(cmd.Context(), componentID)
-	if err != nil {
-		return api.MapAPIError(err)
-	}
-
-	w := cmd.OutOrStdout()
-
-	if opts.IsJSON() {
-		detail := toComponentDetail(component)
-
-		if opts.HasFieldSelection() {
-			filtered := output.FilterFields(detail, opts.JSONFields)
-			if opts.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, opts.JQFilter)
-			}
-			return opts.PrintJSON(w, filtered)
-		}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(w, detail, opts.JQFilter)
-		}
-		return opts.PrintJSON(w, detail)
-	}
-
-	if opts.Quiet {
-		output.PrintQuiet(w, api.DerefFlexString(component.ID, ""))
-		return nil
-	}
-
-	return renderComponentCard(w, opts, component)
-}
-
-func renderComponentCard(w io.Writer, opts *output.Options, c *tracker.Component) error {
-	d := opts.NewDetail(w)
-
+func componentCard(d *output.DetailPrinter, _ *output.Options, c *tracker.Component) {
 	d.Field("ID", api.DerefFlexString(c.ID, ""))
 	d.Field("Name", api.DerefString(c.Name, "-"))
-
-	queue := "-"
-	if c.Queue != nil {
-		queue = api.DerefString(c.Queue.Key, "-")
-	}
-	d.Field("Queue", queue)
-
+	d.Field("Queue", componentQueue(c, "-"))
 	d.Field("Lead", c.Lead.DisplayOr("-"))
 
-	desc := api.DerefString(c.Description, "")
-	if desc != "" {
+	if desc := api.DerefString(c.Description, ""); desc != "" {
 		d.Field("Description", desc)
 	}
 
@@ -160,6 +50,4 @@ func renderComponentCard(w io.Writer, opts *output.Options, c *tracker.Component
 		assignAuto = "yes"
 	}
 	d.Field("AssignAuto", assignAuto)
-
-	return d.Err()
 }
