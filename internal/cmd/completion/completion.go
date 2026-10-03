@@ -44,7 +44,12 @@ SEE ALSO
 		Use:   "bash",
 		Short: "Generate bash completion script",
 		Long:  "Generate bash completion script for ytr. Output to stdout.",
-		Args:  cobra.NoArgs,
+		Example: `  # Load completions for each session on Linux
+  ytr completion bash > /etc/bash_completion.d/ytr
+
+  # Load completions for each session on macOS
+  ytr completion bash > $(brew --prefix)/etc/bash_completion.d/ytr`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return rootCmd.GenBashCompletionV2(cmd.OutOrStdout(), true)
 		},
@@ -54,7 +59,9 @@ SEE ALSO
 		Use:   "zsh",
 		Short: "Generate zsh completion script",
 		Long:  "Generate zsh completion script for ytr. Output to stdout.",
-		Args:  cobra.NoArgs,
+		Example: `  # Load completions for each session
+  ytr completion zsh > "${fpath[1]}/_ytr"`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return rootCmd.GenZshCompletion(cmd.OutOrStdout())
 		},
@@ -64,7 +71,9 @@ SEE ALSO
 		Use:   "fish",
 		Short: "Generate fish completion script",
 		Long:  "Generate fish completion script for ytr. Output to stdout.",
-		Args:  cobra.NoArgs,
+		Example: `  # Load completions for each session
+  ytr completion fish > ~/.config/fish/completions/ytr.fish`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return rootCmd.GenFishCompletion(cmd.OutOrStdout(), true)
 		},

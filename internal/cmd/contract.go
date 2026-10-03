@@ -224,6 +224,8 @@ func newHelpCmd() *cobra.Command {
 		Short: "Help about any command",
 		Long: `Help provides help for any command in the application.
 Simply type ytr help [path to command] for full details.`,
+		Example: `  # Show the help of a command
+  ytr help issue list`,
 		Args:              cobra.ArbitraryArgs,
 		ValidArgsFunction: completeHelpTopics,
 		RunE:              runHelp,
