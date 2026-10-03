@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-10-03 against 2f4dc27. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-10-03 against 0461f93. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## ytr
 
@@ -34,7 +34,6 @@ Yandex Tracker CLI for LLM agents and humans: Go 1.26, cobra, built on `github.c
 - When a flag, JSON field, output shape, or exit code changes, update `skills/ytr/SKILL.md` in the same commit and bump its `metadata.version`: major when a documented invocation stops working or its output changes, minor for additions, none for wording.
 - User-visible changes are `feat` or `fix` commits — goreleaser drops `docs`, `test`, and `chore` from release notes. Commit and branch format: `CONTRIBUTING.md`.
 - Tests are white-box, stdlib `testing` only, never `t.Parallel` — they swap package globals (factory vars, `output.*` flags, the field registry). Call `testutil.ResetOutputFlags(t)` first in the test body, stub the factory var with a `t.Cleanup` restore, and pass auth as `--token`/`--org-id`/`--org-type` flags; tests touching env or config set `t.Setenv("YTR_CONFIG_DIR", t.TempDir())`.
-- gocyclo and cyclop (limit 30) apply to `_test.go` too: write standalone test functions rather than one large table-driven test.
 - Comment only a why the code cannot say — never restate a name, label a step, or narrate a past bug; pin the bug with a named regression test instead. `internal/cmd/comments_test.go` fails on the commonest restating shapes.
 
 ## Known pitfalls

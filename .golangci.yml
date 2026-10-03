@@ -162,11 +162,13 @@ linters:
       - path: '_test\.go'
         linters:
           - bodyclose
+          - cyclop
           - dupl
           - errcheck
           - funlen
           - gocognit
           - goconst
+          - gocyclo
           - gosec
           - mnd
           - modernize
