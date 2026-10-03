@@ -34,10 +34,7 @@ Fish:
   ytr completion fish | source
 
   # To load completions for each session, execute once:
-  ytr completion fish > ~/.config/fish/completions/ytr.fish
-
-SEE ALSO
-  ytr --help    - Show all available commands`,
+  ytr completion fish > ~/.config/fish/completions/ytr.fish`,
 	}
 
 	cmd.AddCommand(&cobra.Command{

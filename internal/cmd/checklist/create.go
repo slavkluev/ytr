@@ -18,9 +18,6 @@ func newCreateCmd() *cobra.Command {
 		Long: `Create a new checklist item on a Yandex Tracker issue.
 
 Deadline is supported only via --from-json (not as a separate flag).`,
-		SeeAlso: `  ytr checklist list    - List checklist items on issue
-  ytr checklist edit    - Edit a checklist item
-  ytr checklist delete  - Delete a checklist item`,
 		Example: `  # Create a checklist item
   ytr checklist create PROJ-123 --text "Review PR"
 

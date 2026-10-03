@@ -52,11 +52,7 @@ func newListCmd() *cobra.Command {
 		Long: `List Yandex Tracker organization users with pagination.
 
 JSON FIELDS
-  uid, display, login, email
-
-SEE ALSO
-  ytr user myself   - Show current user
-  ytr user get      - Show user details by UID`,
+  uid, display, login, email`,
 		Example: `  # List all users
   ytr user list
 

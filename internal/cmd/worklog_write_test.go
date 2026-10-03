@@ -94,9 +94,7 @@ func TestWorklogCreate(t *testing.T) {
 		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
 			create(slices.Concat(required, []string{"--json", "id"})...)...),
 		helpRow("worklog create", "Tracker requires both duration and start time when creating a worklog.\n\n"+
-			"JSON FIELDS\n  id, author, authorId, duration, start, comment\n\n"+
-			"SEE ALSO\n  ytr worklog list    - List worklogs on issue\n  ytr worklog edit    - Edit a worklog\n"+
-			"  ytr worklog delete  - Delete a worklog\n"),
+			"JSON FIELDS\n  id, author, authorId, duration, start, comment\n"),
 	})
 }
 
@@ -172,9 +170,7 @@ func TestWorklogEdit(t *testing.T) {
 		failureRow(trackerNotFoundOn(http.MethodPatch, path, "Worklog not found"),
 			edit("--comment", "x", "--json", "id")...),
 		helpRow("worklog edit", "Provide one or more flags to update, or --from-json for full JSON input.\n\n"+
-			"JSON FIELDS\n  id, author, authorId, duration, start, comment\n\n"+
-			"SEE ALSO\n  ytr worklog list    - List worklogs on issue\n  ytr worklog create  - Create a worklog\n"+
-			"  ytr worklog delete  - Delete a worklog\n"),
+			"JSON FIELDS\n  id, author, authorId, duration, start, comment\n"),
 	})
 }
 
@@ -197,8 +193,6 @@ func TestWorklogDelete(t *testing.T) {
 		},
 		failureRow(trackerNotFoundOn(http.MethodDelete, path, "Worklog not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
-		helpRow("worklog delete", "Delete a worklog from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n\n"+
-			"SEE ALSO\n  ytr worklog list    - List worklogs on issue\n  ytr worklog create  - Create a worklog\n"+
-			"  ytr worklog edit    - Edit a worklog\n"),
+		helpRow("worklog delete", "Delete a worklog from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n"),
 	}))
 }

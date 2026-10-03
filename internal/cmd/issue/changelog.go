@@ -125,12 +125,7 @@ Each changelog entry represents an atomic event (field change, comment, link, et
 with the date, author, type, and structured details.
 
 JSON FIELDS
-  date, author, authorId, type, transport, fields, comments, links, attachments, worklog, relatedResolutions
-
-SEE ALSO
-  ytr issue view        - View issue details
-  ytr issue list        - List issues
-  ytr issue transition  - Transition issue status`,
+  date, author, authorId, type, transport, fields, comments, links, attachments, worklog, relatedResolutions`,
 		Example: `  # Show all changes for an issue
   ytr issue changelog PROJ-123
 

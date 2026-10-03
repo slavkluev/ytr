@@ -17,9 +17,6 @@ func newEditCmd() *cobra.Command {
 		Long: `Edit an existing comment on a Yandex Tracker issue.
 
 Provide the updated text via --body or full JSON via --from-json.`,
-		SeeAlso: `  ytr comment list    - List comments on issue
-  ytr comment create  - Add comment to issue
-  ytr comment delete  - Delete a comment`,
 		Example: `  # Edit comment body
   ytr comment edit PROJ-123 42 --body "Updated text"
 

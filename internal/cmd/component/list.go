@@ -46,8 +46,6 @@ func newListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List components",
 		Long:  `List all project components in Yandex Tracker.`,
-		SeeAlso: `  ytr component get     - Show component details
-  ytr component create  - Create a component`,
 		Example: `  # List all components
   ytr component list
 

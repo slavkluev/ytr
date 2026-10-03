@@ -14,9 +14,6 @@ func newDeleteCmd() *cobra.Command {
 		Use:   "delete ISSUE-KEY WORKLOG-ID",
 		Short: "Delete a worklog",
 		Long:  `Delete a worklog from a Yandex Tracker issue.`,
-		SeeAlso: `  ytr worklog list    - List worklogs on issue
-  ytr worklog create  - Create a worklog
-  ytr worklog edit    - Edit a worklog`,
 		Example: `  # Delete worklog abc123 from PROJ-123
   ytr worklog delete PROJ-123 abc123
 

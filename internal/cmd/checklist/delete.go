@@ -14,9 +14,6 @@ func newDeleteCmd() *cobra.Command {
 		Use:   "delete ISSUE-KEY ITEM-ID",
 		Short: "Delete a checklist item",
 		Long:  `Delete a checklist item from a Yandex Tracker issue.`,
-		SeeAlso: `  ytr checklist list    - List checklist items on issue
-  ytr checklist create  - Add checklist item to issue
-  ytr checklist edit    - Edit a checklist item`,
 		Example: `  # Delete checklist item
   ytr checklist delete PROJ-123 item-1
 

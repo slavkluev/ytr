@@ -31,11 +31,7 @@ func newUpdateCmd() *cobra.Command {
 		Long: `Update an existing Yandex Tracker issue. Only changed fields are sent to the API.
 
 JSON FIELDS
-  key, summary, status, priority, type, author, authorId, assignee, assigneeId, createdAt, updatedAt, description
-
-SEE ALSO
-  ytr issue view        - View issue details
-  ytr issue transition  - Transition issue status`,
+  key, summary, status, priority, type, author, authorId, assignee, assigneeId, createdAt, updatedAt, description`,
 		Example: `  # Update issue summary
   ytr issue update PROJ-123 --summary "Updated title"
 

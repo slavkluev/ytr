@@ -29,8 +29,6 @@ func newViewCmd() *cobra.Command {
 		Use:   "view QUEUE-KEY",
 		Short: "View queue details",
 		Long:  `Display detailed information about a Yandex Tracker queue.`,
-		SeeAlso: `  ytr queue list    - List queues
-  ytr issue list    - List issues in a queue`,
 		Example: `  # View queue details
   ytr queue view PROJ
 

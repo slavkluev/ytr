@@ -113,9 +113,6 @@ func TestFieldList(t *testing.T) {
 				"readonly", "options", "queueOptions", "defaultOptions"),
 		),
 		notFoundRow("/v3/queues/NOPE/localFields", "field", "list", "--queue", "NOPE", "--json", "id"),
-		helpRow("field list", "JSON FIELDS\n"+
-			"  id, key, name, schema, items, readonly, options, queueOptions, defaultOptions\n\n"+
-			"SEE ALSO\n  ytr field get  - Show field details\n"),
 	})
 }
 
@@ -216,8 +213,5 @@ func TestFieldGet(t *testing.T) {
 			code:      ytrerrors.ExitUserError, stderr: []string{optionDecodeError(t)},
 		},
 		notFoundRow("/v3/queues/PROJ/localFields/nope", "field", "get", "nope", "--queue", "PROJ", "--json", "id"),
-		helpRow("field get", "JSON FIELDS\n  id, key, name, type, schema, items, required, readonly, category, "+
-			"queue, options, queueOptions, defaultOptions, description\n\n"+
-			"SEE ALSO\n  ytr field list  - List available fields\n"),
 	})
 }

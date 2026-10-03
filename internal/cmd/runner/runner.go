@@ -34,9 +34,8 @@ const fieldsAnnotation = "ytr:json-fields"
 // Item is the flat struct an element becomes under --json; its json tags are
 // the fields the command accepts, in order.
 type List[T, Item any] struct {
-	// Long is the description; Command adds the JSON FIELDS section after it,
-	// then SeeAlso as the SEE ALSO section.
-	Use, Short, Long, SeeAlso, Example string
+	// Long is the description; Command adds the JSON FIELDS section after it.
+	Use, Short, Long, Example string
 
 	Args []Arg
 
@@ -54,7 +53,7 @@ type List[T, Item any] struct {
 func (l List[T, Item]) Command() *cobra.Command {
 	fields := ItemFields[Item]()
 
-	return newCommand(help{l.Use, l.Short, l.Long, l.SeeAlso, l.Example}, l.Args, fields,
+	return newCommand(help{l.Use, l.Short, l.Long, l.Example}, l.Args, fields,
 		func(cmd *cobra.Command, args []string) error {
 			return run(cmd, args, steps[[]T]{args: l.Args, fields: fields, call: l.Call, render: l.render})
 		})
@@ -99,9 +98,8 @@ func (l List[T, Item]) render(w io.Writer, opts *output.Options, _ []string, val
 // card of labeled rows. Item is the flat struct T becomes under --json; its
 // json tags are the fields the command accepts, in order.
 type Get[T, Item any] struct {
-	// Long is the description; Command adds the JSON FIELDS section after it,
-	// then SeeAlso as the SEE ALSO section.
-	Use, Short, Long, SeeAlso, Example string
+	// Long is the description; Command adds the JSON FIELDS section after it.
+	Use, Short, Long, Example string
 
 	Args []Arg
 
@@ -115,7 +113,7 @@ type Get[T, Item any] struct {
 func (g Get[T, Item]) Command() *cobra.Command {
 	fields := ItemFields[Item]()
 
-	return newCommand(help{g.Use, g.Short, g.Long, g.SeeAlso, g.Example}, g.Args, fields,
+	return newCommand(help{g.Use, g.Short, g.Long, g.Example}, g.Args, fields,
 		func(cmd *cobra.Command, args []string) error {
 			return run(cmd, args, steps[T]{args: g.Args, fields: fields, call: g.Call, render: g.render})
 		})
@@ -142,9 +140,8 @@ func (g Get[T, Item]) render(w io.Writer, opts *output.Options, _ []string, valu
 // Item is the flat struct T becomes under --json; its json tags are the fields
 // the command accepts, in order.
 type Write[Req, T, Item any] struct {
-	// Long is the description; Command adds the JSON FIELDS section after it,
-	// then SeeAlso as the SEE ALSO section.
-	Use, Short, Long, SeeAlso, Example string
+	// Long is the description; Command adds the JSON FIELDS section after it.
+	Use, Short, Long, Example string
 
 	Args []Arg
 
@@ -174,7 +171,7 @@ func (w Write[Req, T, Item]) Command() *cobra.Command {
 		body.Flags = append(body.Flags, validate.BodyFlag{Name: f.name, Key: f.key})
 	}
 
-	cmd := newCommand(help{w.Use, w.Short, w.Long, w.SeeAlso, w.Example}, w.Args, fields,
+	cmd := newCommand(help{w.Use, w.Short, w.Long, w.Example}, w.Args, fields,
 		func(cmd *cobra.Command, args []string) error {
 			var (
 				patch map[string]any
@@ -230,9 +227,8 @@ func (w Write[Req, T, Item]) render(out io.Writer, opts *output.Options, args []
 // prints that ID: as a deleted item under --json, alone under --quiet, and
 // otherwise in the Confirm line.
 type Delete struct {
-	// Long is the description; Command adds the JSON FIELDS section after it,
-	// then SeeAlso as the SEE ALSO section.
-	Use, Short, Long, SeeAlso, Example string
+	// Long is the description; Command adds the JSON FIELDS section after it.
+	Use, Short, Long, Example string
 
 	Args []Arg
 
@@ -244,7 +240,7 @@ type Delete struct {
 func (d Delete) Command() *cobra.Command {
 	fields := ItemFields[deleted]()
 
-	return newCommand(help{d.Use, d.Short, d.Long, d.SeeAlso, d.Example}, d.Args, fields,
+	return newCommand(help{d.Use, d.Short, d.Long, d.Example}, d.Args, fields,
 		func(cmd *cobra.Command, args []string) error {
 			return run(cmd, args, steps[struct{}]{
 				args: d.Args, fields: fields,
@@ -475,14 +471,11 @@ func Collect[T any](seq iter.Seq2[T, error]) ([]T, error) {
 }
 
 type help struct {
-	use, short, long, seeAlso, example string
+	use, short, long, example string
 }
 
 func newCommand(h help, args []Arg, fields []string, runE func(*cobra.Command, []string) error) *cobra.Command {
 	long := h.long + "\n\nJSON FIELDS\n  " + strings.Join(fields, ", ")
-	if h.seeAlso != "" {
-		long += "\n\nSEE ALSO\n" + h.seeAlso
-	}
 
 	// A leaf without arguments reports a stray one as an unknown command, which
 	// cobra.ExactArgs(0) would turn into an argument count.

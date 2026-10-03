@@ -73,9 +73,7 @@ func TestComponentCreate(t *testing.T) {
 		helpRow(
 			"component create",
 			"Provide --name and --queue for required fields, or --from-json for full JSON input.\n\n"+
-				"JSON FIELDS\n  id, name, queue, lead, leadId, description, assignAuto\n\n"+
-				"SEE ALSO\n  ytr component list    - List all components\n  ytr component get     - Show component details\n"+
-				"  ytr component edit    - Edit a component\n  ytr component delete  - Delete a component\n",
+				"JSON FIELDS\n  id, name, queue, lead, leadId, description, assignAuto\n",
 		),
 	})
 }
@@ -134,9 +132,7 @@ func TestComponentEdit(t *testing.T) {
 		failureRow(trackerNotFoundOn(http.MethodPatch, path, "Component not found"),
 			edit("--name", "x", "--json", "id")...),
 		helpRow("component edit", "Provide one or more flags to update, or --from-json for full JSON input.\n\n"+
-			"JSON FIELDS\n  id, name, queue, lead, leadId, description, assignAuto\n\n"+
-			"SEE ALSO\n  ytr component list    - List all components\n  ytr component get     - Show component details\n"+
-			"  ytr component create  - Create a component\n  ytr component delete  - Delete a component\n"),
+			"JSON FIELDS\n  id, name, queue, lead, leadId, description, assignAuto\n"),
 	})
 }
 
@@ -155,8 +151,6 @@ func TestComponentDelete(t *testing.T) {
 		},
 		failureRow(trackerNotFoundOn(http.MethodDelete, path, "Component not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
-		helpRow("component delete", "Delete a project component from Yandex Tracker.\n\nJSON FIELDS\n  id, deleted\n\n"+
-			"SEE ALSO\n  ytr component list    - List all components\n  ytr component get     - Show component details\n"+
-			"  ytr component create  - Create a component\n"),
+		helpRow("component delete", "Delete a project component from Yandex Tracker.\n\nJSON FIELDS\n  id, deleted\n"),
 	}))
 }

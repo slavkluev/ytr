@@ -74,6 +74,7 @@ var policies = []policy{
 	{"Field hint", func(p *policyTarget) bool { return p.fields != nil && p.inv != nil }, checkFieldHint},
 	{"Unknown field", func(p *policyTarget) bool { return p.fields != nil && p.inv != nil }, checkUnknownField},
 	{"JSON FIELDS", (*policyTarget).isLeaf, checkJSONFieldsHelp},
+	{"No SEE ALSO", func(*policyTarget) bool { return true }, checkNoSeeAlso},
 	{"All with cursor", appliesAllWithCursor, checkAllWithCursor},
 	{"Tracker 500", (*policyTarget).reachesTracker, checkTrackerFailure},
 	{
@@ -357,6 +358,15 @@ func checkJSONFieldsHelp(t *testing.T, p *policyTarget) {
 		t.Errorf("%s --help lists JSON FIELDS %q, but --json accepts no field", p.label(), listed)
 	case p.fields != nil && !slices.Equal(listed, p.fields):
 		t.Errorf("%s --help lists JSON FIELDS %q, want %q", p.label(), listed, p.fields)
+	}
+}
+
+// checkNoSeeAlso wants --help without a SEE ALSO section: a group's help
+// already lists its subcommands, and a hand-kept copy drifts from them.
+func checkNoSeeAlso(t *testing.T, p *policyTarget) {
+	got := runProbe(t, slices.Concat(p.path, []string{"--help"}))
+	if strings.Contains(got.Stdout, "\nSEE ALSO\n") {
+		t.Errorf("%s --help has a SEE ALSO section; group help already lists every command", p.label())
 	}
 }
 

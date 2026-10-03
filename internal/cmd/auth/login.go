@@ -250,11 +250,7 @@ func newLoginCmd() *cobra.Command {
 		Short: "Authenticate with Yandex Tracker",
 		Long: `Authenticate with Yandex Tracker interactively. Prompts for token and organization ID,
 detects organization type when needed, validates credentials via API call,
-and saves them to config file.
-
-SEE ALSO
-  ytr auth status   - Check authentication status
-  ytr auth logout   - Remove stored credentials`,
+and saves them to config file.`,
 		Example: `  # Interactive login
 	  ytr auth login
 

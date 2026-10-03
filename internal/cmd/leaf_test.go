@@ -219,10 +219,10 @@ func fieldHint(path string, fields []string) string {
 		"Available fields for " + path + ":\n  " + strings.Join(fields, "\n  ") + "\nError: no fields specified\n"
 }
 
-// helpRow wants the leaf's --help to carry its JSON FIELDS and SEE ALSO
-// sections as one block.
-func helpRow(path, sections string) leafRow {
-	return leafRow{name: "Help", args: append(strings.Fields(path), "--help"), holds: []string{sections}}
+// helpRow wants the leaf's --help to hold tail: the end of its description, then
+// its JSON FIELDS section.
+func helpRow(path, tail string) leafRow {
+	return leafRow{name: "Help", args: append(strings.Fields(path), "--help"), holds: []string{tail}}
 }
 
 // assertAlignedTable fails when a TTY run printed the tab-separated table

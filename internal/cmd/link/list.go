@@ -52,8 +52,6 @@ func newListCmd() *cobra.Command {
 		Use:   "list ISSUE-KEY",
 		Short: "List links on an issue",
 		Long:  `List all links on a Yandex Tracker issue.`,
-		SeeAlso: `  ytr link create  - Create a link to another issue
-  ytr link delete  - Delete a link`,
 		Example: `  # List links on an issue
   ytr link list PROJ-123
 

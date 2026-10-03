@@ -22,12 +22,7 @@ bulk update, or bulk transition commands.
 
 JSON FIELDS
   id, status, statusText, totalIssues, totalCompletedIssues,
-  executionIssuePercent, executionChunkPercent, createdBy, createdById, createdAt
-
-SEE ALSO
-  ytr bulk move        - Move issues to another queue
-  ytr bulk update      - Update fields on issues
-  ytr bulk transition  - Transition issues to a new status`,
+  executionIssuePercent, executionChunkPercent, createdBy, createdById, createdAt`,
 		Example: `  # Check operation status
   ytr bulk status 593cd211ef7e8a0000000001
 

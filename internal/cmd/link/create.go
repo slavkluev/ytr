@@ -19,8 +19,6 @@ func newCreateCmd() *cobra.Command {
 		Long: `Create a typed link between two Yandex Tracker issues.
 
 Provide --type and --issue for individual flags, or --from-json for full JSON input.`,
-		SeeAlso: `  ytr link list    - List links on issue
-  ytr link delete  - Delete a link`,
 		Example: `  # Create a dependency link
   ytr link create PROJ-123 --type "depends on" --issue PROJ-456
 

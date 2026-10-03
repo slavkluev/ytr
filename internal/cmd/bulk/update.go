@@ -30,12 +30,7 @@ Issue keys can be provided as positional arguments or piped via stdin
 
 JSON FIELDS
   id, status, statusText, totalIssues, totalCompletedIssues,
-  executionIssuePercent, executionChunkPercent, createdBy, createdById, createdAt
-
-SEE ALSO
-  ytr bulk status      - Show bulk operation status
-  ytr bulk move        - Move issues to another queue
-  ytr bulk transition  - Transition issues to a new status`,
+  executionIssuePercent, executionChunkPercent, createdBy, createdById, createdAt`,
 		Example: `  # Update priority on multiple issues
   ytr bulk update PROJ-1 PROJ-2 --field priority=critical
 

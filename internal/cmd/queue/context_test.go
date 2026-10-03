@@ -860,8 +860,8 @@ func TestQueueContextFieldListsAgree(t *testing.T) {
 		t.Errorf("json tags %q do not match QueueContextFields %q", tags, QueueContextFields)
 	}
 
-	if want := "JSON FIELDS\n  " + strings.Join(QueueContextFields, ", ") + "\n"; !strings.Contains(cmd.Long, want) {
-		t.Errorf("JSON FIELDS block does not list the parts; want %q in:\n%s", want, cmd.Long)
+	if want := "JSON FIELDS\n  " + strings.Join(QueueContextFields, ", "); !strings.HasSuffix(cmd.Long, want) {
+		t.Errorf("JSON FIELDS block does not list the parts; want %q at the end of:\n%s", want, cmd.Long)
 	}
 
 	if got, ok := runner.Fields(cmd); !ok || !slices.Equal(got, QueueContextFields) {

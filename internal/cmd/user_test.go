@@ -18,7 +18,6 @@ const (
 		"First Name\tJohn\nLast Name\tDoe\nDismissed\tfalse\nHas License\ttrue\nExternal\tfalse\n"
 	userTTYCard = "UID:  12345\nDisplay:  John Doe\nLogin:  john.doe\nEmail:  john@example.com\n" +
 		"First Name:  John\nLast Name:  Doe\nDismissed:  false\nHas License:  true\nExternal:  false\n"
-	userHelpFields = "JSON FIELDS\n  uid, display, login, email, firstName, lastName, dismissed, hasLicense, external\n\n"
 )
 
 func TestUserMyself(t *testing.T) {
@@ -59,8 +58,6 @@ func TestUserMyself(t *testing.T) {
 			exchanges: []faketracker.Exchange{user}, stdout: "john.doe\n",
 		},
 		notFoundRow(path, "user", "myself", "--json", "uid"),
-		helpRow("user myself", userHelpFields+"SEE ALSO\n  ytr user get     - Show user details by UID\n"+
-			"  ytr user list    - List organization users\n"),
 	})
 }
 
@@ -106,7 +103,5 @@ func TestUserGet(t *testing.T) {
 			code: ytrerrors.ExitUserError, stderr: []string{"invalid user ID"},
 		},
 		notFoundRow(path, "user", "get", "12345", "--json", "uid"),
-		helpRow("user get", userHelpFields+"SEE ALSO\n  ytr user myself   - Show current user\n"+
-			"  ytr user list     - List organization users\n"),
 	})
 }

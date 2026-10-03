@@ -14,9 +14,6 @@ func newDeleteCmd() *cobra.Command {
 		Use:   "delete COMPONENT-ID",
 		Short: "Delete a component",
 		Long:  `Delete a project component from Yandex Tracker.`,
-		SeeAlso: `  ytr component list    - List all components
-  ytr component get     - Show component details
-  ytr component create  - Create a component`,
 		Example: `  # Delete component 42
   ytr component delete 42
 

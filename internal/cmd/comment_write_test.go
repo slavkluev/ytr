@@ -64,8 +64,6 @@ func TestCommentCreate(t *testing.T) {
 		},
 		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
 			create("--body", "x", "--json", "id")...),
-		helpRow("comment create", "JSON FIELDS\n  id, author, authorId, body, createdAt, updatedAt\n\n"+
-			"SEE ALSO\n  ytr comment list  - List comments on issue\n  ytr issue view    - View issue details\n"),
 	})
 }
 
@@ -139,9 +137,6 @@ func TestCommentEdit(t *testing.T) {
 		},
 		failureRow(trackerNotFoundOn(http.MethodPatch, path, "Comment not found"),
 			edit("--body", "x", "--json", "id")...),
-		helpRow("comment edit", "JSON FIELDS\n  id, author, authorId, body, createdAt, updatedAt\n\n"+
-			"SEE ALSO\n  ytr comment list    - List comments on issue\n  ytr comment create  - Add comment to issue\n"+
-			"  ytr comment delete  - Delete a comment\n"),
 	})
 }
 
@@ -165,8 +160,6 @@ func TestCommentDelete(t *testing.T) {
 		},
 		failureRow(trackerNotFoundOn(http.MethodDelete, path, "Comment not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
-		helpRow("comment delete", "Delete a comment from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n\n"+
-			"SEE ALSO\n  ytr comment list    - List comments on issue\n  ytr comment create  - Add comment to issue\n"+
-			"  ytr comment edit    - Edit a comment\n"),
+		helpRow("comment delete", "Delete a comment from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n"),
 	}))
 }

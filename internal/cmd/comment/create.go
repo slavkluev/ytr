@@ -17,8 +17,6 @@ func newCreateCmd() *cobra.Command {
 		Use:   "create ISSUE-KEY",
 		Short: "Add comment to issue",
 		Long:  `Create a new comment on a Yandex Tracker issue.`,
-		SeeAlso: `  ytr comment list  - List comments on issue
-  ytr issue view    - View issue details`,
 		Example: `  # Add a comment
   ytr comment create PROJ-123 --body "Fixed in commit abc123"
 

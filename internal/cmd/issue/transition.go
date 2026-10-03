@@ -36,11 +36,7 @@ func newTransitionCmd() *cobra.Command {
 fetches available transitions, matches the target by key or display name, then executes.
 
 JSON FIELDS
-  key, transition
-
-SEE ALSO
-  ytr issue view    - View issue details
-  ytr issue update  - Update issue fields`,
+  key, transition`,
 		Example: `  # Transition by display name
   ytr issue transition PROJ-123 --to "In Progress"
 

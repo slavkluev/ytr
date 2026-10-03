@@ -20,9 +20,6 @@ func newEditCmd() *cobra.Command {
 Deadline is supported only via --from-json (not as a separate flag).
 
 Use --checked to mark an item as done, --checked=false to unmark it.`,
-		SeeAlso: `  ytr checklist list    - List checklist items on issue
-  ytr checklist create  - Add checklist item to issue
-  ytr checklist delete  - Delete a checklist item`,
 		Example: `  # Update checklist item text
   ytr checklist edit PROJ-123 item-1 --text "Updated text"
 

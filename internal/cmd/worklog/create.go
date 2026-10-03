@@ -21,9 +21,6 @@ Durations use ISO 8601 format: PT1H30M (1h30m), PT45M (45min), P1D (1 day),
 P1DT2H (1 day 2 hours).
 
 Tracker requires both duration and start time when creating a worklog.`,
-		SeeAlso: `  ytr worklog list    - List worklogs on issue
-  ytr worklog edit    - Edit a worklog
-  ytr worklog delete  - Delete a worklog`,
 		Example: `  # Log 1h30m of work
   ytr worklog create PROJ-123 --duration PT1H30M --start 2026-03-30T10:00:00Z
 

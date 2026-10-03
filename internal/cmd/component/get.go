@@ -16,9 +16,6 @@ func newGetCmd() *cobra.Command {
 		Use:   "get COMPONENT-ID",
 		Short: "Show component details",
 		Long:  `Display detailed information about a Yandex Tracker component.`,
-		SeeAlso: `  ytr component list    - List all components
-  ytr component edit    - Edit a component
-  ytr component delete  - Delete a component`,
 		Example: `  # View component details
   ytr component get 42
 

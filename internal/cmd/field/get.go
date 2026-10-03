@@ -80,7 +80,6 @@ options lists the field's allowed values in the JSON type Tracker sent, so
 numeric options stay numbers. When Tracker sets the values per queue, options
 is omitted: queueOptions maps each queue key to its list, and defaultOptions
 holds Tracker's defaults list.`,
-		SeeAlso: `  ytr field list  - List available fields`,
 		Example: `  # View global field details
   ytr field get summary
 

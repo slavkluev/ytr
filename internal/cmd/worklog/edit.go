@@ -17,9 +17,6 @@ func newEditCmd() *cobra.Command {
 		Long: `Edit an existing worklog on a Yandex Tracker issue.
 
 Provide one or more flags to update, or --from-json for full JSON input.`,
-		SeeAlso: `  ytr worklog list    - List worklogs on issue
-  ytr worklog create  - Create a worklog
-  ytr worklog delete  - Delete a worklog`,
 		Example: `  # Update duration
   ytr worklog edit PROJ-123 abc123 --duration PT2H
 

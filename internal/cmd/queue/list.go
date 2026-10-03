@@ -45,10 +45,7 @@ func newListCmd() *cobra.Command {
 		Long: `List Yandex Tracker queues with pagination.
 
 JSON FIELDS
-  key, name, lead, leadId
-
-SEE ALSO
-  ytr queue view    - View queue details`,
+  key, name, lead, leadId`,
 		Example: `  # List all queues
   ytr queue list
 

@@ -32,12 +32,7 @@ func newCreateCmd() *cobra.Command {
 		Long: `Create a new Yandex Tracker issue with flags or raw JSON input.
 
 JSON FIELDS
-  key, summary, status, priority, type, author, authorId, assignee, assigneeId, createdAt, updatedAt, description
-
-SEE ALSO
-  ytr issue list    - List issues
-  ytr issue view    - View issue details
-  ytr issue update  - Update an issue`,
+  key, summary, status, priority, type, author, authorId, assignee, assigneeId, createdAt, updatedAt, description`,
 		Example: `  # Create a simple issue
   ytr issue create --queue PROJ --summary "Fix login bug"
 

@@ -60,9 +60,6 @@ func TestComponentList(t *testing.T) {
 			exchanges: []faketracker.Exchange{trackerGET(path, `[]`)}, stdout: "No components found\n",
 		},
 		notFoundRow(path, "component", "list", "--json", "id"),
-		helpRow("component list", "JSON FIELDS\n  id, name, queue, lead, leadId, description, assignAuto\n\n"+
-			"SEE ALSO\n  ytr component get     - Show component details\n"+
-			"  ytr component create  - Create a component\n"),
 	})
 }
 
@@ -122,8 +119,5 @@ func TestComponentGet(t *testing.T) {
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid component ID "abc"`},
 		},
 		notFoundRow(path, "component", "get", "42", "--json", "id"),
-		helpRow("component get", "JSON FIELDS\n  id, name, queue, lead, leadId, description, assignAuto\n\n"+
-			"SEE ALSO\n  ytr component list    - List all components\n  ytr component edit    - Edit a component\n"+
-			"  ytr component delete  - Delete a component\n"),
 	})
 }

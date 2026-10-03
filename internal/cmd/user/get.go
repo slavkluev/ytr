@@ -14,8 +14,6 @@ func newGetCmd() *cobra.Command {
 		Use:   "get UID",
 		Short: "Show user details",
 		Long:  `Display detailed information about a Yandex Tracker user by UID.`,
-		SeeAlso: `  ytr user myself   - Show current user
-  ytr user list     - List organization users`,
 		Example: `  # Show user details by UID
   ytr user get 12345
 

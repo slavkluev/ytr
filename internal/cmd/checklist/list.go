@@ -24,9 +24,6 @@ func newListCmd() *cobra.Command {
 		Use:   "list ISSUE-KEY",
 		Short: "List checklist items on an issue",
 		Long:  `List all checklist items on a Yandex Tracker issue.`,
-		SeeAlso: `  ytr checklist create  - Add checklist item to issue
-  ytr checklist edit    - Edit a checklist item
-  ytr checklist delete  - Delete a checklist item`,
 		Example: `  # List checklist items on an issue
   ytr checklist list PROJ-123
 

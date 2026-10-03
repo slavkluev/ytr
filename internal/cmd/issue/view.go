@@ -64,9 +64,6 @@ func newViewCmd() *cobra.Command {
 		Use:   "view ISSUE-KEY",
 		Short: "View issue details",
 		Long:  `Display detailed information about a Yandex Tracker issue.`,
-		SeeAlso: `  ytr issue list        - List issues
-  ytr issue update      - Update an issue
-  ytr issue transition  - Transition issue status`,
 		Example: `  # View issue details
   ytr issue view PROJ-123
 

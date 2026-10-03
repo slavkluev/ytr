@@ -43,8 +43,6 @@ func newMyselfCmd() *cobra.Command {
 		Use:   "myself",
 		Short: "Show current user",
 		Long:  `Display detailed information about the currently authenticated user.`,
-		SeeAlso: `  ytr user get     - Show user details by UID
-  ytr user list    - List organization users`,
 		Example: `  # Show current user
   ytr user myself
 

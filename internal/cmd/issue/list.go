@@ -73,11 +73,7 @@ Supports two search modes:
 The two modes are mutually exclusive: --query cannot be combined with --filter.
 
 JSON FIELDS
-  key, summary, status, priority, type, assignee, assigneeId, createdAt, updatedAt
-
-SEE ALSO
-  ytr issue view      - View issue details
-  ytr issue create    - Create a new issue`,
+  key, summary, status, priority, type, assignee, assigneeId, createdAt, updatedAt`,
 		Example: `  # Filter by queue
   ytr issue list --filter queue=PROJ
 

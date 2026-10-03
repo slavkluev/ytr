@@ -24,10 +24,7 @@ func NewCmd() *cobra.Command {
 		Long: `Display the version, commit hash, build date, Go version, and platform of the ytr binary.
 
 JSON FIELDS
-  version, commit, date, goVersion, os, arch
-
-SEE ALSO
-  ytr --help    - Show all available commands`,
+  version, commit, date, goVersion, os, arch`,
 		Example: `  # Show version
   ytr version
 

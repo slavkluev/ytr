@@ -14,11 +14,7 @@ func newLogoutCmd() *cobra.Command {
 		Use:   "logout",
 		Short: "Remove stored credentials",
 		Long: `Remove stored authentication credentials from the config file. The config file itself
-is preserved; only the token, org_id, and org_type fields are cleared.
-
-SEE ALSO
-  ytr auth login    - Authenticate with Yandex Tracker
-  ytr auth status   - Check authentication status`,
+is preserved; only the token, org_id, and org_type fields are cleared.`,
 		Example: `  # Remove credentials
   ytr auth logout`,
 		Args: cobra.NoArgs,

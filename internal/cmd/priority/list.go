@@ -22,9 +22,6 @@ func newListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List priorities",
 		Long:  `List all priorities in Yandex Tracker.`,
-		SeeAlso: `  ytr status list      - List workflow statuses
-  ytr resolution list  - List resolutions
-  ytr issuetype list   - List issue types`,
 		Example: `  # List all priorities
   ytr priority list
 

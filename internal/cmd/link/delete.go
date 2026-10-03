@@ -14,8 +14,6 @@ func newDeleteCmd() *cobra.Command {
 		Use:   "delete ISSUE-KEY LINK-ID",
 		Short: "Delete a link",
 		Long:  `Delete a link from a Yandex Tracker issue.`,
-		SeeAlso: `  ytr link list    - List links on issue
-  ytr link create  - Create a link to another issue`,
 		Example: `  # Delete link 456 from PROJ-123
   ytr link delete PROJ-123 456
 

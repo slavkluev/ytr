@@ -14,9 +14,6 @@ func newDeleteCmd() *cobra.Command {
 		Use:   "delete ISSUE-KEY COMMENT-ID",
 		Short: "Delete a comment",
 		Long:  `Delete a comment from a Yandex Tracker issue.`,
-		SeeAlso: `  ytr comment list    - List comments on issue
-  ytr comment create  - Add comment to issue
-  ytr comment edit    - Edit a comment`,
 		Example: `  # Delete comment 42 from PROJ-123
   ytr comment delete PROJ-123 42
 

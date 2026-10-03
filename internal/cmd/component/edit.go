@@ -16,10 +16,6 @@ func newEditCmd() *cobra.Command {
 		Long: `Edit an existing project component in Yandex Tracker.
 
 Provide one or more flags to update, or --from-json for full JSON input.`,
-		SeeAlso: `  ytr component list    - List all components
-  ytr component get     - Show component details
-  ytr component create  - Create a component
-  ytr component delete  - Delete a component`,
 		Example: `  # Update component name
   ytr component edit 42 --name "New Name"
 

@@ -17,11 +17,7 @@ func newStatusCmd() *cobra.Command {
 		Long: `Show the current authentication state. Validates the token via API call and displays
 the token source, organization, and authenticated user.
 
-Use --jq . to get machine-readable output with fixed structure (no field selection).
-
-SEE ALSO
-  ytr auth login    - Authenticate with Yandex Tracker
-  ytr auth logout   - Remove stored credentials`,
+Use --jq . to get machine-readable output with fixed structure (no field selection).`,
 		Example: `  # Check auth status
   ytr auth status
 

@@ -47,11 +47,7 @@ func newListCmd() *cobra.Command {
 		Long: `List all comments on a Yandex Tracker issue.
 
 JSON FIELDS
-  id, author, authorId, body, createdAt, updatedAt
-
-SEE ALSO
-  ytr comment create  - Add comment to issue
-  ytr issue view      - View issue details`,
+  id, author, authorId, body, createdAt, updatedAt`,
 		Example: `  # List comments on an issue
   ytr comment list PROJ-123
 

@@ -95,9 +95,7 @@ func TestChecklistCreate(t *testing.T) {
 		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
 			create("--text", "x", "--json", "id")...),
 		helpRow("checklist create", "Deadline is supported only via --from-json (not as a separate flag).\n\n"+
-			"JSON FIELDS\n  id, text, checked, assignee, assigneeId\n\n"+
-			"SEE ALSO\n  ytr checklist list    - List checklist items on issue\n"+
-			"  ytr checklist edit    - Edit a checklist item\n  ytr checklist delete  - Delete a checklist item\n"),
+			"JSON FIELDS\n  id, text, checked, assignee, assigneeId\n"),
 	})
 }
 
@@ -188,9 +186,7 @@ func TestChecklistEdit(t *testing.T) {
 			trackerNotFoundOn(http.MethodPatch, path, "Checklist item not found"),
 			edit("--checked", "--json", "id")...),
 		helpRow("checklist edit", "Use --checked to mark an item as done, --checked=false to unmark it.\n\n"+
-			"JSON FIELDS\n  id, text, checked, assignee, assigneeId\n\n"+
-			"SEE ALSO\n  ytr checklist list    - List checklist items on issue\n"+
-			"  ytr checklist create  - Add checklist item to issue\n  ytr checklist delete  - Delete a checklist item\n"),
+			"JSON FIELDS\n  id, text, checked, assignee, assigneeId\n"),
 	})
 }
 
@@ -219,9 +215,7 @@ func TestChecklistDelete(t *testing.T) {
 			slices.Concat(args, []string{"--json", "id"})...),
 		helpRow(
 			"checklist delete",
-			"Delete a checklist item from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n\n"+
-				"SEE ALSO\n  ytr checklist list    - List checklist items on issue\n"+
-				"  ytr checklist create  - Add checklist item to issue\n  ytr checklist edit    - Edit a checklist item\n",
+			"Delete a checklist item from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n",
 		),
 	}))
 }

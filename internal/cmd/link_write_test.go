@@ -59,8 +59,7 @@ func TestLinkCreate(t *testing.T) {
 		helpRow(
 			"link create",
 			"Provide --type and --issue for individual flags, or --from-json for full JSON input.\n\n"+
-				"JSON FIELDS\n  id, type, issue, summary\n\n"+
-				"SEE ALSO\n  ytr link list    - List links on issue\n  ytr link delete  - Delete a link\n",
+				"JSON FIELDS\n  id, type, issue, summary\n",
 		),
 	})
 }
@@ -84,7 +83,6 @@ func TestLinkDelete(t *testing.T) {
 		},
 		failureRow(trackerNotFoundOn(http.MethodDelete, path, "Link not found"),
 			slices.Concat(args, []string{"--json", "id"})...),
-		helpRow("link delete", "Delete a link from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n\n"+
-			"SEE ALSO\n  ytr link list    - List links on issue\n  ytr link create  - Create a link to another issue\n"),
+		helpRow("link delete", "Delete a link from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n"),
 	}))
 }

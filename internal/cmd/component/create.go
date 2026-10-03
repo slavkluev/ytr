@@ -17,10 +17,6 @@ func newCreateCmd() *cobra.Command {
 		Long: `Create a new project component in Yandex Tracker.
 
 Provide --name and --queue for required fields, or --from-json for full JSON input.`,
-		SeeAlso: `  ytr component list    - List all components
-  ytr component get     - Show component details
-  ytr component edit    - Edit a component
-  ytr component delete  - Delete a component`,
 		Example: `  # Create a simple component
   ytr component create --name "Backend" --queue PROJ
 

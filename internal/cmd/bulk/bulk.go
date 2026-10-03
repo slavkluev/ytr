@@ -101,13 +101,7 @@ func NewCmd() *cobra.Command {
 		Long: `Perform bulk operations on multiple Yandex Tracker issues at once.
 
 Bulk commands accept issue keys as positional arguments or via stdin pipe
-(one per line). Commands wait for completion by default with progress display.
-
-SEE ALSO
-  ytr bulk status      - Show bulk operation status
-  ytr bulk move        - Move issues to another queue
-  ytr bulk update      - Update fields on issues
-  ytr bulk transition  - Transition issues to a new status`,
+(one per line). Commands wait for completion by default with progress display.`,
 	}
 
 	cmd.AddCommand(newStatusCmd())

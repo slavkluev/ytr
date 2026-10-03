@@ -26,9 +26,6 @@ func newListCmd() *cobra.Command {
 		Use:   "list ISSUE-KEY",
 		Short: "List worklogs on an issue",
 		Long:  `List all worklogs on a Yandex Tracker issue.`,
-		SeeAlso: `  ytr worklog create  - Create a worklog
-  ytr worklog edit    - Edit a worklog
-  ytr worklog delete  - Delete a worklog`,
 		Example: `  # List worklogs on an issue
   ytr worklog list PROJ-123
 

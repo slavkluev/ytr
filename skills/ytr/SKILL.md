@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "11.1"
+  version: "12.0"
 ---
 
 # ytr -- Yandex Tracker CLI

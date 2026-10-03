@@ -226,12 +226,7 @@ PARTS
                    entries
 
 JSON FIELDS
-  key, name, defaultType, defaultPriority, issueTypes, statuses, workflows, components, requiredFields, localFields, globalFields, incomplete
-
-SEE ALSO
-  ytr queue view   - View queue details
-  ytr field get    - Show a field's schema and allowed values
-  ytr issue create - Create an issue`
+  key, name, defaultType, defaultPriority, issueTypes, statuses, workflows, components, requiredFields, localFields, globalFields, incomplete`
 
 func newContextCmd() *cobra.Command {
 	cmd := &cobra.Command{

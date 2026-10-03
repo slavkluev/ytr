@@ -77,9 +77,5 @@ func TestIssueView(t *testing.T) {
 			stderr: []string{"accepts 1 arg(s), received 2"},
 		},
 		notFoundRow("/v3/issues/NOEXIST-1", "issue", "view", "NOEXIST-1", "--json", "key"),
-		helpRow("issue view", "JSON FIELDS\n  key, summary, status, priority, type, author, authorId, "+
-			"assignee, assigneeId, createdAt, updatedAt, description\n\n"+
-			"SEE ALSO\n  ytr issue list        - List issues\n  ytr issue update      - Update an issue\n"+
-			"  ytr issue transition  - Transition issue status\n"),
 	})
 }
