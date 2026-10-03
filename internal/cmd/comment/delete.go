@@ -11,7 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newDeleteCmd creates the "comment delete" command.
 func newDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete ISSUE-KEY COMMENT-ID",
@@ -43,9 +42,7 @@ SEE ALSO
 	return cmd
 }
 
-// runDelete executes the comment delete logic.
 func runDelete(cmd *cobra.Command, issueKey string, commentID string) error {
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -78,7 +75,6 @@ func runDelete(cmd *cobra.Command, issueKey string, commentID string) error {
 		return nil
 	}
 
-	// Table output: brief confirmation.
 	_, err = fmt.Fprintf(w, "Comment %s deleted\n", commentID)
 	return err
 }

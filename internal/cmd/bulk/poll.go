@@ -28,17 +28,10 @@ const (
 	bulkStatusFail = "FAILED"
 )
 
-// stdinFile is the file used for reading stdin input.
-// Tests override this to inject piped input.
 var stdinFile *os.File = os.Stdin
 
-// stderrFile is the file used for progress output.
-// Tests override this to suppress TTY progress display.
 var stderrFile *os.File = os.Stderr
 
-// readIssueKeys reads issue keys from positional args or stdin pipe.
-// Positional args take priority over stdin. Each key is validated
-// via ValidateIssueKey. Blank lines in stdin are skipped.
 func readIssueKeys(args []string) ([]string, error) {
 	if len(args) > 0 {
 		for _, key := range args {
@@ -88,7 +81,6 @@ func readIssueKeys(args []string) ([]string, error) {
 	return dedupeKeys(keys), nil
 }
 
-// dedupeKeys removes duplicate issue keys while preserving first-seen order.
 // Bulk requests should not carry the same key twice (the API would process it
 // redundantly), and duplicates commonly arrive when piping unsorted output.
 func dedupeKeys(keys []string) []string {
@@ -104,7 +96,6 @@ func dedupeKeys(keys []string) []string {
 	return out
 }
 
-// parseFieldFlags parses --field key=value flags into a map.
 // Splits on the first = sign only, so values may contain =.
 func parseFieldFlags(fields []string) (map[string]any, error) {
 	values := make(map[string]any, len(fields))
@@ -126,14 +117,11 @@ func parseFieldFlags(fields []string) (map[string]any, error) {
 	return values, nil
 }
 
-// isStderrTTY checks whether stderr is connected to a terminal.
 func isStderrTTY() bool {
 	fd := stderrFile.Fd()
 	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
-// showProgress displays an updating progress line on stderr.
-// Only outputs when stderr is a TTY; silent for non-TTY (agents).
 func showProgress(w io.Writer, bc *tracker.BulkChange) {
 	if !isStderrTTY() {
 		return
@@ -147,8 +135,6 @@ func showProgress(w io.Writer, bc *tracker.BulkChange) {
 		fmt.Sprintf("Bulk operation: %d/%d issues (%d%%)", done, total, pct))
 }
 
-// clearProgress clears the progress line on stderr.
-// Only outputs when stderr is a TTY.
 func clearProgress(w io.Writer) {
 	if !isStderrTTY() {
 		return
@@ -157,9 +143,6 @@ func clearProgress(w io.Writer) {
 	fmt.Fprintf(w, "\r%-60s\r", "")
 }
 
-// pollUntilDone polls a bulk operation until it reaches a terminal status
-// (COMPLETED or FAILED) using exponential backoff.
-// Returns the final BulkChange or a context error on timeout.
 func pollUntilDone(
 	ctx context.Context,
 	getter bulkStatusGetter,
@@ -195,14 +178,6 @@ func pollUntilDone(
 	}
 }
 
-// awaitBulkCompletion extracts the operation ID from a freshly-created bulk
-// change, polls until the operation reaches a terminal state, and renders a
-// COMPLETED result or returns a BulkFailedError, rendering nothing, when the
-// operation FAILED.
-//
-// It is used by bulk move/update/transition. The empty-ID guard prevents
-// polling the collection endpoint with no ID (which produced a misleading
-// "operation ID: " message).
 func awaitBulkCompletion(
 	cmd *cobra.Command,
 	getter bulkStatusGetter,
@@ -231,9 +206,6 @@ func awaitBulkCompletion(
 	return finalizeBulkResult(cmd, result, operationID)
 }
 
-// finalizeBulkResult renders a terminal BulkChange, or returns a non-zero
-// BulkFailedError when the operation finished in the FAILED state.
-//
 // A failed operation renders nothing: a run that ends non-zero must leave
 // stdout empty, so a reader never has to decide whether the document it found
 // there describes a change that happened. The counts the result carried travel
@@ -253,8 +225,6 @@ func finalizeBulkResult(cmd *cobra.Command, bc *tracker.BulkChange, operationID 
 	return renderBulkOutput(cmd, bc)
 }
 
-// renderBulkOutput renders a BulkChange in the appropriate output mode.
-// Used by bulk status and by mutation commands after polling completes.
 func renderBulkOutput(cmd *cobra.Command, bc *tracker.BulkChange) error {
 	w := cmd.OutOrStdout()
 
@@ -278,7 +248,6 @@ func renderBulkOutput(cmd *cobra.Command, bc *tracker.BulkChange) error {
 		return nil
 	}
 
-	// Table output: ID, STATUS, TOTAL, DONE, PERCENT.
 	tbl := output.NewTable(w)
 	tbl.AddHeader("ID", "STATUS", "TOTAL", "DONE", "PERCENT")
 	tbl.AddRow(

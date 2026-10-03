@@ -19,7 +19,6 @@ import (
 	"github.com/slavkluev/ytr/internal/output"
 )
 
-// userValidator abstracts the Users.Myself call for testability.
 type userValidator interface {
 	Myself(ctx context.Context) (*tracker.User, *tracker.Response, error)
 }
@@ -28,8 +27,6 @@ type orgTypeDetector interface {
 	Detect(ctx context.Context, token, orgID string) (config.OrgType, *tracker.User, error)
 }
 
-// newValidator creates a userValidator from resolved auth credentials.
-// Tests override this variable to inject mocks.
 var newValidator = func(auth *config.ResolvedAuth) userValidator {
 	return api.NewClient(auth).Users
 }
@@ -243,18 +240,10 @@ func (d defaultOrgTypeDetector) Detect(
 	return "", nil, &orgTypeDetectionError{Failures: failures}
 }
 
-// detectOrgType tries supported Tracker organization modes and returns
-// the first one that successfully validates via Users.Myself.
-// Tests override this variable to avoid network access.
 var detectOrgType orgTypeDetector = defaultOrgTypeDetector{}
 
-// stdinFile is the file used for reading stdin input.
-// Tests override this to inject piped input.
 var stdinFile *os.File = os.Stdin
 
-// newLoginCmd creates the "auth login" command for authenticating
-// with Yandex Tracker. Supports interactive masked prompt, piped stdin,
-// and explicit --token/--org-id/--org-type flags.
 func newLoginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
@@ -290,19 +279,16 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	orgIDFlag, _ := cmd.Flags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Flags().GetString("org-type")
 
-	// Step 1: Resolve token
 	token, err := resolveToken(tokenFlag, cmd)
 	if err != nil {
 		return err
 	}
 
-	// Step 2: Resolve org-id
 	orgID, err := resolveOrgID(orgIDFlag, cmd)
 	if err != nil {
 		return err
 	}
 
-	// Step 3: Resolve organization type and validate credentials via API.
 	orgType, err := resolveOrgType(orgTypeFlag)
 	if err != nil {
 		return err
@@ -313,10 +299,8 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Step 4: Extract username
 	username := api.DerefUser(user, "unknown")
 
-	// Step 5: Save config
 	if err := config.Save(&config.Config{
 		Token:   token,
 		OrgID:   orgID,
@@ -325,8 +309,6 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
-	// Step 6: Output result
-	// Auth commands use cmd.Flags().Changed("json") for JSON detection.
 	// No field selection or hints -- fixed-structure JSON.
 	// Config was just saved successfully, so ConfigFilePath cannot fail.
 	cfgPath, _ := config.ConfigFilePath()
@@ -348,8 +330,6 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// resolveUserAndOrgType detects or validates the org type and returns the
-// authenticated user. When orgType is empty, auto-detection is attempted.
 func resolveUserAndOrgType(
 	cmd *cobra.Command, token, orgID string, orgType config.OrgType,
 ) (*tracker.User, config.OrgType, error) {
@@ -381,8 +361,6 @@ func resolveUserAndOrgType(
 	return user, orgType, nil
 }
 
-// resolveToken returns the token from the flag, piped stdin, or
-// interactive masked prompt. Returns an error if no token is available.
 func resolveToken(flagValue string, cmd *cobra.Command) (string, error) {
 	if flagValue != "" {
 		return flagValue, nil
@@ -391,12 +369,8 @@ func resolveToken(flagValue string, cmd *cobra.Command) (string, error) {
 	return readToken(stdinFile, cmd)
 }
 
-// readToken reads a token from the given file descriptor.
-// If the file is a terminal, it prompts with masked input via term.ReadPassword.
-// If the file is a pipe, it reads a single line via bufio.Scanner.
 func readToken(stdin *os.File, cmd *cobra.Command) (string, error) {
 	if isatty.IsTerminal(stdin.Fd()) || isatty.IsCygwinTerminal(stdin.Fd()) {
-		// Interactive: masked prompt
 		_, _ = fmt.Fprint(cmd.ErrOrStderr(), "Token: ")
 		//nolint:gosec // fd conversion is safe for terminal operations
 		tokenBytes, err := term.ReadPassword(int(stdin.Fd()))
@@ -414,7 +388,6 @@ func readToken(stdin *os.File, cmd *cobra.Command) (string, error) {
 		return token, nil
 	}
 
-	// Piped: read single line
 	scanner := bufio.NewScanner(stdin)
 	if scanner.Scan() {
 		token := strings.TrimSpace(scanner.Text())
@@ -437,14 +410,11 @@ func readToken(stdin *os.File, cmd *cobra.Command) (string, error) {
 	)
 }
 
-// resolveOrgID returns the org-id from the flag or interactive prompt.
-// Returns an error if no org-id is available.
 func resolveOrgID(flagValue string, cmd *cobra.Command) (string, error) {
 	if flagValue != "" {
 		return flagValue, nil
 	}
 
-	// Check if stdin is a terminal for interactive prompt
 	if isatty.IsTerminal(stdinFile.Fd()) || isatty.IsCygwinTerminal(stdinFile.Fd()) {
 		_, _ = fmt.Fprint(cmd.ErrOrStderr(), "Organization ID: ")
 		scanner := bufio.NewScanner(stdinFile)
@@ -462,7 +432,6 @@ func resolveOrgID(flagValue string, cmd *cobra.Command) (string, error) {
 	)
 }
 
-// resolveOrgType validates the optional --org-type flag.
 // An empty value means the type should be auto-detected.
 func resolveOrgType(flagValue string) (config.OrgType, error) {
 	if flagValue == "" {

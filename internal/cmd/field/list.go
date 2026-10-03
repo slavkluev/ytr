@@ -26,7 +26,6 @@ var FieldListFields = []string{
 	"defaultOptions",
 }
 
-// fieldItem is a clean struct for JSON serialization of field data.
 // Option values are []any so each keeps the JSON type Tracker sent.
 type fieldItem struct {
 	ID             string           `json:"id"`
@@ -40,7 +39,6 @@ type fieldItem struct {
 	DefaultOptions []any            `json:"defaultOptions,omitempty"`
 }
 
-// toFieldItem converts a tracker.Field to a clean JSON-serializable struct.
 // Schema is left empty (and omitted from JSON) when the field has no schema
 // type, matching `field get`; the "-" placeholder is a table-only convention.
 func toFieldItem(f *tracker.Field) fieldItem {
@@ -68,7 +66,6 @@ func toFieldItem(f *tracker.Field) fieldItem {
 	return item
 }
 
-// newListCmd creates the "field list" command.
 func newListCmd() *cobra.Command {
 	var queueFlag string
 
@@ -110,7 +107,6 @@ SEE ALSO
 	return cmd
 }
 
-// runList executes the field list logic.
 func runList(cmd *cobra.Command, queueFlag string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "field list", FieldListFields)
@@ -120,7 +116,6 @@ func runList(cmd *cobra.Command, queueFlag string) error {
 		output.JSONFields = FieldListFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, FieldListFields); err != nil {
 			return err
@@ -128,7 +123,6 @@ func runList(cmd *cobra.Command, queueFlag string) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, FieldListFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -153,7 +147,6 @@ func runList(cmd *cobra.Command, queueFlag string) error {
 	return renderOutput(cmd.OutOrStdout(), fields)
 }
 
-// renderOutput handles JSON/quiet/table output for the field list result.
 func renderOutput(w io.Writer, fields []*tracker.Field) error {
 	if output.IsJSON() {
 		return renderJSON(w, fields)
@@ -171,7 +164,6 @@ func renderOutput(w io.Writer, fields []*tracker.Field) error {
 	return renderTable(w, fields)
 }
 
-// renderJSON renders the field list as JSON with field selection and JQ support.
 func renderJSON(w io.Writer, fields []*tracker.Field) error {
 	items := make([]fieldItem, len(fields))
 	for i, f := range fields {
@@ -194,7 +186,6 @@ func renderJSON(w io.Writer, fields []*tracker.Field) error {
 	return output.PrintJSON(w, items)
 }
 
-// renderTable renders the field list as a formatted table.
 func renderTable(w io.Writer, fields []*tracker.Field) error {
 	if len(fields) == 0 {
 		_, err := fmt.Fprintln(w, "No fields found")

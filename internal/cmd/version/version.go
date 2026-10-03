@@ -45,7 +45,6 @@ SEE ALSO
 	return cmd
 }
 
-// runVersion executes the version display logic.
 func runVersion(cmd *cobra.Command, _ []string) error {
 	info := ver.Get()
 
@@ -57,7 +56,6 @@ func runVersion(cmd *cobra.Command, _ []string) error {
 		output.JSONFields = VersionFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, VersionFields); err != nil {
 			return err

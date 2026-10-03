@@ -35,12 +35,11 @@ func InitFromBuildInfo() {
 		return
 	}
 
-	// go install sets Main.Version to the module version (e.g., "v0.1.0")
+	// go install sets Main.Version to the module version (e.g., "v0.1.0").
 	if info.Main.Version != "" && info.Main.Version != "(devel)" {
 		Version = strings.TrimPrefix(info.Main.Version, "v")
 	}
 
-	// VCS info from go install
 	for _, setting := range info.Settings {
 		switch setting.Key {
 		case "vcs.revision":

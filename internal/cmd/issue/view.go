@@ -30,7 +30,6 @@ var IssueDetailFields = []string{
 	"description",
 }
 
-// issueDetail is a clean struct for JSON serialization of a single issue.
 // Uses value types with json tags to avoid null fields from pointer types.
 type issueDetail struct {
 	Key         string `json:"key"`
@@ -47,7 +46,6 @@ type issueDetail struct {
 	Description string `json:"description,omitempty"`
 }
 
-// toIssueDetail converts a tracker.Issue into a clean issueDetail struct for JSON output.
 func toIssueDetail(issue *tracker.Issue) issueDetail {
 	detail := issueDetail{
 		Key:        api.DerefString(issue.Key, ""),
@@ -76,7 +74,6 @@ func toIssueDetail(issue *tracker.Issue) issueDetail {
 	return detail
 }
 
-// newViewCmd creates the "issue view" command for displaying issue details.
 func newViewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "view ISSUE-KEY",
@@ -107,7 +104,6 @@ SEE ALSO
 	return cmd
 }
 
-// runView executes the issue view logic.
 func runView(cmd *cobra.Command, args []string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue view", IssueDetailFields)
@@ -117,7 +113,6 @@ func runView(cmd *cobra.Command, args []string) error {
 		output.JSONFields = IssueDetailFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, IssueDetailFields); err != nil {
 			return err
@@ -127,7 +122,6 @@ func runView(cmd *cobra.Command, args []string) error {
 
 	issueKey := args[0]
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -147,7 +141,6 @@ func runView(cmd *cobra.Command, args []string) error {
 	return renderDetailOutput(cmd.OutOrStdout(), issue)
 }
 
-// renderDetailOutput renders an issue in JSON, quiet, or table mode.
 func renderDetailOutput(w io.Writer, issue *tracker.Issue) error {
 	if output.IsJSON() {
 		detail := toIssueDetail(issue)
@@ -173,7 +166,6 @@ func renderDetailOutput(w io.Writer, issue *tracker.Issue) error {
 	return renderDetailTable(w, issue)
 }
 
-// renderDetailTable renders the issue as labeled key-value rows.
 func renderDetailTable(w io.Writer, issue *tracker.Issue) error {
 	d := output.NewDetail(w)
 

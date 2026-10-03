@@ -11,7 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-// checklistLister abstracts checklist list operations for testability.
 type checklistLister interface {
 	ListChecklistItems(
 		ctx context.Context,
@@ -19,7 +18,6 @@ type checklistLister interface {
 	) ([]*tracker.ChecklistItem, *tracker.Response, error)
 }
 
-// checklistCreator abstracts checklist item creation for testability.
 // CreateChecklistItem returns *tracker.Issue (not *ChecklistItem),
 // requiring item extraction from Issue.ChecklistItems.
 type checklistCreator interface {
@@ -30,7 +28,6 @@ type checklistCreator interface {
 	) (*tracker.Issue, *tracker.Response, error)
 }
 
-// checklistEditor abstracts checklist item edit operations for testability.
 // EditChecklistItem returns *tracker.Issue, requiring item extraction by ID.
 type checklistEditor interface {
 	EditChecklistItem(
@@ -40,7 +37,6 @@ type checklistEditor interface {
 	) (*tracker.Issue, *tracker.Response, error)
 }
 
-// checklistDeleter abstracts checklist item deletion for testability.
 // DeleteChecklistItem returns *tracker.Issue (HTTP 200, not 204).
 type checklistDeleter interface {
 	DeleteChecklistItem(
@@ -49,26 +45,18 @@ type checklistDeleter interface {
 	) (*tracker.Issue, *tracker.Response, error)
 }
 
-// newChecklistLister creates a checklistLister from resolved auth.
-// Replaceable for testing.
 var newChecklistLister = func(auth *config.ResolvedAuth) checklistLister {
 	return api.NewClient(auth).Issues
 }
 
-// newChecklistCreator creates a checklistCreator from resolved auth.
-// Replaceable for testing.
 var newChecklistCreator = func(auth *config.ResolvedAuth) checklistCreator {
 	return api.NewClient(auth).Issues
 }
 
-// newChecklistEditor creates a checklistEditor from resolved auth.
-// Replaceable for testing.
 var newChecklistEditor = func(auth *config.ResolvedAuth) checklistEditor {
 	return api.NewClient(auth).Issues
 }
 
-// newChecklistDeleter creates a checklistDeleter from resolved auth.
-// Replaceable for testing.
 var newChecklistDeleter = func(auth *config.ResolvedAuth) checklistDeleter {
 	return api.NewClient(auth).Issues
 }

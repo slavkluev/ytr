@@ -11,7 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newDeleteCmd creates the "worklog delete" command.
 func newDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete ISSUE-KEY WORKLOG-ID",
@@ -44,9 +43,7 @@ SEE ALSO
 	return cmd
 }
 
-// runDelete executes the worklog delete logic.
 func runDelete(cmd *cobra.Command, issueKey, worklogID string) error {
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -79,7 +76,6 @@ func runDelete(cmd *cobra.Command, issueKey, worklogID string) error {
 		return nil
 	}
 
-	// Table output: brief confirmation.
 	_, err = fmt.Fprintf(w, "Worklog %s deleted\n", worklogID)
 	return err
 }

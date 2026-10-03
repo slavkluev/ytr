@@ -94,7 +94,6 @@ func FilterFields(data any, fields []string) map[string]any {
 	return result
 }
 
-// hasOmitempty reports whether the json tag options contain "omitempty".
 func hasOmitempty(opts []string) bool {
 	return slices.Contains(opts, "omitempty")
 }
@@ -184,7 +183,6 @@ func ApplyJQ(w io.Writer, data any, expression string) error {
 				"Check that the jq expression matches the data structure",
 			)
 		}
-		// Raw string output (like jq -r): print strings without quotes
 		if s, ok := v.(string); ok {
 			_, _ = fmt.Fprintln(&results, s)
 		} else {

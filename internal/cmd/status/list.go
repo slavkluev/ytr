@@ -16,14 +16,12 @@ import (
 // StatusListFields lists the available JSON field names for status list output.
 var StatusListFields = []string{"id", "key", "name"}
 
-// statusItem is a clean struct for JSON serialization of status data.
 type statusItem struct {
 	ID   string `json:"id"`
 	Key  string `json:"key"`
 	Name string `json:"name"`
 }
 
-// newListCmd creates the "status list" command.
 func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -53,7 +51,6 @@ SEE ALSO
 	return cmd
 }
 
-// runList executes the status list logic.
 func runList(cmd *cobra.Command) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "status list", StatusListFields)
@@ -63,7 +60,6 @@ func runList(cmd *cobra.Command) error {
 		output.JSONFields = StatusListFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, StatusListFields); err != nil {
 			return err
@@ -71,7 +67,6 @@ func runList(cmd *cobra.Command) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, StatusListFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -91,7 +86,6 @@ func runList(cmd *cobra.Command) error {
 	return renderOutput(cmd.OutOrStdout(), statuses)
 }
 
-// renderOutput handles JSON/quiet/table output for the status list result.
 func renderOutput(w io.Writer, statuses []*tracker.Status) error {
 	if output.IsJSON() {
 		items := make([]statusItem, len(statuses))
@@ -124,7 +118,6 @@ func renderOutput(w io.Writer, statuses []*tracker.Status) error {
 		return nil
 	}
 
-	// Table output.
 	if len(statuses) == 0 {
 		_, err := fmt.Fprintln(w, "No statuses found")
 		return err
@@ -145,7 +138,6 @@ func renderOutput(w io.Writer, statuses []*tracker.Status) error {
 	return nil
 }
 
-// toStatusItem converts a tracker.Status to a clean JSON-serializable struct.
 func toStatusItem(s *tracker.Status) statusItem {
 	return statusItem{
 		ID:   api.DerefFlexString(s.ID, ""),

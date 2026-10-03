@@ -111,7 +111,6 @@ func (t *TablePrinter) Render() {
 	t.writer.Render()
 }
 
-// leanRow stringifies and escapes one row's cells for tab-separated output.
 func leanRow(columns []any) []string {
 	cells := make([]string, len(columns))
 	for i, col := range columns {

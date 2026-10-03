@@ -11,12 +11,10 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-// resolutionLister abstracts resolution list operations for testability.
 type resolutionLister interface {
 	List(ctx context.Context) ([]*tracker.Resolution, *tracker.Response, error)
 }
 
-// newResolutionLister creates a resolutionLister from resolved auth. Replaceable for testing.
 var newResolutionLister = func(auth *config.ResolvedAuth) resolutionLister {
 	return api.NewClient(auth).Resolutions
 }

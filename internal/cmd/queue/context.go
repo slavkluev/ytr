@@ -54,9 +54,8 @@ const (
 // mean that only summary is required.
 const noQueueFieldsReason = "Tracker listed no queue fields, so other fields may be required"
 
-// queueContext is the document queue context prints. A part left nil is
-// rendered as null: its request failed and incomplete says why. A part that was
-// fetched but is empty is a non-nil empty slice, rendered as [].
+// A part left nil is rendered as null: its request failed and incomplete says why.
+// A part that was fetched but is empty is a non-nil empty slice, rendered as [].
 type queueContext struct {
 	Key             string                 `json:"key"`
 	Name            string                 `json:"name"`
@@ -72,44 +71,37 @@ type queueContext struct {
 	Incomplete      []incompletePart       `json:"incomplete"`
 }
 
-// contextIssueType is an issue type of the queue and the workflow it follows.
 type contextIssueType struct {
 	Key      string `json:"key"`
 	Name     string `json:"name"`
 	Workflow string `json:"workflow"`
 }
 
-// contextStatus is a status that a step of one of the queue's workflows has.
 type contextStatus struct {
 	Key  string `json:"key"`
 	Name string `json:"name"`
 }
 
-// contextWorkflow is a workflow with the status an issue starts in and the
-// statuses each status can move to.
 type contextWorkflow struct {
 	ID            string        `json:"id"`
 	InitialStatus string        `json:"initialStatus"`
 	Transitions   transitionMap `json:"transitions"`
 }
 
-// contextComponent is a component of the queue.
 type contextComponent struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
-// contextRequiredField is a field an issue of the queue needs. Default is the
-// queue's default key for type and priority, which fills the field when the
-// issue does not set it.
+// A required field's Default is the queue's default key for type and priority,
+// which fills the field when the issue does not set it.
 type contextRequiredField struct {
 	ID      string `json:"id"`
 	Default string `json:"default,omitempty"`
 }
 
-// contextLocalField is a field local to the queue. ID is the full
-// <queueId>--<key> form that filters need; Options keeps the JSON
-// type Tracker sent for each value.
+// A local field's ID is the full <queueId>--<key> form that filters need; its
+// Options keep the JSON type Tracker sent for each value.
 type contextLocalField struct {
 	ID       string `json:"id"`
 	Key      string `json:"key"`
@@ -119,29 +111,23 @@ type contextLocalField struct {
 	Options  []any  `json:"options,omitempty"`
 }
 
-// contextGlobalField is an entry of the editable global field index.
 type contextGlobalField struct {
 	Key  string `json:"key"`
 	Name string `json:"name"`
 }
 
-// incompletePart names a part that could not be fetched, or that may be
-// missing entries, and why.
 type incompletePart struct {
 	Part   string `json:"part"`
 	Reason string `json:"reason"`
 }
 
-// transitionMap maps each workflow step's status key to the status keys its
-// actions lead to. It renders as a JSON object that keeps the steps in
-// workflow order, which a Go map would sort away.
+// transitionMap renders as a JSON object that keeps the steps in workflow order,
+// which a Go map would sort away.
 type transitionMap struct {
 	from    []string
 	targets map[string][]string
 }
 
-// add records the targets of one step's actions under its status key,
-// skipping targets it already has. A step without actions gets an empty list.
 func (m *transitionMap) add(from string, actions []*tracker.WorkflowAction) {
 	if m.targets == nil {
 		m.targets = make(map[string][]string)
@@ -186,9 +172,8 @@ func (m transitionMap) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// contextResults holds what each part's request returned. Each request runs in
-// its own goroutine and writes only its own fields, which are read after all
-// of them finish.
+// Each request runs in its own goroutine and writes only its own fields, which are
+// read after all of them finish.
 type contextResults struct {
 	workflows      []*tracker.Workflow
 	failedWorkflow string
@@ -248,7 +233,6 @@ SEE ALSO
   ytr field get    - Show a field's schema and allowed values
   ytr issue create - Create an issue`
 
-// newContextCmd creates the "queue context" command.
 func newContextCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "context QUEUE-KEY",
@@ -281,7 +265,6 @@ func newContextCmd() *cobra.Command {
 	return cmd
 }
 
-// runContext executes the queue context logic.
 func runContext(cmd *cobra.Command, queueKey string) error {
 	if output.IsQuiet() {
 		return errors.NewUserError(
@@ -301,7 +284,6 @@ func runContext(cmd *cobra.Command, queueKey string) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, QueueContextFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -326,8 +308,6 @@ func runContext(cmd *cobra.Command, queueKey string) error {
 	return renderContext(cmd.OutOrStdout(), buildContext(q, queueKey, results, wanted))
 }
 
-// wantedParts returns the parts --json selects, or every part without a
-// selection.
 func wantedParts() map[string]bool {
 	fields := QueueContextFields
 	if output.HasFieldSelection() {
@@ -340,8 +320,6 @@ func wantedParts() map[string]bool {
 	return wanted
 }
 
-// workflowIDs returns the ids of the workflows the queue's issue types follow,
-// once each, in first-seen order.
 func workflowIDs(q *tracker.Queue) []string {
 	var ids []string
 	for _, cfg := range q.IssueTypesConfig {
@@ -356,7 +334,6 @@ func workflowIDs(q *tracker.Queue) []string {
 	return ids
 }
 
-// fetchParts makes the requests the wanted parts need, concurrently.
 func fetchParts(
 	ctx context.Context,
 	client queueContextClient,
@@ -417,7 +394,6 @@ func fetchWorkflows(
 	return workflows, "", nil
 }
 
-// buildContext assembles the document from the queue and the part results.
 // incomplete follows the document's part order.
 func buildContext(q *tracker.Queue, queueKey string, r contextResults, wanted map[string]bool) *queueContext {
 	doc := &queueContext{
@@ -455,9 +431,6 @@ func buildContext(q *tracker.Queue, queueKey string, r contextResults, wanted ma
 	return doc
 }
 
-// setWorkflows fills statuses and workflows, which both come from the
-// workflow requests. When one of those failed, both stay null, and each one
-// the selection holds is named in incomplete with the failed workflow's id.
 func (doc *queueContext) setWorkflows(r contextResults, wanted map[string]bool) {
 	if r.workflowsErr == nil {
 		doc.Statuses, doc.Workflows = toContextWorkflows(r.workflows)
@@ -472,8 +445,6 @@ func (doc *queueContext) setWorkflows(r contextResults, wanted map[string]bool) 
 	}
 }
 
-// setPart stores a fetched part in dst. When its request failed, dst stays
-// null and the part is named in incomplete with the server's reason.
 func setPart[T any](doc *queueContext, dst *[]T, value []T, part string, err error) {
 	if err != nil {
 		doc.Incomplete = append(doc.Incomplete, incompletePart{Part: part, Reason: errorReason(err)})
@@ -482,13 +453,10 @@ func setPart[T any](doc *queueContext, dst *[]T, value []T, part string, err err
 	*dst = value
 }
 
-// errorReason is the text of a failed request as ytr would report it: the
-// server's own message when it sent one.
 func errorReason(err error) string {
 	return api.MapAPIError(err).Error()
 }
 
-// defaultTypeKey returns the key of the queue's default issue type, or "".
 func defaultTypeKey(q *tracker.Queue) string {
 	if q.DefaultType == nil {
 		return ""
@@ -496,7 +464,6 @@ func defaultTypeKey(q *tracker.Queue) string {
 	return api.DerefString(q.DefaultType.Key, "")
 }
 
-// defaultPriorityKey returns the key of the queue's default priority, or "".
 func defaultPriorityKey(q *tracker.Queue) string {
 	if q.DefaultPriority == nil {
 		return ""
@@ -504,7 +471,6 @@ func defaultPriorityKey(q *tracker.Queue) string {
 	return api.DerefString(q.DefaultPriority.Key, "")
 }
 
-// toContextIssueTypes lists the queue's issue types with their workflow ids.
 func toContextIssueTypes(configs []*tracker.QueueIssueTypeConfig) []contextIssueType {
 	types := make([]contextIssueType, 0, len(configs))
 	for _, cfg := range configs {
@@ -523,8 +489,6 @@ func toContextIssueTypes(configs []*tracker.QueueIssueTypeConfig) []contextIssue
 	return types
 }
 
-// toContextWorkflows converts fetched workflows, and collects every step
-// status once, in first-seen order.
 func toContextWorkflows(workflows []*tracker.Workflow) ([]contextStatus, []contextWorkflow) {
 	statuses := []contextStatus{}
 	seen := make(map[string]bool)
@@ -559,7 +523,6 @@ func toContextWorkflows(workflows []*tracker.Workflow) ([]contextStatus, []conte
 	return statuses, converted
 }
 
-// initialStatusKey returns the status key a new issue starts in, or "".
 func initialStatusKey(wf *tracker.Workflow) string {
 	if wf.InitialAction == nil || wf.InitialAction.Target == nil {
 		return ""
@@ -567,7 +530,6 @@ func initialStatusKey(wf *tracker.Workflow) string {
 	return api.DerefString(wf.InitialAction.Target.Key, "")
 }
 
-// toContextComponents converts the queue's components.
 func toContextComponents(components []*tracker.Component) []contextComponent {
 	converted := make([]contextComponent, 0, len(components))
 	for _, c := range components {
@@ -607,7 +569,6 @@ func toRequiredFields(fields []*tracker.Field, q *tracker.Queue) []contextRequir
 	return required
 }
 
-// toContextLocalFields converts the queue's local fields.
 func toContextLocalFields(fields []*tracker.Field, queueKey string) []contextLocalField {
 	converted := make([]contextLocalField, 0, len(fields))
 	for _, f := range fields {
@@ -629,8 +590,6 @@ func toContextLocalFields(fields []*tracker.Field, queueKey string) []contextLoc
 	return converted
 }
 
-// fieldOptions returns a field's allowed values: its flat list, else this
-// queue's entry in the per-queue lists, else Tracker's defaults list.
 func fieldOptions(p *tracker.OptionsProvider, queueKey string) []any {
 	if p == nil {
 		return nil
@@ -644,7 +603,6 @@ func fieldOptions(p *tracker.OptionsProvider, queueKey string) []any {
 	return p.Defaults
 }
 
-// toContextGlobalFields lists the editable global fields, key and name only.
 func toContextGlobalFields(fields []*tracker.Field) []contextGlobalField {
 	converted := make([]contextGlobalField, 0, len(fields))
 	for _, f := range fields {
@@ -659,9 +617,8 @@ func toContextGlobalFields(fields []*tracker.Field) []contextGlobalField {
 	return converted
 }
 
-// renderContext prints the document, narrowed to the --json parts when there
-// is a selection. incomplete is always included, so a narrowed document still
-// says which of its parts are missing.
+// incomplete is always included, so a narrowed document still says which of its
+// parts are missing.
 func renderContext(w io.Writer, doc *queueContext) error {
 	var data any = doc
 	if output.HasFieldSelection() {

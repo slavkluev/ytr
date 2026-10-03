@@ -16,7 +16,6 @@ import (
 // ComponentGetFields lists the available JSON field names for component get output.
 var ComponentGetFields = []string{"id", "name", "queue", "lead", "leadId", "description", "assignAuto"}
 
-// componentDetail is a clean struct for JSON serialization of a single component.
 type componentDetail struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -27,7 +26,6 @@ type componentDetail struct {
 	AssignAuto  bool   `json:"assignAuto"`
 }
 
-// toComponentDetail converts a tracker.Component into a componentDetail struct for JSON output.
 func toComponentDetail(c *tracker.Component) componentDetail {
 	queue := ""
 	if c.Queue != nil {
@@ -45,7 +43,6 @@ func toComponentDetail(c *tracker.Component) componentDetail {
 	}
 }
 
-// newGetCmd creates the "component get" command for displaying component details.
 func newGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get COMPONENT-ID",
@@ -79,7 +76,6 @@ SEE ALSO
 	return cmd
 }
 
-// runGet executes the component get logic.
 func runGet(cmd *cobra.Command, componentID string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "component get", ComponentGetFields)
@@ -89,7 +85,6 @@ func runGet(cmd *cobra.Command, componentID string) error {
 		output.JSONFields = ComponentGetFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, ComponentGetFields); err != nil {
 			return err
@@ -97,7 +92,6 @@ func runGet(cmd *cobra.Command, componentID string) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, ComponentGetFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -140,7 +134,6 @@ func runGet(cmd *cobra.Command, componentID string) error {
 	return renderComponentCard(w, component)
 }
 
-// renderComponentCard renders a bold-label detail card for a component.
 func renderComponentCard(w io.Writer, c *tracker.Component) error {
 	d := output.NewDetail(w)
 
@@ -155,7 +148,6 @@ func renderComponentCard(w io.Writer, c *tracker.Component) error {
 
 	d.Field("Lead", api.DerefUser(c.Lead, "-"))
 
-	// Only show Description if non-empty.
 	desc := api.DerefString(c.Description, "")
 	if desc != "" {
 		d.Field("Description", desc)

@@ -11,13 +11,9 @@ import (
 
 const defaultTerminalWidth = 80
 
-// ttyOverride, when non-nil, replaces the os.Stdout check in IsTTY.
-// Tests set it through SetTTY so both output modes are reachable; the real
-// binary never touches it and ResetFlags clears it.
 var ttyOverride *bool
 
 // SetTTY forces IsTTY to report isTTY until ResetFlags clears it.
-// Only tests call it: the detection stays a process-level check on os.Stdout.
 func SetTTY(isTTY bool) {
 	ttyOverride = &isTTY
 }

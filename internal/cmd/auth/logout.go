@@ -9,9 +9,6 @@ import (
 	"github.com/slavkluev/ytr/internal/output"
 )
 
-// newLogoutCmd creates the "auth logout" command that removes stored
-// credentials from the config file. The file itself is preserved;
-// only the token, org_id, and org_type fields are cleared.
 func newLogoutCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "logout",
@@ -30,13 +27,13 @@ SEE ALSO
 }
 
 func runLogout(cmd *cobra.Command, args []string) error {
-	// Load existing config; treat missing file as success (nothing to log out of)
+	// Load existing config; treat missing file as success (nothing to log out of).
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Clear auth fields, preserving the file and any future non-auth fields
+	// Clear auth fields, preserving the file and any future non-auth fields.
 	cfg.Token = ""
 	cfg.OrgID = ""
 	cfg.OrgType = ""
@@ -48,8 +45,6 @@ func runLogout(cmd *cobra.Command, args []string) error {
 	// Config was just saved successfully, so ConfigFilePath cannot fail.
 	cfgPath, _ := config.ConfigFilePath()
 
-	// Output result
-	// Auth commands use cmd.Flags().Changed("json") for JSON detection.
 	// No field selection or hints -- fixed-structure JSON.
 	jsonRequested := cmd.Flags().Changed("json") || output.IsJSON()
 	if jsonRequested {

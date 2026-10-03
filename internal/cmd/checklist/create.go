@@ -15,7 +15,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newCreateCmd creates the "checklist create" command.
 func newCreateCmd() *cobra.Command {
 	var (
 		textFlag     string
@@ -51,7 +50,6 @@ SEE ALSO
 				return err
 			}
 
-			// Mutual exclusion: --from-json vs individual flags.
 			if cmd.Flags().Changed("from-json") &&
 				(cmd.Flags().Changed("text") || cmd.Flags().Changed("assignee")) {
 				return errors.NewUserError(
@@ -60,7 +58,6 @@ SEE ALSO
 				)
 			}
 
-			// At least --text or --from-json required.
 			if !cmd.Flags().Changed("text") && !cmd.Flags().Changed("from-json") {
 				return errors.NewUserError(
 					"--text or --from-json is required",
@@ -87,7 +84,6 @@ SEE ALSO
 	return cmd
 }
 
-// runCreate executes the checklist create logic.
 func runCreate(cmd *cobra.Command, issueKey, textFlag, assigneeFlag, fromJSON string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "checklist create", ChecklistFields)
@@ -97,7 +93,6 @@ func runCreate(cmd *cobra.Command, issueKey, textFlag, assigneeFlag, fromJSON st
 		output.JSONFields = ChecklistFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, ChecklistFields); err != nil {
 			return err
@@ -105,7 +100,6 @@ func runCreate(cmd *cobra.Command, issueKey, textFlag, assigneeFlag, fromJSON st
 		output.JSONFields = output.NormalizeFields(output.JSONFields, ChecklistFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -115,7 +109,6 @@ func runCreate(cmd *cobra.Command, issueKey, textFlag, assigneeFlag, fromJSON st
 		return err
 	}
 
-	// Build request from individual flags or --from-json.
 	var req *tracker.ChecklistItemRequest
 
 	if cmd.Flags().Changed("from-json") {
@@ -154,7 +147,6 @@ func runCreate(cmd *cobra.Command, issueKey, textFlag, assigneeFlag, fromJSON st
 	return renderCreateOutput(cmd.OutOrStdout(), requestedChecklistItem(req), issueKey)
 }
 
-// renderCreateOutput handles JSON/quiet/table output for a checklist create result.
 func renderCreateOutput(w io.Writer, item checklistItem, issueKey string) error {
 	if output.IsJSON() {
 		if output.HasFieldSelection() {
@@ -175,12 +167,10 @@ func renderCreateOutput(w io.Writer, item checklistItem, issueKey string) error 
 		return nil
 	}
 
-	// Table output: brief confirmation.
 	_, err := fmt.Fprintf(w, "Checklist item %s created on %s\n", item.ID, issueKey)
 	return err
 }
 
-// extractCreatedItem returns the checklist item created by this request.
 // The API echoes the full checklist and item order is not guaranteed, so it
 // matches by the requested text (newest match wins on duplicates, since the API
 // appends). When the text is unknown (e.g. --from-json without a text field) it
@@ -206,8 +196,6 @@ func extractCreatedItem(issue *tracker.Issue, req *tracker.ChecklistItemRequest)
 	return nil
 }
 
-// requestedChecklistItem builds a best-effort checklistItem from the create
-// request, used when the API response doesn't let us identify the created item.
 func requestedChecklistItem(req *tracker.ChecklistItemRequest) checklistItem {
 	if req == nil {
 		return checklistItem{}

@@ -15,7 +15,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newEditCmd creates the "comment edit" command.
 func newEditCmd() *cobra.Command {
 	var (
 		bodyFlag string
@@ -53,7 +52,6 @@ SEE ALSO
 				return err
 			}
 
-			// Mutual exclusion: --body and --from-json.
 			if cmd.Flags().Changed("body") && cmd.Flags().Changed("from-json") {
 				return errors.NewUserError(
 					"cannot use --body and --from-json together",
@@ -61,7 +59,6 @@ SEE ALSO
 				)
 			}
 
-			// At least one must be provided.
 			if !cmd.Flags().Changed("body") && !cmd.Flags().Changed("from-json") {
 				return errors.NewUserError(
 					"either --body or --from-json is required",
@@ -87,7 +84,6 @@ SEE ALSO
 	return cmd
 }
 
-// runEdit executes the comment edit logic.
 func runEdit(cmd *cobra.Command, issueKey string, commentID string, body, fromJSON string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "comment edit", CommentFields)
@@ -97,7 +93,6 @@ func runEdit(cmd *cobra.Command, issueKey string, commentID string, body, fromJS
 		output.JSONFields = CommentFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, CommentFields); err != nil {
 			return err
@@ -105,7 +100,6 @@ func runEdit(cmd *cobra.Command, issueKey string, commentID string, body, fromJS
 		output.JSONFields = output.NormalizeFields(output.JSONFields, CommentFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -115,7 +109,6 @@ func runEdit(cmd *cobra.Command, issueKey string, commentID string, body, fromJS
 		return err
 	}
 
-	// Build request from --body or --from-json.
 	var req *tracker.CommentRequest
 
 	if cmd.Flags().Changed("from-json") {
@@ -141,7 +134,6 @@ func runEdit(cmd *cobra.Command, issueKey string, commentID string, body, fromJS
 	return renderEditOutput(cmd.OutOrStdout(), comment, commentID, issueKey)
 }
 
-// renderEditOutput handles JSON/quiet/table output for a comment edit result.
 func renderEditOutput(w io.Writer, comment *tracker.Comment, commentID string, issueKey string) error {
 	if output.IsJSON() {
 		item := toCommentItem(comment)
@@ -163,7 +155,6 @@ func renderEditOutput(w io.Writer, comment *tracker.Comment, commentID string, i
 		return nil
 	}
 
-	// Table output.
 	_, err := fmt.Fprintf(w, "Comment %s updated on %s\n", commentID, issueKey)
 	return err
 }

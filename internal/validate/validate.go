@@ -12,12 +12,9 @@ import (
 	"github.com/slavkluev/ytr/internal/errors"
 )
 
-// maxJSONInputSize is the maximum allowed size for JSON input read from stdin.
 // Protects against unbounded memory consumption from piped input.
 const maxJSONInputSize = 10 << 20 // 10 MB
 
-// issueKeyRegexp matches a valid Yandex Tracker issue key: uppercase letters
-// (with optional underscores/digits) followed by a dash and a positive number.
 var issueKeyRegexp = regexp.MustCompile(`^[A-Z][A-Z0-9_]+-[1-9][0-9]*$`)
 
 // ValidateIssueKey validates that key matches the Yandex Tracker issue key format.
@@ -56,7 +53,7 @@ func ParseJSONInput(value string) ([]byte, error) {
 }
 
 // ParseJSONInputFrom reads JSON data from the given source, using the provided
-// reader for stdin. This variant enables testing without replacing os.Stdin.
+// reader for stdin.
 func ParseJSONInputFrom(value string, stdin io.Reader) ([]byte, error) {
 	switch {
 	case value == "-":
@@ -133,8 +130,7 @@ func ParsePageCursor(cursor string) (int, error) {
 
 // ConflictingAllAndCursor returns an error when both --all and --cursor were
 // supplied. Fetching every page and requesting one specific page are mutually
-// exclusive; previously --all silently won and --cursor was ignored without
-// any warning. Callers pass cmd.Flags().Changed("all"/"cursor").
+// exclusive. Callers pass cmd.Flags().Changed("all"/"cursor").
 func ConflictingAllAndCursor(allChanged, cursorChanged bool) error {
 	if allChanged && cursorChanged {
 		return errors.NewUserError(

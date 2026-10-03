@@ -10,7 +10,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newStatusCmd creates the "bulk status" command.
 func newStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status OPERATION-ID",
@@ -52,7 +51,6 @@ SEE ALSO
 	return cmd
 }
 
-// runStatus executes the bulk status logic.
 func runStatus(cmd *cobra.Command, operationID string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(
@@ -64,7 +62,6 @@ func runStatus(cmd *cobra.Command, operationID string) error {
 		output.JSONFields = BulkStatusFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, BulkStatusFields); err != nil {
 			return err
@@ -72,7 +69,6 @@ func runStatus(cmd *cobra.Command, operationID string) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, BulkStatusFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")

@@ -11,7 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-// issueSearcher abstracts issue search operations for testability.
 type issueSearcher interface {
 	Search(
 		ctx context.Context,
@@ -20,17 +19,14 @@ type issueSearcher interface {
 	) ([]*tracker.Issue, *tracker.Response, error)
 }
 
-// issueGetter abstracts single issue retrieval for testability.
 type issueGetter interface {
 	Get(ctx context.Context, key string, opts *tracker.IssueGetOptions) (*tracker.Issue, *tracker.Response, error)
 }
 
-// issueCreator abstracts issue creation for testability.
 type issueCreator interface {
 	Create(ctx context.Context, issue *tracker.IssueRequest) (*tracker.Issue, *tracker.Response, error)
 }
 
-// issueEditor abstracts issue editing for testability.
 type issueEditor interface {
 	Edit(
 		ctx context.Context,
@@ -40,7 +36,6 @@ type issueEditor interface {
 	) (*tracker.Issue, *tracker.Response, error)
 }
 
-// issueTransitioner abstracts transition operations for testability.
 type issueTransitioner interface {
 	GetTransitions(ctx context.Context, issueKey string) ([]*tracker.Transition, *tracker.Response, error)
 	ExecuteTransition(
@@ -51,32 +46,26 @@ type issueTransitioner interface {
 	) ([]*tracker.Transition, *tracker.Response, error)
 }
 
-// newSearcher creates an issueSearcher from resolved auth. Replaceable for testing.
 var newSearcher = func(auth *config.ResolvedAuth) issueSearcher {
 	return api.NewClient(auth).Issues
 }
 
-// newGetter creates an issueGetter from resolved auth. Replaceable for testing.
 var newGetter = func(auth *config.ResolvedAuth) issueGetter {
 	return api.NewClient(auth).Issues
 }
 
-// newCreator creates an issueCreator from resolved auth. Replaceable for testing.
 var newCreator = func(auth *config.ResolvedAuth) issueCreator {
 	return api.NewClient(auth).Issues
 }
 
-// newEditor creates an issueEditor from resolved auth. Replaceable for testing.
 var newEditor = func(auth *config.ResolvedAuth) issueEditor {
 	return api.NewClient(auth).Issues
 }
 
-// newTransitioner creates an issueTransitioner from resolved auth. Replaceable for testing.
 var newTransitioner = func(auth *config.ResolvedAuth) issueTransitioner {
 	return api.NewClient(auth).Issues
 }
 
-// changelogGetter abstracts changelog retrieval for testability.
 type changelogGetter interface {
 	GetChangelog(
 		ctx context.Context,
@@ -85,7 +74,6 @@ type changelogGetter interface {
 	) ([]*tracker.Changelog, *tracker.Response, error)
 }
 
-// newChangelogGetter creates a changelogGetter from resolved auth. Replaceable for testing.
 var newChangelogGetter = func(auth *config.ResolvedAuth) changelogGetter {
 	return api.NewClient(auth).Issues
 }

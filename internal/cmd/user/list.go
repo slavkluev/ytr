@@ -23,7 +23,6 @@ const (
 // UserListFields lists the available JSON field names for user list output.
 var UserListFields = []string{"uid", "display", "login", "email"}
 
-// userItem is a clean struct for JSON serialization of user list items.
 type userItem struct {
 	UID     int    `json:"uid"`
 	Display string `json:"display"`
@@ -31,7 +30,6 @@ type userItem struct {
 	Email   string `json:"email,omitempty"`
 }
 
-// toUserItem converts a tracker.User to a JSON-serializable list item.
 func toUserItem(u *tracker.User) userItem {
 	return userItem{
 		UID:     api.DerefInt(u.UID, 0),
@@ -41,7 +39,6 @@ func toUserItem(u *tracker.User) userItem {
 	}
 }
 
-// newListCmd creates the "user list" command with pagination.
 func newListCmd() *cobra.Command {
 	var (
 		limit  int
@@ -83,7 +80,6 @@ SEE ALSO
 	return cmd
 }
 
-// userSearchResult holds the pagination state from a list operation.
 type userSearchResult struct {
 	users      []*tracker.User
 	totalCount int
@@ -91,7 +87,6 @@ type userSearchResult struct {
 	nextCursor string
 }
 
-// runList executes the user list logic.
 func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "user list", UserListFields)
@@ -107,7 +102,6 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		output.JSONFields = UserListFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, UserListFields); err != nil {
 			return err
@@ -115,7 +109,6 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, UserListFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -127,7 +120,6 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 
 	lister := newUserLister(auth)
 
-	// Validate and cap limit.
 	if limit < 1 {
 		limit = defaultLimit
 	}
@@ -135,7 +127,6 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		limit = maxLimit
 	}
 
-	// Parse cursor as page number.
 	page, err := validate.ParsePageCursor(cursor)
 	if err != nil {
 		return err
@@ -149,7 +140,6 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 	return renderListOutput(cmd.OutOrStdout(), result)
 }
 
-// fetchUsers retrieves users with optional auto-pagination.
 func fetchUsers(cmd *cobra.Command, lister userLister, limit, page int,
 	all bool) (*userSearchResult, error) {
 	if all {
@@ -176,7 +166,6 @@ func fetchUsers(cmd *cobra.Command, lister userLister, limit, page int,
 	return result, nil
 }
 
-// fetchAllUserPages auto-paginates through all user pages.
 func fetchAllUserPages(cmd *cobra.Command, lister userLister,
 	limit int) (*userSearchResult, error) {
 	var allUsers []*tracker.User
@@ -207,7 +196,6 @@ func fetchAllUserPages(cmd *cobra.Command, lister userLister,
 	return &userSearchResult{users: allUsers, totalCount: totalCount}, nil
 }
 
-// renderListOutput renders the user list in JSON, quiet, or table mode.
 func renderListOutput(w io.Writer, result *userSearchResult) error {
 	if output.IsJSON() {
 		return renderListJSON(w, result)
@@ -225,7 +213,6 @@ func renderListOutput(w io.Writer, result *userSearchResult) error {
 	return renderListTable(w, result.users)
 }
 
-// renderListJSON renders the user list as paginated JSON.
 func renderListJSON(w io.Writer, result *userSearchResult) error {
 	items := make([]userItem, len(result.users))
 	for i, u := range result.users {
@@ -259,7 +246,6 @@ func renderListJSON(w io.Writer, result *userSearchResult) error {
 	return output.PrintJSON(w, data)
 }
 
-// renderListTable renders the user list as a formatted table.
 func renderListTable(w io.Writer, users []*tracker.User) error {
 	if len(users) == 0 {
 		_, printErr := fmt.Fprintln(w, "No users found")

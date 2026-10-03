@@ -33,7 +33,6 @@ var FieldGetFields = []string{
 	"description",
 }
 
-// fieldDetail is a clean struct for JSON serialization of a single field.
 // Option values are []any so each keeps the JSON type Tracker sent.
 type fieldDetail struct {
 	ID             string           `json:"id"`
@@ -52,7 +51,6 @@ type fieldDetail struct {
 	Description    string           `json:"description,omitempty"`
 }
 
-// toFieldDetail converts a tracker.Field into a clean fieldDetail struct for JSON output.
 func toFieldDetail(f *tracker.Field) fieldDetail {
 	detail := fieldDetail{
 		ID:       api.DerefFlexString(f.ID, ""),
@@ -87,7 +85,6 @@ func toFieldDetail(f *tracker.Field) fieldDetail {
 	return detail
 }
 
-// newGetCmd creates the "field get" command for displaying field details.
 func newGetCmd() *cobra.Command {
 	var queueFlag string
 
@@ -130,7 +127,6 @@ SEE ALSO
 	return cmd
 }
 
-// runGet executes the field get logic.
 func runGet(cmd *cobra.Command, fieldKey, queueFlag string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "field get", FieldGetFields)
@@ -140,7 +136,6 @@ func runGet(cmd *cobra.Command, fieldKey, queueFlag string) error {
 		output.JSONFields = FieldGetFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, FieldGetFields); err != nil {
 			return err
@@ -148,7 +143,6 @@ func runGet(cmd *cobra.Command, fieldKey, queueFlag string) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, FieldGetFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -196,7 +190,6 @@ func runGet(cmd *cobra.Command, fieldKey, queueFlag string) error {
 	return renderFieldCard(w, field)
 }
 
-// renderFieldCard renders a bold-label detail card for a field.
 func renderFieldCard(w io.Writer, field *tracker.Field) error {
 	d := output.NewDetail(w)
 
@@ -207,7 +200,6 @@ func renderFieldCard(w io.Writer, field *tracker.Field) error {
 	d.Field("Schema", formatSchema(field))
 	d.Field("Readonly", formatBoolYesNo(api.DerefBool(field.Readonly, false)))
 
-	// Optional fields: category, queue, options.
 	renderOptionalFields(d, field)
 
 	renderDescription(d, field)
@@ -215,7 +207,6 @@ func renderFieldCard(w io.Writer, field *tracker.Field) error {
 	return d.Err()
 }
 
-// formatSchema returns the schema display string with required indicator.
 func formatSchema(field *tracker.Field) string {
 	if field.Schema == nil {
 		return "-"
@@ -230,7 +221,6 @@ func formatSchema(field *tracker.Field) string {
 	return display
 }
 
-// formatBoolYesNo returns "yes" for true and "no" for false.
 func formatBoolYesNo(val bool) string {
 	if val {
 		return "yes"
@@ -238,7 +228,6 @@ func formatBoolYesNo(val bool) string {
 	return "no"
 }
 
-// renderOptionalFields prints category, queue, and options if present.
 func renderOptionalFields(d *output.DetailPrinter, field *tracker.Field) {
 	if field.Category != nil {
 		if display := api.DerefString(field.Category.Display, ""); display != "" {
@@ -257,8 +246,6 @@ func renderOptionalFields(d *output.DetailPrinter, field *tracker.Field) {
 	}
 }
 
-// renderOptions prints a field's allowed values: the flat list, then one row
-// per queue in key order, then Tracker's defaults list.
 func renderOptions(d *output.DetailPrinter, p *tracker.OptionsProvider) {
 	if len(p.Values) > 0 {
 		d.Field("Options", joinOptions(p.Values))
@@ -278,7 +265,6 @@ func renderOptions(d *output.DetailPrinter, p *tracker.OptionsProvider) {
 	}
 }
 
-// joinOptions renders option values of any JSON type as a comma-separated list.
 func joinOptions(values []any) string {
 	parts := make([]string, len(values))
 	for i, v := range values {
@@ -287,7 +273,6 @@ func joinOptions(values []any) string {
 	return strings.Join(parts, ", ")
 }
 
-// renderDescription prints the field description with a separator if present.
 func renderDescription(d *output.DetailPrinter, field *tracker.Field) {
 	if field.Description == nil || *field.Description == "" {
 		return

@@ -55,7 +55,6 @@ func DebugEnabled() bool {
 }
 
 // SetDebugWriter overrides the writer used for debug diagnostics.
-// Tests use this to capture stderr-only output.
 func SetDebugWriter(w io.Writer) {
 	if w == nil {
 		debugWriter = io.Discard

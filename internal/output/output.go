@@ -58,8 +58,7 @@ func HasFieldSelection() bool {
 // jsonFlagChanged must be cmd.Flags().Changed("json"). It is required because
 // `--json=` and "no --json at all" both leave JSONFields empty, so JSONFields
 // alone cannot distinguish them — the same reason the auth commands key off
-// Changed("json"). (The previous predicate, IsJSON() && !HasFieldSelection(),
-// was unsatisfiable and the hint was dead code.)
+// Changed("json").
 func WantsFieldHint(jsonFlagChanged bool) bool {
 	return jsonFlagChanged && !HasFieldSelection() && JQFilter == ""
 }
@@ -70,7 +69,6 @@ func IsQuiet() bool {
 }
 
 // ResetFlags resets all output flags to their zero values.
-// Used in tests to ensure clean state between test cases.
 func ResetFlags() {
 	JSONFields = nil
 	JQFilter = ""
@@ -161,9 +159,6 @@ type jsonErrorRenderer interface {
 	JSONError() ([]byte, error)
 }
 
-// handleError renders err to w, as JSON when asJSON is set and as
-// human-readable text otherwise, and returns the exit code err carries.
-//
 // w is always the caller's error stream: the single document goes to stderr in
 // every mode, so stdout carries command output and nothing else.
 func handleError(w io.Writer, err error, asJSON bool) int {

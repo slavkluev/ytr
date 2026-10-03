@@ -14,7 +14,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newTransitionCmd creates the "bulk transition" command.
 func newTransitionCmd() *cobra.Command {
 	var (
 		transitionFlag string
@@ -70,7 +69,6 @@ SEE ALSO
 	return cmd
 }
 
-// validateTransitionFlags checks mutual exclusion and required flags for bulk transition.
 func validateTransitionFlags(cmd *cobra.Command) error {
 	if cmd.Flags().Changed("from-json") &&
 		(cmd.Flags().Changed("transition") || cmd.Flags().Changed("field")) {
@@ -90,7 +88,6 @@ func validateTransitionFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// runTransition executes the bulk transition logic.
 func runTransition(
 	cmd *cobra.Command,
 	args []string,
@@ -107,7 +104,6 @@ func runTransition(
 		output.JSONFields = BulkStatusFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, BulkStatusFields); err != nil {
 			return err
@@ -115,7 +111,6 @@ func runTransition(
 		output.JSONFields = output.NormalizeFields(output.JSONFields, BulkStatusFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -140,7 +135,6 @@ func runTransition(
 	return awaitBulkCompletion(cmd, newBulkStatusGetter(auth), bc, timeout)
 }
 
-// buildTransitionRequest builds a BulkTransitionRequest from flags or JSON input.
 func buildTransitionRequest(
 	cmd *cobra.Command,
 	args []string,

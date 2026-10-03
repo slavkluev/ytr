@@ -17,8 +17,6 @@ import (
 // ChecklistFields lists the available JSON field names for checklist output.
 var ChecklistFields = []string{"id", "text", "checked", "assignee", "assigneeId"}
 
-// checklistItem is a clean struct for JSON serialization of checklist data.
-// Used by list, create, and edit commands.
 type checklistItem struct {
 	ID         string `json:"id"`
 	Text       string `json:"text"`
@@ -27,7 +25,6 @@ type checklistItem struct {
 	AssigneeID string `json:"assigneeId"`
 }
 
-// newListCmd creates the "checklist list" command.
 func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list ISSUE-KEY",
@@ -60,7 +57,6 @@ SEE ALSO
 	return cmd
 }
 
-// runList executes the checklist list logic.
 func runList(cmd *cobra.Command, issueKey string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "checklist list", ChecklistFields)
@@ -70,7 +66,6 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		output.JSONFields = ChecklistFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, ChecklistFields); err != nil {
 			return err
@@ -78,7 +73,6 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, ChecklistFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -98,7 +92,6 @@ func runList(cmd *cobra.Command, issueKey string) error {
 	return renderListOutput(cmd.OutOrStdout(), items)
 }
 
-// renderListOutput handles JSON/quiet/table output for the checklist list result.
 func renderListOutput(w io.Writer, items []*tracker.ChecklistItem) error {
 	if output.IsJSON() {
 		result := make([]checklistItem, len(items))
@@ -131,7 +124,6 @@ func renderListOutput(w io.Writer, items []*tracker.ChecklistItem) error {
 		return nil
 	}
 
-	// Table output.
 	if len(items) == 0 {
 		_, err := fmt.Fprintln(w, "No checklist items found")
 		return err
@@ -152,7 +144,6 @@ func renderListOutput(w io.Writer, items []*tracker.ChecklistItem) error {
 	return nil
 }
 
-// toChecklistItem converts a tracker.ChecklistItem to a clean JSON struct.
 func toChecklistItem(c *tracker.ChecklistItem) checklistItem {
 	return checklistItem{
 		ID:         api.DerefFlexString(c.ID, ""),
@@ -163,7 +154,6 @@ func toChecklistItem(c *tracker.ChecklistItem) checklistItem {
 	}
 }
 
-// checkedDisplay returns "yes" for true and "no" for false, used in table output.
 func checkedDisplay(checked bool) string {
 	if checked {
 		return "yes"

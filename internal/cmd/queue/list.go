@@ -23,7 +23,6 @@ const (
 // QueueListFields lists the available JSON field names for queue list output.
 var QueueListFields = []string{"key", "name", "lead", "leadId"}
 
-// queueItem is a clean struct for JSON serialization of queue list items.
 // Raw tracker.Queue fields are pointer types that produce nulls in JSON;
 // this struct uses value types with proper json tags.
 type queueItem struct {
@@ -33,7 +32,6 @@ type queueItem struct {
 	LeadID string `json:"leadId"`
 }
 
-// newListCmd creates the "queue list" command with pagination.
 func newListCmd() *cobra.Command {
 	var (
 		limit  int
@@ -74,7 +72,6 @@ SEE ALSO
 	return cmd
 }
 
-// queueSearchResult holds the pagination state from a list operation.
 type queueSearchResult struct {
 	queues     []*tracker.Queue
 	totalCount int
@@ -82,7 +79,6 @@ type queueSearchResult struct {
 	nextCursor string
 }
 
-// runList executes the queue list logic.
 func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "queue list", QueueListFields)
@@ -98,7 +94,6 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		output.JSONFields = QueueListFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, QueueListFields); err != nil {
 			return err
@@ -106,7 +101,6 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, QueueListFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -118,7 +112,6 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 
 	lister := newLister(auth)
 
-	// Validate and cap limit.
 	if limit < 1 {
 		limit = defaultLimit
 	}
@@ -126,7 +119,6 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		limit = maxLimit
 	}
 
-	// Parse cursor as page number.
 	page, err := validate.ParsePageCursor(cursor)
 	if err != nil {
 		return err
@@ -140,7 +132,6 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 	return renderListOutput(cmd.OutOrStdout(), result)
 }
 
-// fetchQueues retrieves queues with optional auto-pagination.
 func fetchQueues(cmd *cobra.Command, lister queueLister, limit, page int,
 	all bool) (*queueSearchResult, error) {
 	if all {
@@ -167,7 +158,6 @@ func fetchQueues(cmd *cobra.Command, lister queueLister, limit, page int,
 	return result, nil
 }
 
-// fetchAllQueuePages auto-paginates through all queue pages.
 func fetchAllQueuePages(cmd *cobra.Command, lister queueLister,
 	limit int) (*queueSearchResult, error) {
 	var allQueues []*tracker.Queue
@@ -198,7 +188,6 @@ func fetchAllQueuePages(cmd *cobra.Command, lister queueLister,
 	return &queueSearchResult{queues: allQueues, totalCount: totalCount}, nil
 }
 
-// renderListOutput renders the queue list in JSON, quiet, or table mode.
 func renderListOutput(w io.Writer, result *queueSearchResult) error {
 	if output.IsJSON() {
 		return renderListJSON(w, result)
@@ -216,7 +205,6 @@ func renderListOutput(w io.Writer, result *queueSearchResult) error {
 	return renderListTable(w, result.queues)
 }
 
-// renderListJSON renders the queue list as paginated JSON.
 func renderListJSON(w io.Writer, result *queueSearchResult) error {
 	items := make([]queueItem, len(result.queues))
 	for i, q := range result.queues {
@@ -250,7 +238,6 @@ func renderListJSON(w io.Writer, result *queueSearchResult) error {
 	return output.PrintJSON(w, data)
 }
 
-// renderListTable renders the queue list as a formatted table.
 func renderListTable(w io.Writer, queues []*tracker.Queue) error {
 	if len(queues) == 0 {
 		_, err := fmt.Fprintln(w, "No queues found")
@@ -272,7 +259,6 @@ func renderListTable(w io.Writer, queues []*tracker.Queue) error {
 	return nil
 }
 
-// toQueueItem converts a tracker.Queue to a clean JSON-serializable struct.
 func toQueueItem(q *tracker.Queue) queueItem {
 	return queueItem{
 		Key:    api.DerefString(q.Key, ""),

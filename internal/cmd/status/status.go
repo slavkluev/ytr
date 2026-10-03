@@ -11,12 +11,10 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-// statusLister abstracts status list operations for testability.
 type statusLister interface {
 	List(ctx context.Context) ([]*tracker.Status, *tracker.Response, error)
 }
 
-// newStatusLister creates a statusLister from resolved auth. Replaceable for testing.
 var newStatusLister = func(auth *config.ResolvedAuth) statusLister {
 	return api.NewClient(auth).Statuses
 }

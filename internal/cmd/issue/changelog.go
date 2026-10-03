@@ -24,8 +24,6 @@ var IssueChangelogFields = []string{
 	"fields", "comments", "links", "attachments", "worklog", "relatedResolutions",
 }
 
-// changelogEntry is a structured representation of one changelog event for JSON output.
-// Each entry corresponds to a single API changelog record with all its sections preserved.
 type changelogEntry struct {
 	Date               string             `json:"date"`
 	Author             string             `json:"author"`
@@ -101,7 +99,6 @@ const (
 	dirInward  = "inward"
 )
 
-// changelogItem is a flat struct representing a single field change event for table/quiet output.
 type changelogItem struct {
 	Date   string `json:"date"`
 	Author string `json:"author"`
@@ -110,7 +107,6 @@ type changelogItem struct {
 	To     string `json:"to"`
 }
 
-// newChangelogCmd creates the "issue changelog" command.
 func newChangelogCmd() *cobra.Command {
 	var (
 		fieldFilter string
@@ -166,7 +162,6 @@ SEE ALSO
 	return cmd
 }
 
-// runChangelog executes the issue changelog logic.
 func runChangelog(
 	cmd *cobra.Command,
 	args []string,
@@ -189,7 +184,6 @@ func runChangelog(
 		output.JSONFields = IssueChangelogFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, IssueChangelogFields); err != nil {
 			return err
@@ -199,7 +193,6 @@ func runChangelog(
 
 	issueKey := args[0]
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -211,7 +204,6 @@ func runChangelog(
 
 	getter := newChangelogGetter(auth)
 
-	// Validate and cap limit.
 	if limit < 1 {
 		limit = defaultLimit
 	}
@@ -235,7 +227,6 @@ func runChangelog(
 	return renderChangelogNonJSON(cmd.OutOrStdout(), items)
 }
 
-// fetchChangelogPage fetches changelog entries, either all pages or a single page.
 func fetchChangelogPage(
 	ctx context.Context,
 	getter changelogGetter,
@@ -270,10 +261,9 @@ func fetchChangelogPage(
 	return entries, hasMore, next, nil
 }
 
-// lastChangelogCursorID returns the pagination cursor (ID) of the last non-nil
-// changelog entry, or "" when there is none. A null element in the API's JSON
-// array decodes to a nil *tracker.Changelog; reading .ID off it would panic, so
-// trailing nils are skipped — they carry no data and are dropped when rendered.
+// A null element in the API's JSON array decodes to a nil *tracker.Changelog;
+// reading .ID off it would panic, so trailing nils are skipped — they carry no
+// data and are dropped when rendered.
 func lastChangelogCursorID(entries []*tracker.Changelog) string {
 	for i := len(entries) - 1; i >= 0; i-- {
 		if e := entries[i]; e != nil {
@@ -283,9 +273,6 @@ func lastChangelogCursorID(entries []*tracker.Changelog) string {
 	return ""
 }
 
-// --- JSON rendering (per-entry structured output) ---
-
-// normalizeChangelog converts API changelog entries into structured changelogEntry items for JSON.
 func normalizeChangelog(entries []*tracker.Changelog) []changelogEntry {
 	result := make([]changelogEntry, 0, len(entries))
 	for _, e := range entries {
@@ -427,7 +414,6 @@ func normalizeLinkValue(v *tracker.ChangelogLinkValue) *linkValue {
 	return lv
 }
 
-// linkTypeNameByDirection returns the localized link type name based on direction.
 // For asymmetric link types (e.g., depends), outward and inward have different names.
 func linkTypeNameByDirection(lt *tracker.IssueLinkType, direction string) string {
 	if lt == nil {
@@ -535,8 +521,6 @@ func normalizeRelatedResolutions(rr []*tracker.RelatedResolution) []resolutionCh
 	return result
 }
 
-// stripSelfURLs recursively removes "self" keys from map[string]any values.
-// Passes through scalars, nil, and recurses into slices.
 func stripSelfURLs(v any) any {
 	if v == nil {
 		return nil
@@ -562,8 +546,6 @@ func stripSelfURLs(v any) any {
 	}
 }
 
-// formatDurationISO converts a *tracker.Duration to an ISO 8601 string (e.g., "PT1H30M").
-// Returns "" if d is nil or on error.
 func formatDurationISO(d *tracker.Duration) string {
 	if d == nil {
 		return ""
@@ -579,14 +561,11 @@ func formatDurationISO(d *tracker.Duration) string {
 	return s
 }
 
-// renderChangelogJSON renders per-entry structured JSON with FilterFields and pagination.
 func renderChangelogJSON(w io.Writer, entries []changelogEntry, hasMore bool, nextCursor string) error {
 	var data any
 	if output.HasFieldSelection() {
 		filtered := make([]map[string]any, 0, len(entries))
 		for _, entry := range entries {
-			// FilterFields now honors omitempty, so empty sections are dropped
-			// here exactly as in the full-JSON output — no manual cleanup needed.
 			filtered = append(filtered, output.FilterFields(entry, output.JSONFields))
 		}
 		data = output.PaginatedResult{
@@ -612,11 +591,6 @@ func renderChangelogJSON(w io.Writer, entries []changelogEntry, hasMore bool, ne
 	return output.PrintJSON(w, data)
 }
 
-// --- Table / quiet rendering (flat rows) ---
-
-// flattenChangelog converts a slice of Changelog entries into a flat slice of changelogItems
-// for table and quiet output. Each section (fields, comments, links, etc.) produces
-// separate rows sharing the same date and author.
 func flattenChangelog(entries []*tracker.Changelog) []changelogItem {
 	var items []changelogItem
 	for _, entry := range entries {
@@ -783,7 +757,6 @@ func flattenResolutionsToItems(
 	return items
 }
 
-// formatLinkValueString formats a ChangelogLinkValue as "LinkTypeName → IssueKey" for table output.
 func formatLinkValueString(v *tracker.ChangelogLinkValue) string {
 	if v == nil {
 		return ""
@@ -808,7 +781,6 @@ func formatLinkValueString(v *tracker.ChangelogLinkValue) string {
 	return linkName
 }
 
-// formatWorklogValueString formats a ChangelogWorklogValue as ISO 8601 duration for table output.
 func formatWorklogValueString(v *tracker.ChangelogWorklogValue) string {
 	if v == nil {
 		return ""
@@ -816,7 +788,6 @@ func formatWorklogValueString(v *tracker.ChangelogWorklogValue) string {
 	return formatDurationISO(v.Duration)
 }
 
-// formatRelatedResolutionString formats a RelatedResolution as "IssueKey: ResolutionDisplay" for table.
 func formatRelatedResolutionString(rr *tracker.RelatedResolution) string {
 	if rr == nil {
 		return ""
@@ -838,7 +809,6 @@ func formatRelatedResolutionString(rr *tracker.RelatedResolution) string {
 	return resolution
 }
 
-// renderChangelogNonJSON renders table or quiet output from flat changelog items.
 func renderChangelogNonJSON(w io.Writer, items []changelogItem) error {
 	if output.IsQuiet() {
 		for _, item := range items {
@@ -850,7 +820,6 @@ func renderChangelogNonJSON(w io.Writer, items []changelogItem) error {
 	return renderChangelogTable(w, items)
 }
 
-// changelogFieldName extracts a human-readable field name from a FieldRef.
 // Prefers ID (machine-readable, matches --field filter values) over Display.
 func changelogFieldName(f *tracker.FieldRef) string {
 	if f == nil {
@@ -865,8 +834,6 @@ func changelogFieldName(f *tracker.FieldRef) string {
 	return ""
 }
 
-// normalizeChangeValue converts a polymorphic From/To value from the Tracker API
-// into a flat string representation for table output.
 func normalizeChangeValue(v any) string {
 	if v == nil {
 		return ""
@@ -904,7 +871,6 @@ func normalizeChangeValue(v any) string {
 	}
 }
 
-// fetchAllChangelog auto-paginates through all changelog pages using cursor-based pagination.
 func fetchAllChangelog(
 	ctx context.Context,
 	getter changelogGetter,
@@ -948,7 +914,6 @@ func fetchAllChangelog(
 	return all, nil
 }
 
-// renderChangelogTable renders the changelog as a formatted table.
 func renderChangelogTable(w io.Writer, items []changelogItem) error {
 	if len(items) == 0 {
 		_, err := fmt.Fprintln(w, "No changes found")

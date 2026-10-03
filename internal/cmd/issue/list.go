@@ -26,7 +26,7 @@ const (
 	// tableReservedWidth is the space reserved for key (12), status (15),
 	// assignee (15), and padding (9) in table output.
 	tableReservedWidth = 51
-	// minColumnWidth is the minimum width for truncated text columns.
+
 	minColumnWidth = 10
 )
 
@@ -36,7 +36,6 @@ var IssueListFields = []string{
 	"assignee", "assigneeId", "createdAt", "updatedAt",
 }
 
-// issueListItem is a clean struct for JSON serialization of issue list items.
 // Raw tracker.Issue fields are pointer types that produce nulls in JSON;
 // this struct uses value types with proper json tags.
 type issueListItem struct {
@@ -51,7 +50,6 @@ type issueListItem struct {
 	UpdatedAt  string `json:"updatedAt,omitempty"`
 }
 
-// newListCmd creates the "issue list" command with filters and pagination.
 func newListCmd() *cobra.Command {
 	var (
 		query       string
@@ -122,7 +120,6 @@ SEE ALSO
 	return cmd
 }
 
-// issueSearchResult holds the pagination state from a search operation.
 type issueSearchResult struct {
 	issues     []*tracker.Issue
 	totalCount int
@@ -130,7 +127,6 @@ type issueSearchResult struct {
 	nextCursor string
 }
 
-// runList executes the issue list logic.
 func runList(
 	cmd *cobra.Command,
 	query string,
@@ -154,7 +150,6 @@ func runList(
 		output.JSONFields = IssueListFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, IssueListFields); err != nil {
 			return err
@@ -162,7 +157,6 @@ func runList(
 		output.JSONFields = output.NormalizeFields(output.JSONFields, IssueListFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -174,7 +168,6 @@ func runList(
 
 	searcher := newSearcher(auth)
 
-	// Validate and cap limit.
 	if limit < 1 {
 		limit = defaultLimit
 	}
@@ -182,20 +175,16 @@ func runList(
 		limit = maxLimit
 	}
 
-	// Parse cursor as page number.
 	page, err := validate.ParsePageCursor(cursor)
 	if err != nil {
 		return err
 	}
 
-	// Build the search request.
 	searchReq := &tracker.IssueSearchRequest{}
 
 	if query != "" {
-		// Query mode: set Query field only.
 		searchReq.Query = &query
 	} else if len(filterFlags) > 0 {
-		// Filter mode: parse --filter key=value entries.
 		filter, parseErr := parseFilterFlags(filterFlags)
 		if parseErr != nil {
 			return parseErr
@@ -203,7 +192,6 @@ func runList(
 		searchReq.Filter = filter
 	}
 
-	// Apply ordering.
 	if orderBy != "" {
 		prefix := "-"
 		if orderAsc {
@@ -221,7 +209,6 @@ func runList(
 	return renderListOutput(cmd.OutOrStdout(), result)
 }
 
-// validateSearchFlags checks for mutually exclusive flag combinations.
 func validateSearchFlags(cmd *cobra.Command) error {
 	queryChanged := cmd.Flags().Changed("query")
 	orderByChanged := cmd.Flags().Changed("order-by")
@@ -252,9 +239,7 @@ func validateSearchFlags(cmd *cobra.Command) error {
 	)
 }
 
-// parseFilterFlags parses --filter key=value flags into a map.
 // Splits on the first = sign only, so values may contain =.
-// Duplicate keys accumulate into []string slices.
 func parseFilterFlags(flags []string) (map[string]any, error) {
 	result := make(map[string]any, len(flags))
 
@@ -286,7 +271,6 @@ func parseFilterFlags(flags []string) (map[string]any, error) {
 	return result, nil
 }
 
-// fetchIssues retrieves issues with optional auto-pagination.
 func fetchIssues(cmd *cobra.Command, searcher issueSearcher, searchReq *tracker.IssueSearchRequest,
 	limit, page int, all bool) (*issueSearchResult, error) {
 	if all {
@@ -313,7 +297,6 @@ func fetchIssues(cmd *cobra.Command, searcher issueSearcher, searchReq *tracker.
 	return result, nil
 }
 
-// fetchAllIssuePages auto-paginates through all issue pages.
 func fetchAllIssuePages(cmd *cobra.Command, searcher issueSearcher,
 	searchReq *tracker.IssueSearchRequest, limit int) (*issueSearchResult, error) {
 	var allIssues []*tracker.Issue
@@ -344,7 +327,6 @@ func fetchAllIssuePages(cmd *cobra.Command, searcher issueSearcher,
 	return &issueSearchResult{issues: allIssues, totalCount: totalCount}, nil
 }
 
-// renderListOutput renders the issue list in JSON, quiet, or table mode.
 func renderListOutput(w io.Writer, result *issueSearchResult) error {
 	if output.IsJSON() {
 		return renderListJSON(w, result)
@@ -362,7 +344,6 @@ func renderListOutput(w io.Writer, result *issueSearchResult) error {
 	return renderListTable(w, result.issues)
 }
 
-// renderListJSON renders the issue list as paginated JSON.
 func renderListJSON(w io.Writer, result *issueSearchResult) error {
 	items := make([]issueListItem, len(result.issues))
 	for i, issue := range result.issues {
@@ -396,7 +377,6 @@ func renderListJSON(w io.Writer, result *issueSearchResult) error {
 	return output.PrintJSON(w, data)
 }
 
-// renderListTable renders the issue list as a formatted table.
 func renderListTable(w io.Writer, issues []*tracker.Issue) error {
 	if len(issues) == 0 {
 		_, err := fmt.Fprintln(w, "No issues found")
@@ -412,7 +392,6 @@ func renderListTable(w io.Writer, issues []*tracker.Issue) error {
 		assigneeVal := api.DerefUser(issue.Assignee, "-")
 		summary := output.FitColumn(api.DerefString(issue.Summary, "-"), tableReservedWidth, minColumnWidth)
 
-		// Apply status color if colors are enabled.
 		if output.ColorsEnabled() {
 			statusVal = colorizeStatus(issue, statusVal)
 		}
@@ -424,7 +403,6 @@ func renderListTable(w io.Writer, issues []*tracker.Issue) error {
 	return nil
 }
 
-// toListItem converts a tracker.Issue to a clean JSON-serializable struct.
 func toListItem(issue *tracker.Issue) issueListItem {
 	item := issueListItem{
 		Key:        api.DerefString(issue.Key, ""),
@@ -450,8 +428,6 @@ func toListItem(issue *tracker.Issue) issueListItem {
 	return item
 }
 
-// issueStatusDisplay extracts the display name from an issue's status.
-// Returns "-" if the status or its display fields are nil.
 func issueStatusDisplay(issue *tracker.Issue) string {
 	if issue.Status == nil {
 		return "-"
@@ -465,7 +441,6 @@ func issueStatusDisplay(issue *tracker.Issue) string {
 	return "-"
 }
 
-// colorizeStatus applies semantic color to a status string based on status type.
 func colorizeStatus(issue *tracker.Issue, statusText string) string {
 	if issue.Status == nil || issue.Status.Key == nil {
 		return statusText

@@ -15,7 +15,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newEditCmd creates the "component edit" command.
 func newEditCmd() *cobra.Command {
 	var (
 		nameFlag        string
@@ -51,12 +50,10 @@ SEE ALSO
   ytr component edit 42 --from-json '{"name":"Backend","description":"Updated"}'`,
 		Args: cobra.ExactArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			// Validate component ID.
 			if _, err := validate.ValidateNumericID(args[0], "component ID"); err != nil {
 				return err
 			}
 
-			// Mutual exclusion: --from-json vs individual flags.
 			if cmd.Flags().Changed("from-json") &&
 				(cmd.Flags().Changed("name") || cmd.Flags().Changed("queue") ||
 					cmd.Flags().Changed("description") || cmd.Flags().Changed("lead") ||
@@ -67,7 +64,6 @@ SEE ALSO
 				)
 			}
 
-			// At least one flag or --from-json required.
 			if !cmd.Flags().Changed("from-json") &&
 				!cmd.Flags().Changed("name") && !cmd.Flags().Changed("queue") &&
 				!cmd.Flags().Changed("description") && !cmd.Flags().Changed("lead") &&
@@ -97,7 +93,6 @@ SEE ALSO
 	return cmd
 }
 
-// runEdit executes the component edit logic.
 func runEdit(
 	cmd *cobra.Command,
 	componentID string,
@@ -113,7 +108,6 @@ func runEdit(
 		output.JSONFields = ComponentListFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, ComponentListFields); err != nil {
 			return err
@@ -121,7 +115,6 @@ func runEdit(
 		output.JSONFields = output.NormalizeFields(output.JSONFields, ComponentListFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -131,7 +124,6 @@ func runEdit(
 		return err
 	}
 
-	// Build request from individual flags or --from-json.
 	req, buildErr := buildEditRequest(cmd, nameFlag, queueFlag, descriptionFlag, leadFlag, assignAutoFlag, fromJSON)
 	if buildErr != nil {
 		return buildErr
@@ -147,7 +139,6 @@ func runEdit(
 	return renderEditOutput(cmd.OutOrStdout(), component)
 }
 
-// buildEditRequest constructs a ComponentRequest from flags or --from-json input.
 func buildEditRequest(
 	cmd *cobra.Command,
 	nameFlag, queueFlag, descriptionFlag, leadFlag string,
@@ -185,7 +176,6 @@ func buildEditRequest(
 	return req, nil
 }
 
-// renderEditOutput handles JSON/quiet/table output for a component edit result.
 func renderEditOutput(w io.Writer, component *tracker.Component) error {
 	if output.IsJSON() {
 		item := toComponentItem(component)
@@ -207,7 +197,6 @@ func renderEditOutput(w io.Writer, component *tracker.Component) error {
 		return nil
 	}
 
-	// Table output: brief confirmation.
 	_, err := fmt.Fprintf(w, "Component %s updated\n", api.DerefFlexString(component.ID, ""))
 	return err
 }

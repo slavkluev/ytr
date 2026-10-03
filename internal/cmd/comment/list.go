@@ -20,7 +20,7 @@ const (
 	// commentTableReservedWidth is the space reserved for ID (8), author (15),
 	// date (12), and padding (9) in table output.
 	commentTableReservedWidth = 44
-	// commentMinColumnWidth is the minimum width for truncated body column.
+
 	commentMinColumnWidth = 10
 	// commentPageSize is the per-page count used when auto-paginating comments.
 	// The server default is 50; comment list pages explicitly so all comments
@@ -31,8 +31,6 @@ const (
 // CommentFields lists the available JSON field names for comment output.
 var CommentFields = []string{"id", "author", "authorId", "body", "createdAt", "updatedAt"}
 
-// commentItem is a clean struct for JSON serialization of comment data.
-// Used by both list and create commands.
 type commentItem struct {
 	ID        string `json:"id"`
 	Author    string `json:"author"`
@@ -42,7 +40,6 @@ type commentItem struct {
 	UpdatedAt string `json:"updatedAt,omitempty"`
 }
 
-// newListCmd creates the "comment list" command.
 func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list ISSUE-KEY",
@@ -77,7 +74,6 @@ SEE ALSO
 	return cmd
 }
 
-// runList executes the comment list logic.
 func runList(cmd *cobra.Command, issueKey string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "comment list", CommentFields)
@@ -87,7 +83,6 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		output.JSONFields = CommentFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, CommentFields); err != nil {
 			return err
@@ -95,7 +90,6 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, CommentFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -117,9 +111,7 @@ func runList(cmd *cobra.Command, issueKey string) error {
 
 // fetchAllComments retrieves every comment on an issue by following the
 // comment-ID cursor until a short (or empty) page is returned. The Tracker
-// list endpoint caps a single page at the server default (~50); without this
-// loop, issues with more comments lost the rest silently — breaking scripts
-// that count or aggregate comments.
+// list endpoint caps a single page at the server default (~50).
 func fetchAllComments(
 	ctx context.Context,
 	lister commentLister,
@@ -156,7 +148,6 @@ func fetchAllComments(
 	return all, nil
 }
 
-// renderListOutput handles JSON/quiet/table output for the comment list result.
 func renderListOutput(w io.Writer, comments []*tracker.Comment) error {
 	if output.IsJSON() {
 		items := make([]commentItem, len(comments))
@@ -189,7 +180,6 @@ func renderListOutput(w io.Writer, comments []*tracker.Comment) error {
 		return nil
 	}
 
-	// Table output.
 	if len(comments) == 0 {
 		_, err := fmt.Fprintln(w, "No comments found")
 		return err
@@ -213,7 +203,6 @@ func renderListOutput(w io.Writer, comments []*tracker.Comment) error {
 	return nil
 }
 
-// toCommentItem converts a tracker.Comment to a clean JSON-serializable struct.
 func toCommentItem(c *tracker.Comment) commentItem {
 	item := commentItem{
 		ID:       api.DerefFlexString(c.ID, ""),

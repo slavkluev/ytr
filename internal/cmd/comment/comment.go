@@ -11,7 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-// commentLister abstracts comment list operations for testability.
 type commentLister interface {
 	ListComments(
 		ctx context.Context,
@@ -20,7 +19,6 @@ type commentLister interface {
 	) ([]*tracker.Comment, *tracker.Response, error)
 }
 
-// commentCreator abstracts comment creation for testability.
 type commentCreator interface {
 	CreateComment(
 		ctx context.Context,
@@ -29,17 +27,14 @@ type commentCreator interface {
 	) (*tracker.Comment, *tracker.Response, error)
 }
 
-// newCommentLister creates a commentLister from resolved auth. Replaceable for testing.
 var newCommentLister = func(auth *config.ResolvedAuth) commentLister {
 	return api.NewClient(auth).Issues
 }
 
-// newCommentCreator creates a commentCreator from resolved auth. Replaceable for testing.
 var newCommentCreator = func(auth *config.ResolvedAuth) commentCreator {
 	return api.NewClient(auth).Issues
 }
 
-// commentEditor abstracts comment edit operations for testability.
 type commentEditor interface {
 	EditComment(
 		ctx context.Context,
@@ -49,7 +44,6 @@ type commentEditor interface {
 	) (*tracker.Comment, *tracker.Response, error)
 }
 
-// commentDeleter abstracts comment deletion for testability.
 type commentDeleter interface {
 	DeleteComment(
 		ctx context.Context,
@@ -58,12 +52,10 @@ type commentDeleter interface {
 	) (*tracker.Response, error)
 }
 
-// newCommentEditor creates a commentEditor from resolved auth. Replaceable for testing.
 var newCommentEditor = func(auth *config.ResolvedAuth) commentEditor {
 	return api.NewClient(auth).Issues
 }
 
-// newCommentDeleter creates a commentDeleter from resolved auth. Replaceable for testing.
 var newCommentDeleter = func(auth *config.ResolvedAuth) commentDeleter {
 	return api.NewClient(auth).Issues
 }

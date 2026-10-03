@@ -19,15 +19,11 @@ import (
 // IssueTransitionFields lists the available JSON field names for issue transition output.
 var IssueTransitionFields = []string{"key", "transition"}
 
-// transitionResult is a clean struct for JSON output of a successful transition.
 type transitionResult struct {
 	Key        string `json:"key"`
 	Transition string `json:"transition"`
 }
 
-// newTransitionCmd creates the "issue transition" command for transitioning
-// issue status via a two-step API flow: fetch available transitions, match
-// the target, then execute.
 func newTransitionCmd() *cobra.Command {
 	var toFlag string
 
@@ -68,7 +64,6 @@ SEE ALSO
 	return cmd
 }
 
-// runTransition executes the issue transition logic.
 func runTransition(cmd *cobra.Command, issueKey, toFlag string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue transition", IssueTransitionFields)
@@ -78,7 +73,6 @@ func runTransition(cmd *cobra.Command, issueKey, toFlag string) error {
 		output.JSONFields = IssueTransitionFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, IssueTransitionFields); err != nil {
 			return err
@@ -97,41 +91,33 @@ func runTransition(cmd *cobra.Command, issueKey, toFlag string) error {
 
 	transitioner := newTransitioner(auth)
 
-	// Step 1: Fetch available transitions.
 	transitions, _, err := transitioner.GetTransitions(cmd.Context(), issueKey)
 	if err != nil {
 		return api.MapAPIError(err)
 	}
 
-	// Step 2: Match --to value with two-pass strategy.
 	matched := matchTransition(transitions, toFlag)
 
-	// No match found -- return structured error with valid transitions.
 	if matched == nil {
 		return buildTransitionError(issueKey, toFlag, transitions)
 	}
 
-	// Step 3: Execute the transition.
 	_, _, err = transitioner.ExecuteTransition(cmd.Context(), issueKey, api.DerefFlexString(matched.ID, ""), nil)
 	if err != nil {
 		return api.MapAPIError(err)
 	}
 
-	// Step 4: Output the result.
 	targetDisplay := api.DerefString(matched.To.Display, api.DerefString(matched.To.Key, toFlag))
 	return renderTransitionOutput(cmd.OutOrStdout(), issueKey, targetDisplay)
 }
 
-// matchTransition finds a transition matching toFlag by key (exact) or display name (case-insensitive).
 func matchTransition(transitions []*tracker.Transition, toFlag string) *tracker.Transition {
-	// Pass 1: Exact match on To.Key.
 	for _, t := range transitions {
 		if t.To != nil && t.To.Key != nil && *t.To.Key == toFlag {
 			return t
 		}
 	}
 
-	// Pass 2: Case-insensitive match on To.Display.
 	for _, t := range transitions {
 		if t.To != nil && t.To.Display != nil && strings.EqualFold(*t.To.Display, toFlag) {
 			return t
@@ -141,7 +127,6 @@ func matchTransition(transitions []*tracker.Transition, toFlag string) *tracker.
 	return nil
 }
 
-// renderTransitionOutput renders the transition result in JSON, quiet, or table mode.
 func renderTransitionOutput(w io.Writer, issueKey, targetDisplay string) error {
 	if output.IsJSON() {
 		result := transitionResult{
@@ -166,13 +151,10 @@ func renderTransitionOutput(w io.Writer, issueKey, targetDisplay string) error {
 		return nil
 	}
 
-	// Table mode: human-readable message.
 	_, err := fmt.Fprintf(w, "%s transitioned to %s\n", issueKey, targetDisplay)
 	return err
 }
 
-// buildTransitionError creates a structured user error listing valid
-// transitions and a copy-paste suggestion command.
 func buildTransitionError(issueKey, toFlag string, transitions []*tracker.Transition) error {
 	valid := make([]string, 0, len(transitions))
 	for _, t := range transitions {

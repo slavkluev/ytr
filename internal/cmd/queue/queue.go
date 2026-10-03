@@ -11,18 +11,14 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-// queueLister abstracts queue list operations for testability.
 type queueLister interface {
 	List(ctx context.Context, opts *tracker.QueueListOptions) ([]*tracker.Queue, *tracker.Response, error)
 }
 
-// queueGetter abstracts single queue retrieval for testability.
 type queueGetter interface {
 	Get(ctx context.Context, key string, opts *tracker.QueueGetOptions) (*tracker.Queue, *tracker.Response, error)
 }
 
-// queueContextClient abstracts the read-only requests behind queue context,
-// which span the queue, workflow, and field services, for testability.
 type queueContextClient interface {
 	GetQueue(ctx context.Context, key string, opts *tracker.QueueGetOptions) (*tracker.Queue, *tracker.Response, error)
 	GetWorkflow(ctx context.Context, id string) (*tracker.Workflow, *tracker.Response, error)
@@ -36,7 +32,6 @@ type queueContextClient interface {
 	ListGlobalFields(ctx context.Context) ([]*tracker.Field, *tracker.Response, error)
 }
 
-// trackerContextClient implements queueContextClient over one tracker.Client.
 // The services share method names (Queues.Get, Workflows.Get), so no single
 // service satisfies the interface.
 type trackerContextClient struct {
@@ -84,17 +79,14 @@ func (c trackerContextClient) ListGlobalFields(ctx context.Context) ([]*tracker.
 	return c.client.Fields.List(ctx)
 }
 
-// newLister creates a queueLister from resolved auth. Replaceable for testing.
 var newLister = func(auth *config.ResolvedAuth) queueLister {
 	return api.NewClient(auth).Queues
 }
 
-// newGetter creates a queueGetter from resolved auth. Replaceable for testing.
 var newGetter = func(auth *config.ResolvedAuth) queueGetter {
 	return api.NewClient(auth).Queues
 }
 
-// newContextClient creates a queueContextClient from resolved auth. Replaceable for testing.
 var newContextClient = func(auth *config.ResolvedAuth) queueContextClient {
 	return trackerContextClient{client: api.NewClient(auth)}
 }

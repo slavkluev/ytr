@@ -19,7 +19,6 @@ var UserDetailFields = []string{
 	"firstName", "lastName", "dismissed", "hasLicense", "external",
 }
 
-// userDetail is a clean struct for JSON serialization of full user info.
 type userDetail struct {
 	UID        int    `json:"uid"`
 	Display    string `json:"display"`
@@ -32,7 +31,6 @@ type userDetail struct {
 	External   bool   `json:"external"`
 }
 
-// toUserDetail converts a tracker.User to a clean JSON-serializable struct.
 func toUserDetail(u *tracker.User) userDetail {
 	return userDetail{
 		UID:        api.DerefInt(u.UID, 0),
@@ -47,7 +45,6 @@ func toUserDetail(u *tracker.User) userDetail {
 	}
 }
 
-// newMyselfCmd creates the "user myself" command for displaying current user info.
 func newMyselfCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "myself",
@@ -79,7 +76,6 @@ SEE ALSO
 	return cmd
 }
 
-// runMyself executes the user myself logic.
 func runMyself(cmd *cobra.Command) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "user myself", UserDetailFields)
@@ -89,7 +85,6 @@ func runMyself(cmd *cobra.Command) error {
 		output.JSONFields = UserDetailFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, UserDetailFields); err != nil {
 			return err
@@ -97,7 +92,6 @@ func runMyself(cmd *cobra.Command) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, UserDetailFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -117,7 +111,6 @@ func runMyself(cmd *cobra.Command) error {
 	return renderDetailOutput(cmd.OutOrStdout(), user)
 }
 
-// renderDetailOutput handles JSON/quiet/table output for a user detail result.
 func renderDetailOutput(w io.Writer, user *tracker.User) error {
 	if output.IsJSON() {
 		detail := toUserDetail(user)
@@ -140,7 +133,6 @@ func renderDetailOutput(w io.Writer, user *tracker.User) error {
 		return nil
 	}
 
-	// Table-style view: labeled rows similar to gh issue view.
 	d := output.NewDetail(w)
 
 	d.Field("UID", strconv.Itoa(api.DerefInt(user.UID, 0)))

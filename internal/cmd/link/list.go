@@ -17,8 +17,6 @@ import (
 // LinkListFields lists the available JSON field names for link output.
 var LinkListFields = []string{"id", "type", "issue", "summary"}
 
-// linkItem is a clean struct for JSON serialization of link data.
-// Used by both list and create commands.
 type linkItem struct {
 	ID      string `json:"id"`
 	Type    string `json:"type"`
@@ -26,9 +24,6 @@ type linkItem struct {
 	Summary string `json:"summary"`
 }
 
-// linkTypeDisplay returns the direction-aware link type label.
-// For inward links it returns Type.Inward, for outward links Type.Outward.
-// Falls back to Type.ID if direction is unknown, or "-" if Type is nil.
 func linkTypeDisplay(link *tracker.IssueLink) string {
 	if link.Type == nil || link.Direction == nil {
 		return "-"
@@ -44,7 +39,6 @@ func linkTypeDisplay(link *tracker.IssueLink) string {
 	}
 }
 
-// toLinkItem converts a tracker.IssueLink to a clean JSON-serializable struct.
 func toLinkItem(link *tracker.IssueLink) linkItem {
 	item := linkItem{
 		ID:   api.DerefFlexString(link.ID, ""),
@@ -59,7 +53,6 @@ func toLinkItem(link *tracker.IssueLink) linkItem {
 	return item
 }
 
-// newListCmd creates the "link list" command.
 func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list ISSUE-KEY",
@@ -94,7 +87,6 @@ SEE ALSO
 	return cmd
 }
 
-// runList executes the link list logic.
 func runList(cmd *cobra.Command, issueKey string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "link list", LinkListFields)
@@ -104,7 +96,6 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		output.JSONFields = LinkListFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, LinkListFields); err != nil {
 			return err
@@ -112,7 +103,6 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, LinkListFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -132,7 +122,6 @@ func runList(cmd *cobra.Command, issueKey string) error {
 	return renderOutput(cmd.OutOrStdout(), links)
 }
 
-// renderOutput handles JSON/quiet/table output for the link list result.
 func renderOutput(w io.Writer, links []*tracker.IssueLink) error {
 	if output.IsJSON() {
 		items := make([]linkItem, len(links))
@@ -165,7 +154,6 @@ func renderOutput(w io.Writer, links []*tracker.IssueLink) error {
 		return nil
 	}
 
-	// Table output.
 	if len(links) == 0 {
 		_, err := fmt.Fprintln(w, "No links found")
 		return err

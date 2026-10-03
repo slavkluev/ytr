@@ -15,7 +15,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newCreateCmd creates the "link create" command.
 func newCreateCmd() *cobra.Command {
 	var (
 		typeFlag  string
@@ -50,7 +49,6 @@ SEE ALSO
 				return err
 			}
 
-			// Mutual exclusion: --from-json vs --type/--issue.
 			if cmd.Flags().Changed("from-json") &&
 				(cmd.Flags().Changed("type") || cmd.Flags().Changed("issue")) {
 				return errors.NewUserError(
@@ -59,7 +57,6 @@ SEE ALSO
 				)
 			}
 
-			// Require both --type and --issue when not using --from-json.
 			if !cmd.Flags().Changed("from-json") {
 				if !cmd.Flags().Changed("type") || !cmd.Flags().Changed("issue") {
 					return errors.NewUserError(
@@ -69,7 +66,6 @@ SEE ALSO
 				}
 			}
 
-			// Validate target issue key when --issue is provided.
 			if cmd.Flags().Changed("issue") {
 				if err := validate.ValidateIssueKey(issueFlag); err != nil {
 					return err
@@ -95,7 +91,6 @@ SEE ALSO
 	return cmd
 }
 
-// runCreate executes the link create logic.
 func runCreate(cmd *cobra.Command, issueKey, typeFlag, issueFlag, fromJSON string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "link create", LinkListFields)
@@ -105,7 +100,6 @@ func runCreate(cmd *cobra.Command, issueKey, typeFlag, issueFlag, fromJSON strin
 		output.JSONFields = LinkListFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, LinkListFields); err != nil {
 			return err
@@ -113,7 +107,6 @@ func runCreate(cmd *cobra.Command, issueKey, typeFlag, issueFlag, fromJSON strin
 		output.JSONFields = output.NormalizeFields(output.JSONFields, LinkListFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -123,7 +116,6 @@ func runCreate(cmd *cobra.Command, issueKey, typeFlag, issueFlag, fromJSON strin
 		return err
 	}
 
-	// Build request from --type/--issue or --from-json.
 	var req *tracker.LinkRequest
 
 	if cmd.Flags().Changed("from-json") {
@@ -152,7 +144,6 @@ func runCreate(cmd *cobra.Command, issueKey, typeFlag, issueFlag, fromJSON strin
 	return renderCreateOutput(cmd.OutOrStdout(), link, issueKey)
 }
 
-// renderCreateOutput handles JSON/quiet/table output for a link create result.
 func renderCreateOutput(w io.Writer, link *tracker.IssueLink, issueKey string) error {
 	if output.IsJSON() {
 		item := toLinkItem(link)
@@ -174,7 +165,6 @@ func renderCreateOutput(w io.Writer, link *tracker.IssueLink, issueKey string) e
 		return nil
 	}
 
-	// Table output: brief confirmation.
 	_, err := fmt.Fprintf(w, "Link %s created on %s\n", api.DerefFlexString(link.ID, ""), issueKey)
 	return err
 }

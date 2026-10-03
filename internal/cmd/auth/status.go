@@ -10,10 +10,6 @@ import (
 	"github.com/slavkluev/ytr/internal/output"
 )
 
-// newStatusCmd creates the "auth status" command that shows the current
-// authentication state. Validates the token via API call and displays
-// the token source, organization, and authenticated user.
-// Exits with code 3 (auth_error) when not authenticated.
 func newStatusCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
@@ -37,8 +33,6 @@ SEE ALSO
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
-	// Resolve auth from global flags, env vars, or config file.
-	// Global --token, --org-id, and --org-type flags are read from root command.
 	tokenFlag := ""
 	orgIDFlag := ""
 	orgTypeFlag := ""
@@ -53,18 +47,14 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Validate credentials via API
 	validator := newValidator(auth)
 	user, _, err := validator.Myself(cmd.Context())
 	if err != nil {
 		return api.MapAPIError(err)
 	}
 
-	// Extract username
 	username := api.DerefUser(user, "unknown")
 
-	// Output result
-	// Auth commands use cmd.Flags().Changed("json") for JSON detection.
 	// No field selection or hints -- fixed-structure JSON.
 	jsonRequested := cmd.Flags().Changed("json") || output.IsJSON()
 	if jsonRequested {

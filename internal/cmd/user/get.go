@@ -10,7 +10,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newGetCmd creates the "user get" command for displaying user details by UID.
 func newGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get UID",
@@ -47,7 +46,6 @@ SEE ALSO
 	return cmd
 }
 
-// runGet executes the user get logic.
 func runGet(cmd *cobra.Command, userID string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "user get", UserDetailFields)
@@ -57,7 +55,6 @@ func runGet(cmd *cobra.Command, userID string) error {
 		output.JSONFields = UserDetailFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, UserDetailFields); err != nil {
 			return err
@@ -65,7 +62,6 @@ func runGet(cmd *cobra.Command, userID string) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, UserDetailFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")

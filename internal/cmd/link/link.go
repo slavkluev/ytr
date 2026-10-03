@@ -11,7 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-// linkLister abstracts link list operations for testability.
 type linkLister interface {
 	GetLinks(
 		ctx context.Context,
@@ -19,7 +18,6 @@ type linkLister interface {
 	) ([]*tracker.IssueLink, *tracker.Response, error)
 }
 
-// linkCreator abstracts link creation for testability.
 type linkCreator interface {
 	CreateLink(
 		ctx context.Context,
@@ -28,7 +26,6 @@ type linkCreator interface {
 	) (*tracker.IssueLink, *tracker.Response, error)
 }
 
-// linkDeleter abstracts link deletion for testability.
 type linkDeleter interface {
 	DeleteLink(
 		ctx context.Context,
@@ -36,17 +33,14 @@ type linkDeleter interface {
 	) (*tracker.Response, error)
 }
 
-// newLinkLister creates a linkLister from resolved auth. Replaceable for testing.
 var newLinkLister = func(auth *config.ResolvedAuth) linkLister {
 	return api.NewClient(auth).Issues
 }
 
-// newLinkCreator creates a linkCreator from resolved auth. Replaceable for testing.
 var newLinkCreator = func(auth *config.ResolvedAuth) linkCreator {
 	return api.NewClient(auth).Issues
 }
 
-// newLinkDeleter creates a linkDeleter from resolved auth. Replaceable for testing.
 var newLinkDeleter = func(auth *config.ResolvedAuth) linkDeleter {
 	return api.NewClient(auth).Issues
 }

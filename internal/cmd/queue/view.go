@@ -25,7 +25,6 @@ var QueueDetailFields = []string{
 	"allowExternals",
 }
 
-// queueDetail is a clean struct for JSON serialization of a single queue.
 // Uses value types with json tags to avoid null fields from pointer types.
 type queueDetail struct {
 	Key             string `json:"key"`
@@ -39,7 +38,6 @@ type queueDetail struct {
 	AllowExternals  bool   `json:"allowExternals"`
 }
 
-// newViewCmd creates the "queue view" command for displaying queue details.
 func newViewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "view QUEUE-KEY",
@@ -66,7 +64,6 @@ SEE ALSO
 	return cmd
 }
 
-// runView executes the queue view logic.
 func runView(cmd *cobra.Command, args []string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "queue view", QueueDetailFields)
@@ -76,7 +73,6 @@ func runView(cmd *cobra.Command, args []string) error {
 		output.JSONFields = QueueDetailFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, QueueDetailFields); err != nil {
 			return err
@@ -86,7 +82,6 @@ func runView(cmd *cobra.Command, args []string) error {
 
 	queueKey := args[0]
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -106,7 +101,6 @@ func runView(cmd *cobra.Command, args []string) error {
 	return renderDetailOutput(cmd.OutOrStdout(), q)
 }
 
-// renderDetailOutput renders a queue in JSON, quiet, or table mode.
 func renderDetailOutput(w io.Writer, q *tracker.Queue) error {
 	if output.IsJSON() {
 		return renderDetailJSON(w, q)
@@ -120,7 +114,6 @@ func renderDetailOutput(w io.Writer, q *tracker.Queue) error {
 	return renderDetailTable(w, q)
 }
 
-// renderDetailJSON renders queue detail as JSON with field selection and JQ support.
 func renderDetailJSON(w io.Writer, q *tracker.Queue) error {
 	detail := queueDetail{
 		Key:             api.DerefString(q.Key, ""),
@@ -149,7 +142,6 @@ func renderDetailJSON(w io.Writer, q *tracker.Queue) error {
 	return output.PrintJSON(w, detail)
 }
 
-// renderDetailTable renders the queue as labeled key-value rows.
 func renderDetailTable(w io.Writer, q *tracker.Queue) error {
 	d := output.NewDetail(w)
 
@@ -166,8 +158,6 @@ func renderDetailTable(w io.Writer, q *tracker.Queue) error {
 	return d.Err()
 }
 
-// derefIssueType extracts the display name from a *tracker.IssueType.
-// Returns empty string if nil.
 func derefIssueType(t *tracker.IssueType) string {
 	if t == nil {
 		return ""
@@ -184,8 +174,6 @@ func derefIssueType(t *tracker.IssueType) string {
 	return ""
 }
 
-// derefIssueTypeOrFallback extracts the display name from a *tracker.IssueType.
-// Returns fallback if nil or no displayable fields.
 func derefIssueTypeOrFallback(t *tracker.IssueType, fallback string) string {
 	result := derefIssueType(t)
 	if result == "" {
@@ -194,8 +182,6 @@ func derefIssueTypeOrFallback(t *tracker.IssueType, fallback string) string {
 	return result
 }
 
-// derefPriority extracts the display name from a *tracker.Priority.
-// Returns empty string if nil.
 func derefPriority(p *tracker.Priority) string {
 	if p == nil {
 		return ""
@@ -212,8 +198,6 @@ func derefPriority(p *tracker.Priority) string {
 	return ""
 }
 
-// derefPriorityOrFallback extracts the display name from a *tracker.Priority.
-// Returns fallback if nil or no displayable fields.
 func derefPriorityOrFallback(p *tracker.Priority, fallback string) string {
 	result := derefPriority(p)
 	if result == "" {
@@ -222,8 +206,6 @@ func derefPriorityOrFallback(p *tracker.Priority, fallback string) string {
 	return result
 }
 
-// derefBool safely dereferences a *bool pointer.
-// Returns false if nil.
 func derefBool(b *bool) bool {
 	if b != nil {
 		return *b

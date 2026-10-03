@@ -15,7 +15,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newEditCmd creates the "worklog edit" command.
 func newEditCmd() *cobra.Command {
 	var (
 		durationFlag string
@@ -55,7 +54,6 @@ SEE ALSO
 				return err
 			}
 
-			// Mutual exclusion: --from-json vs individual flags.
 			if cmd.Flags().Changed("from-json") &&
 				(cmd.Flags().Changed("duration") || cmd.Flags().Changed("comment") ||
 					cmd.Flags().Changed("start")) {
@@ -65,7 +63,6 @@ SEE ALSO
 				)
 			}
 
-			// At least one flag or --from-json required.
 			if !cmd.Flags().Changed("from-json") &&
 				!cmd.Flags().Changed("duration") && !cmd.Flags().Changed("comment") &&
 				!cmd.Flags().Changed("start") {
@@ -93,7 +90,6 @@ SEE ALSO
 	return cmd
 }
 
-// runEdit executes the worklog edit logic.
 func runEdit(
 	cmd *cobra.Command,
 	issueKey, worklogID, durationFlag, commentFlag, startFlag, fromJSON string,
@@ -106,7 +102,6 @@ func runEdit(
 		output.JSONFields = WorklogFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, WorklogFields); err != nil {
 			return err
@@ -114,7 +109,6 @@ func runEdit(
 		output.JSONFields = output.NormalizeFields(output.JSONFields, WorklogFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -124,7 +118,6 @@ func runEdit(
 		return err
 	}
 
-	// Build request from individual flags or --from-json.
 	req, buildErr := buildEditRequest(cmd, durationFlag, commentFlag, startFlag, fromJSON)
 	if buildErr != nil {
 		return buildErr
@@ -140,7 +133,6 @@ func runEdit(
 	return renderEditOutput(cmd.OutOrStdout(), wl, issueKey)
 }
 
-// renderEditOutput handles JSON/quiet/table output for a worklog edit result.
 func renderEditOutput(w io.Writer, wl *tracker.Worklog, issueKey string) error {
 	if output.IsJSON() {
 		item := toWorklogItem(wl)
@@ -162,12 +154,10 @@ func renderEditOutput(w io.Writer, wl *tracker.Worklog, issueKey string) error {
 		return nil
 	}
 
-	// Table output: brief confirmation.
 	_, err := fmt.Fprintf(w, "Worklog %s updated on %s\n", api.DerefFlexString(wl.ID, ""), issueKey)
 	return err
 }
 
-// buildEditRequest constructs a WorklogRequest from flags or --from-json input.
 func buildEditRequest(
 	cmd *cobra.Command,
 	durationFlag, commentFlag, startFlag, fromJSON string,

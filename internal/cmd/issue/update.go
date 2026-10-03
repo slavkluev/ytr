@@ -15,7 +15,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newUpdateCmd creates the "issue update" command for editing existing issues.
 func newUpdateCmd() *cobra.Command {
 	var (
 		summary     string
@@ -67,10 +66,6 @@ SEE ALSO
 	return cmd
 }
 
-// validateUpdateFlags checks flag constraints for update:
-// - Issue key must be valid.
-// - If --from-json is set, no individual field flags may be set.
-// - At least one field flag or --from-json must be provided.
 func validateUpdateFlags(cmd *cobra.Command, args []string) error {
 	if err := validate.ValidateIssueKey(args[0]); err != nil {
 		return err
@@ -89,7 +84,6 @@ func validateUpdateFlags(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// At least one field flag must be set.
 	fieldFlags := []string{"summary", "description", "type", "priority", "assignee", "parent"}
 	if slices.ContainsFunc(fieldFlags, func(flag string) bool {
 		return cmd.Flags().Changed(flag)
@@ -103,7 +97,6 @@ func validateUpdateFlags(cmd *cobra.Command, args []string) error {
 	)
 }
 
-// runUpdate executes the issue update logic.
 func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
@@ -114,7 +107,6 @@ func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
 		output.JSONFields = IssueDetailFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, IssueDetailFields); err != nil {
 			return err
@@ -146,7 +138,6 @@ func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
 	return outputIssueResult(cmd, issue)
 }
 
-// buildUpdateRequest constructs the IssueRequest from flags or --from-json input.
 func buildUpdateRequest(cmd *cobra.Command, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) (*tracker.IssueRequest, error) {
 	if cmd.Flags().Changed("from-json") {
@@ -155,7 +146,6 @@ func buildUpdateRequest(cmd *cobra.Command, summary, description, issueType,
 
 	req := &tracker.IssueRequest{}
 
-	// Only set fields that were explicitly changed.
 	if cmd.Flags().Changed("summary") {
 		if valErr := validate.ValidateNoControlChars("summary", summary); valErr != nil {
 			return nil, valErr

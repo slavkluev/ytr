@@ -11,12 +11,10 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-// issueTypeLister abstracts issue type list operations for testability.
 type issueTypeLister interface {
 	List(ctx context.Context) ([]*tracker.IssueType, *tracker.Response, error)
 }
 
-// newIssueTypeLister creates an issueTypeLister from resolved auth. Replaceable for testing.
 var newIssueTypeLister = func(auth *config.ResolvedAuth) issueTypeLister {
 	return api.NewClient(auth).IssueTypes
 }

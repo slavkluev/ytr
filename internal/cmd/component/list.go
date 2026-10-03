@@ -16,7 +16,6 @@ import (
 // ComponentListFields lists the available JSON field names for component list output.
 var ComponentListFields = []string{"id", "name", "queue", "lead", "leadId", "description", "assignAuto"}
 
-// componentItem is a clean struct for JSON serialization of component data.
 type componentItem struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -27,7 +26,6 @@ type componentItem struct {
 	AssignAuto  bool   `json:"assignAuto"`
 }
 
-// toComponentItem converts a tracker.Component to a clean JSON-serializable struct.
 func toComponentItem(c *tracker.Component) componentItem {
 	queue := ""
 	if c.Queue != nil {
@@ -45,7 +43,6 @@ func toComponentItem(c *tracker.Component) componentItem {
 	}
 }
 
-// newListCmd creates the "component list" command.
 func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -74,7 +71,6 @@ SEE ALSO
 	return cmd
 }
 
-// runList executes the component list logic.
 func runList(cmd *cobra.Command) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "component list", ComponentListFields)
@@ -84,7 +80,6 @@ func runList(cmd *cobra.Command) error {
 		output.JSONFields = ComponentListFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, ComponentListFields); err != nil {
 			return err
@@ -92,7 +87,6 @@ func runList(cmd *cobra.Command) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, ComponentListFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -112,7 +106,6 @@ func runList(cmd *cobra.Command) error {
 	return renderListOutput(cmd.OutOrStdout(), components)
 }
 
-// renderListOutput handles JSON/quiet/table output for the component list result.
 func renderListOutput(w io.Writer, components []*tracker.Component) error {
 	if output.IsJSON() {
 		items := make([]componentItem, len(components))
@@ -145,7 +138,6 @@ func renderListOutput(w io.Writer, components []*tracker.Component) error {
 		return nil
 	}
 
-	// Table output.
 	if len(components) == 0 {
 		_, err := fmt.Fprintln(w, "No components found")
 		return err

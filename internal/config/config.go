@@ -161,7 +161,6 @@ func Save(cfg *Config) error {
 func ResolveAuth(
 	flagToken, flagOrgID, flagOrgType string,
 ) (*ResolvedAuth, error) {
-	// Tier 1: Flags
 	if hasCompleteAuth(flagToken, flagOrgID, flagOrgType) {
 		return resolveAuthTier("flag", "", flagToken, flagOrgID, flagOrgType)
 	}
@@ -180,7 +179,6 @@ func ResolveAuth(
 		)
 	}
 
-	// Tier 2: Environment variables
 	envToken := os.Getenv("YTR_TOKEN")
 	envOrgID := os.Getenv("YTR_ORG_ID")
 	envOrgType := os.Getenv("YTR_ORG_TYPE")
@@ -188,7 +186,6 @@ func ResolveAuth(
 		return resolveAuthTier("env", "", envToken, envOrgID, envOrgType)
 	}
 
-	// Tier 3: Config file
 	cfgPath, err := ConfigFilePath()
 	if err != nil {
 		return nil, ytrerrors.NewUserError(

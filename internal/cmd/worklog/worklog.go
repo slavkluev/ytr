@@ -11,7 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-// worklogLister abstracts worklog list operations for testability.
 type worklogLister interface {
 	ListWorklogs(
 		ctx context.Context,
@@ -19,7 +18,6 @@ type worklogLister interface {
 	) ([]*tracker.Worklog, *tracker.Response, error)
 }
 
-// worklogCreator abstracts worklog creation for testability.
 type worklogCreator interface {
 	CreateWorklog(
 		ctx context.Context,
@@ -28,7 +26,6 @@ type worklogCreator interface {
 	) (*tracker.Worklog, *tracker.Response, error)
 }
 
-// worklogEditor abstracts worklog edit operations for testability.
 type worklogEditor interface {
 	EditWorklog(
 		ctx context.Context,
@@ -37,7 +34,6 @@ type worklogEditor interface {
 	) (*tracker.Worklog, *tracker.Response, error)
 }
 
-// worklogDeleter abstracts worklog deletion for testability.
 type worklogDeleter interface {
 	DeleteWorklog(
 		ctx context.Context,
@@ -45,22 +41,18 @@ type worklogDeleter interface {
 	) (*tracker.Response, error)
 }
 
-// newWorklogLister creates a worklogLister from resolved auth. Replaceable for testing.
 var newWorklogLister = func(auth *config.ResolvedAuth) worklogLister {
 	return api.NewClient(auth).Issues
 }
 
-// newWorklogCreator creates a worklogCreator from resolved auth. Replaceable for testing.
 var newWorklogCreator = func(auth *config.ResolvedAuth) worklogCreator {
 	return api.NewClient(auth).Issues
 }
 
-// newWorklogEditor creates a worklogEditor from resolved auth. Replaceable for testing.
 var newWorklogEditor = func(auth *config.ResolvedAuth) worklogEditor {
 	return api.NewClient(auth).Issues
 }
 
-// newWorklogDeleter creates a worklogDeleter from resolved auth. Replaceable for testing.
 var newWorklogDeleter = func(auth *config.ResolvedAuth) worklogDeleter {
 	return api.NewClient(auth).Issues
 }

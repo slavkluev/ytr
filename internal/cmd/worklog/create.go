@@ -17,7 +17,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newCreateCmd creates the "worklog create" command.
 func newCreateCmd() *cobra.Command {
 	var (
 		durationFlag string
@@ -57,7 +56,6 @@ SEE ALSO
 				return err
 			}
 
-			// Mutual exclusion: --from-json vs individual flags.
 			if cmd.Flags().Changed("from-json") &&
 				(cmd.Flags().Changed("duration") || cmd.Flags().Changed("start") ||
 					cmd.Flags().Changed("comment")) {
@@ -67,7 +65,6 @@ SEE ALSO
 				)
 			}
 
-			// Require --duration and --start unless using --from-json.
 			if !cmd.Flags().Changed("from-json") && !cmd.Flags().Changed("duration") {
 				return errors.NewUserError(
 					"--duration is required",
@@ -105,7 +102,6 @@ SEE ALSO
 	return cmd
 }
 
-// runCreate executes the worklog create logic.
 func runCreate(
 	cmd *cobra.Command,
 	issueKey, durationFlag, startFlag, commentFlag, fromJSON string,
@@ -118,7 +114,6 @@ func runCreate(
 		output.JSONFields = WorklogFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, WorklogFields); err != nil {
 			return err
@@ -126,7 +121,6 @@ func runCreate(
 		output.JSONFields = output.NormalizeFields(output.JSONFields, WorklogFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -154,7 +148,6 @@ func runCreate(
 	return renderCreateOutput(cmd.OutOrStdout(), wl, issueKey)
 }
 
-// renderCreateOutput handles JSON/quiet/table output for a worklog create result.
 func renderCreateOutput(w io.Writer, wl *tracker.Worklog, issueKey string) error {
 	if output.IsJSON() {
 		item := toWorklogItem(wl)
@@ -176,17 +169,13 @@ func renderCreateOutput(w io.Writer, wl *tracker.Worklog, issueKey string) error
 		return nil
 	}
 
-	// Table output: brief confirmation.
 	_, err := fmt.Fprintf(w, "Worklog %s created on %s\n", api.DerefFlexString(wl.ID, ""), issueKey)
 	return err
 }
 
-// parseDuration parses an ISO 8601 duration string (e.g., PT1H30M) into a
-// tracker.Duration. Uses the SDK's UnmarshalJSON for validation.
 func parseDuration(s string) (*tracker.Duration, error) {
 	var d tracker.Duration
 
-	// Wrap in JSON quotes for UnmarshalJSON: "PT1H30M"
 	if err := json.Unmarshal([]byte(`"`+s+`"`), &d); err != nil {
 		return nil, errors.NewUserError(
 			fmt.Sprintf("invalid ISO 8601 duration %q", s),
@@ -197,7 +186,6 @@ func parseDuration(s string) (*tracker.Duration, error) {
 	return &d, nil
 }
 
-// parseTimestamp parses an RFC 3339 timestamp string into a tracker.Timestamp.
 func parseTimestamp(s string) (*tracker.Timestamp, error) {
 	t, err := time.Parse(time.RFC3339, s)
 	if err != nil {
@@ -210,7 +198,6 @@ func parseTimestamp(s string) (*tracker.Timestamp, error) {
 	return &tracker.Timestamp{Time: t}, nil
 }
 
-// buildCreateRequest constructs the WorklogRequest from flags or --from-json input.
 func buildCreateRequest(cmd *cobra.Command, durationFlag, startFlag, commentFlag,
 	fromJSON string) (*tracker.WorklogRequest, error) {
 	if cmd.Flags().Changed("from-json") {

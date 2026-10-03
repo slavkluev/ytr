@@ -16,7 +16,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newMoveCmd creates the "bulk move" command.
 func newMoveCmd() *cobra.Command {
 	var (
 		queueFlag   string
@@ -72,7 +71,6 @@ SEE ALSO
 	return cmd
 }
 
-// validateMoveFlags checks mutual exclusion and required flags for bulk move.
 func validateMoveFlags(cmd *cobra.Command) error {
 	if cmd.Flags().Changed("from-json") &&
 		(cmd.Flags().Changed("queue") || cmd.Flags().Changed("field")) {
@@ -92,7 +90,6 @@ func validateMoveFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// runMove executes the bulk move logic.
 func runMove(
 	cmd *cobra.Command,
 	args []string,
@@ -109,7 +106,6 @@ func runMove(
 		output.JSONFields = BulkStatusFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, BulkStatusFields); err != nil {
 			return err
@@ -117,7 +113,6 @@ func runMove(
 		output.JSONFields = output.NormalizeFields(output.JSONFields, BulkStatusFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -142,7 +137,6 @@ func runMove(
 	return awaitBulkCompletion(cmd, newBulkStatusGetter(auth), bc, timeout)
 }
 
-// buildMoveRequest builds a BulkMoveRequest from flags or JSON input.
 func buildMoveRequest(
 	cmd *cobra.Command,
 	args []string,
@@ -184,7 +178,6 @@ func buildMoveRequest(
 	}, nil
 }
 
-// handlePollError converts a poll error to a user-friendly error.
 func handlePollError(ctx context.Context, err error, timeout time.Duration, operationID string) error {
 	if ctx.Err() != nil {
 		return errors.NewUserError(

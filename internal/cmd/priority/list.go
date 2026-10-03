@@ -16,14 +16,12 @@ import (
 // PriorityListFields lists the available JSON field names for priority list output.
 var PriorityListFields = []string{"id", "key", "name"}
 
-// priorityItem is a clean struct for JSON serialization of priority data.
 type priorityItem struct {
 	ID   string `json:"id"`
 	Key  string `json:"key"`
 	Name string `json:"name"`
 }
 
-// newListCmd creates the "priority list" command.
 func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -53,7 +51,6 @@ SEE ALSO
 	return cmd
 }
 
-// runList executes the priority list logic.
 func runList(cmd *cobra.Command) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "priority list", PriorityListFields)
@@ -63,7 +60,6 @@ func runList(cmd *cobra.Command) error {
 		output.JSONFields = PriorityListFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, PriorityListFields); err != nil {
 			return err
@@ -71,7 +67,6 @@ func runList(cmd *cobra.Command) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, PriorityListFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -91,7 +86,6 @@ func runList(cmd *cobra.Command) error {
 	return renderOutput(cmd.OutOrStdout(), priorities)
 }
 
-// renderOutput handles JSON/quiet/table output for the priority list result.
 func renderOutput(w io.Writer, priorities []*tracker.Priority) error {
 	if output.IsJSON() {
 		items := make([]priorityItem, len(priorities))
@@ -124,7 +118,6 @@ func renderOutput(w io.Writer, priorities []*tracker.Priority) error {
 		return nil
 	}
 
-	// Table output.
 	if len(priorities) == 0 {
 		_, err := fmt.Fprintln(w, "No priorities found")
 		return err
@@ -145,7 +138,6 @@ func renderOutput(w io.Writer, priorities []*tracker.Priority) error {
 	return nil
 }
 
-// toPriorityItem converts a tracker.Priority to a clean JSON-serializable struct.
 func toPriorityItem(p *tracker.Priority) priorityItem {
 	return priorityItem{
 		ID:   api.DerefFlexString(p.ID, ""),

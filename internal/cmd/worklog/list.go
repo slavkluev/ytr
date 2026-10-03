@@ -18,8 +18,6 @@ import (
 // WorklogFields lists the available JSON field names for worklog output.
 var WorklogFields = []string{"id", "author", "authorId", "duration", "start", "comment"}
 
-// worklogItem is a clean struct for JSON serialization of worklog data.
-// Used by list, create, and edit commands.
 type worklogItem struct {
 	ID       string `json:"id"`
 	Author   string `json:"author"`
@@ -29,7 +27,6 @@ type worklogItem struct {
 	Comment  string `json:"comment,omitempty"`
 }
 
-// newListCmd creates the "worklog list" command.
 func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list ISSUE-KEY",
@@ -65,7 +62,6 @@ SEE ALSO
 	return cmd
 }
 
-// runList executes the worklog list logic.
 func runList(cmd *cobra.Command, issueKey string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "worklog list", WorklogFields)
@@ -75,7 +71,6 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		output.JSONFields = WorklogFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, WorklogFields); err != nil {
 			return err
@@ -83,7 +78,6 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, WorklogFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -103,7 +97,6 @@ func runList(cmd *cobra.Command, issueKey string) error {
 	return renderListOutput(cmd.OutOrStdout(), worklogs)
 }
 
-// renderListOutput handles JSON/quiet/table output for the worklog list result.
 func renderListOutput(w io.Writer, worklogs []*tracker.Worklog) error {
 	if output.IsJSON() {
 		items := make([]worklogItem, len(worklogs))
@@ -136,7 +129,6 @@ func renderListOutput(w io.Writer, worklogs []*tracker.Worklog) error {
 		return nil
 	}
 
-	// Table output.
 	if len(worklogs) == 0 {
 		_, err := fmt.Fprintln(w, "No worklogs found")
 		return err
@@ -160,7 +152,6 @@ func renderListOutput(w io.Writer, worklogs []*tracker.Worklog) error {
 	return nil
 }
 
-// toWorklogItem converts a tracker.Worklog to a clean JSON-serializable struct.
 func toWorklogItem(wl *tracker.Worklog) worklogItem {
 	item := worklogItem{
 		ID:       api.DerefFlexString(wl.ID, ""),
@@ -177,8 +168,6 @@ func toWorklogItem(wl *tracker.Worklog) worklogItem {
 	return item
 }
 
-// formatDuration formats a tracker.Duration as ISO 8601 string (e.g., PT1H30M).
-// Returns "-" if d is nil or on error.
 func formatDuration(d *tracker.Duration) string {
 	if d == nil {
 		return "-"
@@ -189,7 +178,6 @@ func formatDuration(d *tracker.Duration) string {
 		return "-"
 	}
 
-	// MarshalJSON returns quoted string like "PT1H30M", strip quotes.
 	s := string(data)
 	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
 		return s[1 : len(s)-1]

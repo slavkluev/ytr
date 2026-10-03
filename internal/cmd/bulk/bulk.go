@@ -12,7 +12,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-// bulkMover abstracts bulk move operations for testability.
 type bulkMover interface {
 	Move(
 		ctx context.Context,
@@ -20,7 +19,6 @@ type bulkMover interface {
 	) (*tracker.BulkChange, *tracker.Response, error)
 }
 
-// bulkUpdater abstracts bulk update operations for testability.
 type bulkUpdater interface {
 	Update(
 		ctx context.Context,
@@ -28,7 +26,6 @@ type bulkUpdater interface {
 	) (*tracker.BulkChange, *tracker.Response, error)
 }
 
-// bulkTransitioner abstracts bulk transition operations for testability.
 type bulkTransitioner interface {
 	Transition(
 		ctx context.Context,
@@ -36,7 +33,6 @@ type bulkTransitioner interface {
 	) (*tracker.BulkChange, *tracker.Response, error)
 }
 
-// bulkStatusGetter abstracts bulk status polling for testability.
 type bulkStatusGetter interface {
 	GetStatus(
 		ctx context.Context,
@@ -44,22 +40,18 @@ type bulkStatusGetter interface {
 	) (*tracker.BulkChange, *tracker.Response, error)
 }
 
-// newBulkMover creates a bulkMover from resolved auth. Replaceable for testing.
 var newBulkMover = func(auth *config.ResolvedAuth) bulkMover {
 	return api.NewClient(auth).BulkChange
 }
 
-// newBulkUpdater creates a bulkUpdater from resolved auth. Replaceable for testing.
 var newBulkUpdater = func(auth *config.ResolvedAuth) bulkUpdater {
 	return api.NewClient(auth).BulkChange
 }
 
-// newBulkTransitioner creates a bulkTransitioner from resolved auth. Replaceable for testing.
 var newBulkTransitioner = func(auth *config.ResolvedAuth) bulkTransitioner {
 	return api.NewClient(auth).BulkChange
 }
 
-// newBulkStatusGetter creates a bulkStatusGetter from resolved auth. Replaceable for testing.
 var newBulkStatusGetter = func(auth *config.ResolvedAuth) bulkStatusGetter {
 	return api.NewClient(auth).BulkChange
 }
@@ -78,7 +70,6 @@ var BulkStatusFields = []string{
 	"createdAt",
 }
 
-// bulkChangeDetail is a clean struct for JSON serialization of BulkChange data.
 type bulkChangeDetail struct {
 	ID                    string `json:"id"`
 	Status                string `json:"status"`
@@ -92,7 +83,6 @@ type bulkChangeDetail struct {
 	CreatedAt             string `json:"createdAt"`
 }
 
-// toBulkChangeDetail converts a tracker.BulkChange to a clean JSON struct.
 func toBulkChangeDetail(bc *tracker.BulkChange) bulkChangeDetail {
 	detail := bulkChangeDetail{
 		ID:                    api.DerefFlexString(bc.ID, ""),

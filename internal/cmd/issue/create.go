@@ -15,7 +15,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newCreateCmd creates the "issue create" command for creating new issues.
 func newCreateCmd() *cobra.Command {
 	var (
 		queue       string
@@ -75,9 +74,6 @@ SEE ALSO
 	return cmd
 }
 
-// validateCreateFlags checks flag constraints for create:
-// - If --from-json is set, no individual field flags may be set.
-// - If --from-json is not set, --queue and --summary are required.
 func validateCreateFlags(cmd *cobra.Command) error {
 	if cmd.Flags().Changed("from-json") {
 		fieldFlags := []string{"summary", "description", "type", "priority", "assignee", "parent"}
@@ -92,7 +88,6 @@ func validateCreateFlags(cmd *cobra.Command) error {
 		return nil
 	}
 
-	// Without --from-json, queue and summary are required.
 	if !cmd.Flags().Changed("queue") {
 		return errors.NewUserError(
 			"required flag \"queue\" not set",
@@ -109,7 +104,6 @@ func validateCreateFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-// runCreate executes the issue create logic.
 func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
@@ -120,7 +114,6 @@ func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
 		output.JSONFields = IssueDetailFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, IssueDetailFields); err != nil {
 			return err
@@ -152,14 +145,12 @@ func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
 	return outputIssueResult(cmd, issue)
 }
 
-// buildCreateRequest constructs the IssueRequest from flags or --from-json input.
 func buildCreateRequest(cmd *cobra.Command, queue, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) (*tracker.IssueRequest, error) {
 	if cmd.Flags().Changed("from-json") {
 		return parseIssueRequestFromJSON(fromJSON)
 	}
 
-	// Validate string inputs for control characters.
 	if valErr := validate.ValidateNoControlChars("summary", summary); valErr != nil {
 		return nil, valErr
 	}
@@ -192,7 +183,6 @@ func buildCreateRequest(cmd *cobra.Command, queue, summary, description, issueTy
 	return req, nil
 }
 
-// parseIssueRequestFromJSON parses a --from-json input into an IssueRequest.
 func parseIssueRequestFromJSON(fromJSON string) (*tracker.IssueRequest, error) {
 	data, parseErr := validate.ParseJSONInput(fromJSON)
 	if parseErr != nil {
@@ -205,8 +195,6 @@ func parseIssueRequestFromJSON(fromJSON string) (*tracker.IssueRequest, error) {
 	return req, nil
 }
 
-// outputIssueResult formats the issue in the current output mode.
-// Shared between create and update commands.
 func outputIssueResult(cmd *cobra.Command, issue *tracker.Issue) error {
 	w := cmd.OutOrStdout()
 
@@ -231,7 +219,6 @@ func outputIssueResult(cmd *cobra.Command, issue *tracker.Issue) error {
 		return nil
 	}
 
-	// Table-style key-value output.
 	d := output.NewDetail(w)
 
 	d.Field("Key", api.DerefString(issue.Key, "-"))

@@ -16,14 +16,12 @@ import (
 // ResolutionListFields lists the available JSON field names for resolution list output.
 var ResolutionListFields = []string{"id", "key", "name"}
 
-// resolutionItem is a clean struct for JSON serialization of resolution data.
 type resolutionItem struct {
 	ID   string `json:"id"`
 	Key  string `json:"key"`
 	Name string `json:"name"`
 }
 
-// newListCmd creates the "resolution list" command.
 func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -53,7 +51,6 @@ SEE ALSO
 	return cmd
 }
 
-// runList executes the resolution list logic.
 func runList(cmd *cobra.Command) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "resolution list", ResolutionListFields)
@@ -63,7 +60,6 @@ func runList(cmd *cobra.Command) error {
 		output.JSONFields = ResolutionListFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, ResolutionListFields); err != nil {
 			return err
@@ -71,7 +67,6 @@ func runList(cmd *cobra.Command) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, ResolutionListFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -91,7 +86,6 @@ func runList(cmd *cobra.Command) error {
 	return renderOutput(cmd.OutOrStdout(), resolutions)
 }
 
-// renderOutput handles JSON/quiet/table output for the resolution list result.
 func renderOutput(w io.Writer, resolutions []*tracker.Resolution) error {
 	if output.IsJSON() {
 		items := make([]resolutionItem, len(resolutions))
@@ -124,7 +118,6 @@ func renderOutput(w io.Writer, resolutions []*tracker.Resolution) error {
 		return nil
 	}
 
-	// Table output.
 	if len(resolutions) == 0 {
 		_, err := fmt.Fprintln(w, "No resolutions found")
 		return err
@@ -145,7 +138,6 @@ func renderOutput(w io.Writer, resolutions []*tracker.Resolution) error {
 	return nil
 }
 
-// toResolutionItem converts a tracker.Resolution to a clean JSON-serializable struct.
 func toResolutionItem(r *tracker.Resolution) resolutionItem {
 	return resolutionItem{
 		ID:   api.DerefFlexString(r.ID, ""),

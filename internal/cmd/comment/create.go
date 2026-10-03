@@ -13,7 +13,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newCreateCmd creates the "comment create" command.
 func newCreateCmd() *cobra.Command {
 	var bodyFlag string
 
@@ -53,7 +52,6 @@ SEE ALSO
 	return cmd
 }
 
-// runCreate executes the comment create logic.
 func runCreate(cmd *cobra.Command, issueKey, body string) error {
 	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "comment create", CommentFields)
@@ -63,7 +61,6 @@ func runCreate(cmd *cobra.Command, issueKey, body string) error {
 		output.JSONFields = CommentFields
 	}
 
-	// Validate requested fields.
 	if output.HasFieldSelection() {
 		if err := output.ValidateFields(output.JSONFields, CommentFields); err != nil {
 			return err
@@ -71,7 +68,6 @@ func runCreate(cmd *cobra.Command, issueKey, body string) error {
 		output.JSONFields = output.NormalizeFields(output.JSONFields, CommentFields)
 	}
 
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -114,7 +110,6 @@ func runCreate(cmd *cobra.Command, issueKey, body string) error {
 		return nil
 	}
 
-	// Table output.
 	_, err = fmt.Fprintf(w, "Comment %s added to %s\n", api.DerefFlexString(comment.ID, ""), issueKey)
 	return err
 }

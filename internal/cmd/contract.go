@@ -103,8 +103,7 @@ func hideDispatchOnlyUsageLine(rootCmd *cobra.Command) {
 
 // explainArgsRejection wraps a leaf's own Args validator so a rejected argument
 // carries a suggestion, as every other rejection the contract adds does.
-// Cobra's validators return a bare error: `ytr issue list APP` named the
-// argument but left the caller nothing to run.
+// Cobra's validators return a bare error.
 func explainArgsRejection(validate cobra.PositionalArgs) cobra.PositionalArgs {
 	return func(cmd *cobra.Command, args []string) error {
 		err := validate(cmd, args)
@@ -151,9 +150,7 @@ func reportMissingSubcommand(cmd *cobra.Command, _ []string) error {
 // the closest real subcommand when one is close enough.
 //
 // rest is whatever the caller typed after name. It is carried into the
-// suggestion untouched, so the suggested command can be run as it stands:
-// dropping it turned `ytr issue vew PROJ-1` into a suggestion that fails with
-// "accepts 1 arg(s), received 0".
+// suggestion untouched, so the suggested command can be run as it stands.
 func unknownSubcommandError(cmd *cobra.Command, name string, rest []string) error {
 	message := fmt.Sprintf("unknown command %q for %q", name, cmd.CommandPath())
 
@@ -167,7 +164,7 @@ func unknownSubcommandError(cmd *cobra.Command, name string, rest []string) erro
 
 // suggestionCandidates returns the subcommand names close enough to typed to be
 // suggested. cobra's SuggestionsFor leaves the help command out through
-// IsAvailableCommand, so `ytr hel` came back with no did-you-mean at all.
+// IsAvailableCommand, so help is added back here.
 func suggestionCandidates(cmd *cobra.Command, typed string) []string {
 	candidates := cmd.SuggestionsFor(typed)
 
@@ -179,7 +176,6 @@ func suggestionCandidates(cmd *cobra.Command, typed string) []string {
 	return candidates
 }
 
-// hasHelpCommand reports whether cmd dispatches to a help command.
 func hasHelpCommand(cmd *cobra.Command) bool {
 	for _, sub := range cmd.Commands() {
 		if sub.Name() == helpCommandName {
@@ -260,8 +256,6 @@ func runHelp(cmd *cobra.Command, args []string) error {
 	return target.Help()
 }
 
-// completeHelpTopics completes `ytr help <TAB>` with the subcommands of the
-// command named so far.
 func completeHelpTopics(
 	cmd *cobra.Command,
 	args []string,
@@ -296,7 +290,6 @@ func isTypeable(sub *cobra.Command) bool {
 	return sub.IsAvailableCommand() || sub.Name() == helpCommandName
 }
 
-// availableSubcommands returns the names a user may type after cmd, sorted.
 func availableSubcommands(cmd *cobra.Command) []string {
 	names := make([]string, 0, len(cmd.Commands()))
 	for _, sub := range cmd.Commands() {

@@ -11,7 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// newDeleteCmd creates the "checklist delete" command.
 func newDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete ISSUE-KEY ITEM-ID",
@@ -44,9 +43,7 @@ SEE ALSO
 	return cmd
 }
 
-// runDelete executes the checklist delete logic.
 func runDelete(cmd *cobra.Command, issueKey, itemID string) error {
-	// Resolve auth from root persistent flags.
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -58,8 +55,6 @@ func runDelete(cmd *cobra.Command, issueKey, itemID string) error {
 
 	deleter := newChecklistDeleter(auth)
 
-	// API returns (*Issue, *Response, error) but we ignore the
-	// returned *Issue and use the itemID from args for the confirmation.
 	_, _, err = deleter.DeleteChecklistItem(cmd.Context(), issueKey, itemID)
 	if err != nil {
 		return api.MapAPIError(err)
@@ -80,7 +75,6 @@ func runDelete(cmd *cobra.Command, issueKey, itemID string) error {
 		return nil
 	}
 
-	// Table output: brief confirmation.
 	_, err = fmt.Fprintf(w, "Checklist item %s deleted\n", itemID)
 	return err
 }
