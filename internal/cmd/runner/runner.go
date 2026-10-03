@@ -1,22 +1,27 @@
 // Package runner builds a command from its declaration and applies the policy
-// every such command shares: positional arguments, auth, the --json field
-// prelude, the JSON, jq, quiet and table or card output, and the mapping of
-// Tracker errors.
+// every such command shares: positional arguments, the request flags and
+// --from-json of a write, auth, the --json field prelude, the JSON, jq, quiet
+// and table, card or confirm-line output, and the mapping of Tracker errors.
 package runner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"iter"
 	"reflect"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/config"
+	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -51,11 +56,11 @@ func (l List[T, Item]) Command() *cobra.Command {
 
 	return newCommand(help{l.Use, l.Short, l.Long, l.SeeAlso, l.Example}, l.Args, fields,
 		func(cmd *cobra.Command, args []string) error {
-			return run(cmd, args, l.Args, fields, l.Call, l.render)
+			return run(cmd, args, steps[[]T]{args: l.Args, fields: fields, call: l.Call, render: l.render})
 		})
 }
 
-func (l List[T, Item]) render(w io.Writer, opts *output.Options, values []T) error {
+func (l List[T, Item]) render(w io.Writer, opts *output.Options, _ []string, values []T) error {
 	if opts.IsJSON() {
 		items := make([]map[string]any, len(values))
 		for i, v := range values {
@@ -112,11 +117,11 @@ func (g Get[T, Item]) Command() *cobra.Command {
 
 	return newCommand(help{g.Use, g.Short, g.Long, g.SeeAlso, g.Example}, g.Args, fields,
 		func(cmd *cobra.Command, args []string) error {
-			return run(cmd, args, g.Args, fields, g.Call, g.render)
+			return run(cmd, args, steps[T]{args: g.Args, fields: fields, call: g.Call, render: g.render})
 		})
 }
 
-func (g Get[T, Item]) render(w io.Writer, opts *output.Options, value T) error {
+func (g Get[T, Item]) render(w io.Writer, opts *output.Options, _ []string, value T) error {
 	if opts.IsJSON() {
 		return printJSON(w, opts, output.FilterFields(g.Item(value), opts.JSONFields))
 	}
@@ -130,6 +135,252 @@ func (g Get[T, Item]) render(w io.Writer, opts *output.Options, value T) error {
 	g.Detail(card, opts, value)
 
 	return card.Err()
+}
+
+// Write declares a command that sends Tracker a Req, built from its request
+// flags or given whole by --from-json, and prints the T Tracker answers with.
+// Item is the flat struct T becomes under --json; its json tags are the fields
+// the command accepts, in order.
+type Write[Req, T, Item any] struct {
+	// Long is the description; Command adds the JSON FIELDS section after it,
+	// then SeeAlso as the SEE ALSO section.
+	Use, Short, Long, SeeAlso, Example string
+
+	Args []Arg
+
+	// Flags are in the order errors name them.
+	Flags []Flag
+
+	// FromJSON is the help of --from-json; without it the command takes no
+	// --from-json.
+	FromJSON string
+
+	// Required are the body keys a create cannot go without, whichever way the
+	// body comes. Update instead makes a body that sets no key an error.
+	Required []string
+	Update   bool
+
+	Call    func(ctx context.Context, c *tracker.Client, args []string, req *Req) (T, error)
+	Item    func(T) Item
+	Quiet   func(T) string
+	Confirm func(args []string, value T) string
+}
+
+// Command returns the cobra command w declares.
+func (w Write[Req, T, Item]) Command() *cobra.Command {
+	fields := ItemFields[Item]()
+	body := validate.Body{Required: w.Required, FromJSON: w.FromJSON != "", Update: w.Update}
+	for _, f := range w.Flags {
+		body.Flags = append(body.Flags, validate.BodyFlag{Name: f.name, Key: f.key})
+	}
+
+	cmd := newCommand(help{w.Use, w.Short, w.Long, w.SeeAlso, w.Example}, w.Args, fields,
+		func(cmd *cobra.Command, args []string) error {
+			var (
+				patch map[string]any
+				req   Req
+			)
+
+			return run(cmd, args, steps[T]{
+				args: w.Args, fields: fields,
+				check: func() error {
+					var err error
+					patch, err = flagBody(cmd.Flags(), body, w.Flags)
+					return err
+				},
+				prepare: func() error {
+					data, err := requestBody(cmd.Flags(), patch)
+					if err != nil {
+						return err
+					}
+					return body.Decode(data, &req)
+				},
+				call: func(ctx context.Context, c *tracker.Client, args []string) (T, error) {
+					return w.Call(ctx, c, args, &req)
+				},
+				render: w.render,
+			})
+		})
+
+	for _, f := range w.Flags {
+		f.define(cmd.Flags())
+	}
+	if w.FromJSON != "" {
+		cmd.Flags().String(validate.FromJSONFlag, "", w.FromJSON)
+	}
+
+	return cmd
+}
+
+func (w Write[Req, T, Item]) render(out io.Writer, opts *output.Options, args []string, value T) error {
+	if opts.IsJSON() {
+		return printJSON(out, opts, output.FilterFields(w.Item(value), opts.JSONFields))
+	}
+
+	if opts.Quiet {
+		output.PrintQuiet(out, w.Quiet(value))
+		return nil
+	}
+
+	_, err := fmt.Fprintln(out, w.Confirm(args, value))
+	return err
+}
+
+// Delete declares a command that deletes what its last argument names and
+// prints that ID: in an object under --json, alone under --quiet, and
+// otherwise in the Confirm line.
+type Delete struct {
+	// Long is the description; Command adds SeeAlso after it as the SEE ALSO
+	// section.
+	Use, Short, Long, SeeAlso, Example string
+
+	Args []Arg
+
+	Call    func(ctx context.Context, c *tracker.Client, args []string) error
+	Confirm func(id string) string
+}
+
+// Command returns the cobra command d declares.
+func (d Delete) Command() *cobra.Command {
+	return newCommand(help{d.Use, d.Short, d.Long, d.SeeAlso, d.Example}, d.Args, nil,
+		func(cmd *cobra.Command, args []string) error {
+			return run(cmd, args, steps[struct{}]{
+				args: d.Args,
+				call: func(ctx context.Context, c *tracker.Client, args []string) (struct{}, error) {
+					return struct{}{}, d.Call(ctx, c, args)
+				},
+				render: d.render,
+			})
+		})
+}
+
+func (d Delete) render(w io.Writer, opts *output.Options, args []string, _ struct{}) error {
+	id := args[len(args)-1]
+
+	if opts.IsJSON() {
+		return printJSON(w, opts, map[string]any{"id": id, "deleted": true})
+	}
+
+	if opts.Quiet {
+		output.PrintQuiet(w, id)
+		return nil
+	}
+
+	_, err := fmt.Fprintln(w, d.Confirm(id))
+	return err
+}
+
+// Flag is one request flag of a Write: the body key it sets and how its text
+// becomes that key's value.
+type Flag struct {
+	name, key, usage string
+	boolean          bool
+	parse            func(string) (any, error)
+}
+
+// Text is a flag whose value is its text as given.
+func Text(name, usage string) Flag {
+	return Flag{name: name, key: name, usage: usage, parse: func(s string) (any, error) { return s, nil }}
+}
+
+// Bool is a flag set to true by its name alone, or to false as --name=false.
+func Bool(name, usage string) Flag {
+	return Flag{name: name, key: name, usage: usage, boolean: true, parse: func(s string) (any, error) {
+		return strconv.ParseBool(s)
+	}}
+}
+
+// Duration is an ISO 8601 duration such as PT1H30M.
+func Duration(name, usage string) Flag {
+	return Flag{name: name, key: name, usage: usage, parse: func(s string) (any, error) {
+		var d tracker.Duration
+		if err := json.Unmarshal([]byte(`"`+s+`"`), &d); err != nil {
+			return nil, errors.NewUserError(
+				fmt.Sprintf("invalid ISO 8601 duration %q", s),
+				"Use ISO 8601 format: PT1H30M (1h30m), PT45M (45min), P1D (1 day), P1DT2H (1 day 2 hours)",
+			)
+		}
+
+		return d, nil
+	}}
+}
+
+// Time is an RFC 3339 time such as 2026-03-30T10:00:00Z.
+func Time(name, usage string) Flag {
+	return Flag{name: name, key: name, usage: usage, parse: func(s string) (any, error) {
+		t, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			return nil, errors.NewUserError(
+				fmt.Sprintf("invalid timestamp %q", s),
+				"Use RFC 3339 format: 2026-03-30T10:00:00Z",
+			)
+		}
+
+		return tracker.Timestamp{Time: t}, nil
+	}}
+}
+
+// Key makes f set key, where by default it sets the key named as the flag.
+func (f Flag) Key(key string) Flag {
+	f.key = key
+	return f
+}
+
+// Check makes f refuse a value check rejects, with check's error.
+func (f Flag) Check(check func(string) error) Flag {
+	parse := f.parse
+	f.parse = func(s string) (any, error) {
+		if err := check(s); err != nil {
+			return nil, err
+		}
+		return parse(s)
+	}
+
+	return f
+}
+
+func (f Flag) define(flags *pflag.FlagSet) {
+	if f.boolean {
+		flags.Bool(f.name, false, f.usage)
+		return
+	}
+
+	flags.String(f.name, "", f.usage)
+}
+
+// flagBody checks the request flags a run set and returns the body they give,
+// one key per flag, before the field hint and auth. It is empty when
+// --from-json gives the body.
+func flagBody(set *pflag.FlagSet, body validate.Body, flags []Flag) (map[string]any, error) {
+	if err := body.CheckFlags(set.Changed); err != nil {
+		return nil, err
+	}
+
+	patch := make(map[string]any)
+	for _, f := range flags {
+		if !set.Changed(f.name) {
+			continue
+		}
+
+		value, err := f.parse(set.Lookup(f.name).Value.String())
+		if err != nil {
+			return nil, err
+		}
+		patch[f.key] = value
+	}
+
+	return patch, nil
+}
+
+// requestBody returns the body --from-json gives, read only once auth has
+// resolved, or else the one the flags gave, so both reach the same decoder.
+func requestBody(set *pflag.FlagSet, patch map[string]any) ([]byte, error) {
+	if set.Changed(validate.FromJSONFlag) {
+		value, _ := set.GetString(validate.FromJSONFlag)
+		return validate.ParseJSONInput(value)
+	}
+
+	return json.Marshal(patch)
 }
 
 // Arg is one positional argument: the check it must pass before anything else
@@ -224,7 +475,10 @@ type help struct {
 }
 
 func newCommand(h help, args []Arg, fields []string, runE func(*cobra.Command, []string) error) *cobra.Command {
-	long := h.long + "\n\nJSON FIELDS\n  " + strings.Join(fields, ", ")
+	long := h.long
+	if fields != nil {
+		long += "\n\nJSON FIELDS\n  " + strings.Join(fields, ", ")
+	}
 	if h.seeAlso != "" {
 		long += "\n\nSEE ALSO\n" + h.seeAlso
 	}
@@ -244,21 +498,34 @@ func newCommand(h help, args []Arg, fields []string, runE func(*cobra.Command, [
 		Args:    accepts,
 		RunE:    runE,
 	}
-	SetFields(cmd, fields)
+	if fields != nil {
+		SetFields(cmd, fields)
+	}
 
 	return cmd
 }
 
-func run[V any](
-	cmd *cobra.Command,
-	raw []string,
-	declared []Arg,
-	fields []string,
-	call func(context.Context, *tracker.Client, []string) (V, error),
-	render func(io.Writer, *output.Options, V) error,
-) error {
+// steps are what one command runs inside the policy run applies.
+type steps[V any] struct {
+	args []Arg
+
+	// fields are the --json fields; nil skips the field prelude.
+	fields []string
+
+	// check runs once the arguments pass, ahead of the field hint and auth.
+	check func() error
+
+	// prepare runs once auth resolves, ahead of call. Its error is the
+	// command's own, not Tracker's, so it is not mapped.
+	prepare func() error
+
+	call   func(context.Context, *tracker.Client, []string) (V, error)
+	render func(w io.Writer, opts *output.Options, args []string, value V) error
+}
+
+func run[V any](cmd *cobra.Command, raw []string, s steps[V]) error {
 	args := make([]string, len(raw))
-	for i, arg := range declared {
+	for i, arg := range s.args {
 		parsed, err := arg.parse(raw[i])
 		if err != nil {
 			return err
@@ -266,7 +533,42 @@ func run[V any](
 		args[i] = parsed
 	}
 
+	if s.check != nil {
+		if err := s.check(); err != nil {
+			return err
+		}
+	}
+
 	opts := output.FromContext(cmd.Context())
+	if err := selectFields(cmd, opts, s.fields); err != nil {
+		return err
+	}
+
+	client, err := newClient(cmd)
+	if err != nil {
+		return err
+	}
+
+	if s.prepare != nil {
+		if err = s.prepare(); err != nil {
+			return err
+		}
+	}
+
+	value, err := s.call(cmd.Context(), client, args)
+	if err != nil {
+		return api.MapAPIError(err)
+	}
+
+	return s.render(cmd.OutOrStdout(), opts, args, value)
+}
+
+// selectFields leaves opts with the --json fields the run selected, or answers
+// a bare --json= with the field hint.
+func selectFields(cmd *cobra.Command, opts *output.Options, fields []string) error {
+	if fields == nil {
+		return nil
+	}
 
 	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		name := strings.TrimPrefix(cmd.CommandPath(), cmd.Root().Name()+" ")
@@ -284,17 +586,7 @@ func run[V any](
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, fields)
 	}
 
-	client, err := newClient(cmd)
-	if err != nil {
-		return err
-	}
-
-	value, err := call(cmd.Context(), client, args)
-	if err != nil {
-		return api.MapAPIError(err)
-	}
-
-	return render(cmd.OutOrStdout(), opts, value)
+	return nil
 }
 
 func newClient(cmd *cobra.Command) (*tracker.Client, error) {

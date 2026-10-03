@@ -19,44 +19,7 @@ type commentLister interface {
 	) ([]*tracker.Comment, *tracker.Response, error)
 }
 
-type commentCreator interface {
-	CreateComment(
-		ctx context.Context,
-		issueKey string,
-		req *tracker.CommentRequest,
-	) (*tracker.Comment, *tracker.Response, error)
-}
-
 var newCommentLister = func(auth *config.ResolvedAuth) commentLister {
-	return api.NewClient(auth).Issues
-}
-
-var newCommentCreator = func(auth *config.ResolvedAuth) commentCreator {
-	return api.NewClient(auth).Issues
-}
-
-type commentEditor interface {
-	EditComment(
-		ctx context.Context,
-		issueKey string,
-		commentID string,
-		req *tracker.CommentRequest,
-	) (*tracker.Comment, *tracker.Response, error)
-}
-
-type commentDeleter interface {
-	DeleteComment(
-		ctx context.Context,
-		issueKey string,
-		commentID string,
-	) (*tracker.Response, error)
-}
-
-var newCommentEditor = func(auth *config.ResolvedAuth) commentEditor {
-	return api.NewClient(auth).Issues
-}
-
-var newCommentDeleter = func(auth *config.ResolvedAuth) commentDeleter {
 	return api.NewClient(auth).Issues
 }
 
