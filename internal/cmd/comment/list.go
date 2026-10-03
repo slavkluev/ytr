@@ -192,7 +192,7 @@ func renderListOutput(w io.Writer, opts *output.Options, comments []*tracker.Com
 
 	for _, c := range comments {
 		id := api.DerefFlexString(c.ID, "")
-		author := api.DerefUser(c.CreatedBy, "-")
+		author := c.CreatedBy.DisplayOr("-")
 		date := "-"
 		if c.CreatedAt != nil {
 			date = opts.FormatTime(c.CreatedAt.Time)
@@ -208,8 +208,8 @@ func renderListOutput(w io.Writer, opts *output.Options, comments []*tracker.Com
 func toCommentItem(c *tracker.Comment) commentItem {
 	item := commentItem{
 		ID:       api.DerefFlexString(c.ID, ""),
-		Author:   api.DerefUser(c.CreatedBy, ""),
-		AuthorID: api.DerefUserID(c.CreatedBy, ""),
+		Author:   c.CreatedBy.DisplayOr(""),
+		AuthorID: c.CreatedBy.IDOr(""),
 		Body:     api.DerefString(c.Text, ""),
 	}
 

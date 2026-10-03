@@ -92,8 +92,8 @@ func toBulkChangeDetail(bc *tracker.BulkChange) bulkChangeDetail {
 		TotalCompletedIssues:  api.DerefInt(bc.TotalCompletedIssues, 0),
 		ExecutionIssuePercent: api.DerefInt(bc.ExecutionIssuePercent, 0),
 		ExecutionChunkPercent: api.DerefInt(bc.ExecutionChunkPercent, 0),
-		CreatedBy:             api.DerefUser(bc.CreatedBy, ""),
-		CreatedByID:           api.DerefUserID(bc.CreatedBy, ""),
+		CreatedBy:             bc.CreatedBy.DisplayOr(""),
+		CreatedByID:           bc.CreatedBy.IDOr(""),
 	}
 
 	if bc.CreatedAt != nil {

@@ -51,10 +51,10 @@ func toIssueDetail(issue *tracker.Issue) issueDetail {
 		Key:        api.DerefString(issue.Key, ""),
 		Summary:    api.DerefString(issue.Summary, ""),
 		Status:     issueStatusDisplay(issue),
-		Author:     api.DerefUser(issue.CreatedBy, ""),
-		AuthorID:   api.DerefUserID(issue.CreatedBy, ""),
-		Assignee:   api.DerefUser(issue.Assignee, ""),
-		AssigneeID: api.DerefUserID(issue.Assignee, ""),
+		Author:     issue.CreatedBy.DisplayOr(""),
+		AuthorID:   issue.CreatedBy.IDOr(""),
+		Assignee:   issue.Assignee.DisplayOr(""),
+		AssigneeID: issue.Assignee.IDOr(""),
 	}
 	if issue.Priority != nil {
 		detail.Priority = api.DerefString(issue.Priority.Display, "")
@@ -187,8 +187,8 @@ func renderDetailTable(w io.Writer, opts *output.Options, issue *tracker.Issue) 
 	}
 	d.Field("Type", issueType)
 
-	d.Field("Author", api.DerefUser(issue.CreatedBy, "-"))
-	d.Field("Assignee", api.DerefUser(issue.Assignee, "-"))
+	d.Field("Author", issue.CreatedBy.DisplayOr("-"))
+	d.Field("Assignee", issue.Assignee.DisplayOr("-"))
 
 	created := "-"
 	if issue.CreatedAt != nil {

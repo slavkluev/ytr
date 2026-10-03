@@ -282,8 +282,8 @@ func normalizeChangelog(entries []*tracker.Changelog) []changelogEntry {
 			continue
 		}
 		entry := changelogEntry{
-			Author:    api.DerefUser(e.UpdatedBy, ""),
-			AuthorID:  api.DerefUserID(e.UpdatedBy, ""),
+			Author:    e.UpdatedBy.DisplayOr(""),
+			AuthorID:  e.UpdatedBy.IDOr(""),
 			Type:      api.DerefString(e.Type, ""),
 			Transport: api.DerefString(e.Transport, ""),
 		}
@@ -552,15 +552,7 @@ func formatDurationISO(d *tracker.Duration) string {
 	if d == nil {
 		return ""
 	}
-	data, err := d.MarshalJSON()
-	if err != nil {
-		return ""
-	}
-	s := string(data)
-	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
-		return s[1 : len(s)-1]
-	}
-	return s
+	return d.String()
 }
 
 func renderChangelogJSON(
@@ -609,7 +601,7 @@ func flattenChangelog(entries []*tracker.Changelog) []changelogItem {
 		if entry.UpdatedAt != nil {
 			date = entry.UpdatedAt.Format(time.RFC3339)
 		}
-		author := api.DerefUser(entry.UpdatedBy, "")
+		author := entry.UpdatedBy.DisplayOr("")
 
 		for _, event := range entry.Fields {
 			if event == nil {

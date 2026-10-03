@@ -36,8 +36,8 @@ func toComponentDetail(c *tracker.Component) componentDetail {
 		ID:          api.DerefFlexString(c.ID, ""),
 		Name:        api.DerefString(c.Name, ""),
 		Queue:       queue,
-		Lead:        api.DerefUser(c.Lead, ""),
-		LeadID:      api.DerefUserID(c.Lead, ""),
+		Lead:        c.Lead.DisplayOr(""),
+		LeadID:      c.Lead.IDOr(""),
 		Description: api.DerefString(c.Description, ""),
 		AssignAuto:  api.DerefBool(c.AssignAuto, false),
 	}
@@ -148,7 +148,7 @@ func renderComponentCard(w io.Writer, opts *output.Options, c *tracker.Component
 	}
 	d.Field("Queue", queue)
 
-	d.Field("Lead", api.DerefUser(c.Lead, "-"))
+	d.Field("Lead", c.Lead.DisplayOr("-"))
 
 	desc := api.DerefString(c.Description, "")
 	if desc != "" {

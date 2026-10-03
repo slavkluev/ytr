@@ -138,7 +138,7 @@ func renderListOutput(w io.Writer, opts *output.Options, items []*tracker.Checkl
 		id := api.DerefFlexString(c.ID, "")
 		text := api.DerefString(c.Text, "")
 		checked := checkedDisplay(api.DerefBool(c.Checked, false))
-		assignee := api.DerefUser(c.Assignee, "-")
+		assignee := c.Assignee.DisplayOr("-")
 		tbl.AddRow(id, text, checked, assignee)
 	}
 
@@ -151,8 +151,8 @@ func toChecklistItem(c *tracker.ChecklistItem) checklistItem {
 		ID:         api.DerefFlexString(c.ID, ""),
 		Text:       api.DerefString(c.Text, ""),
 		Checked:    api.DerefBool(c.Checked, false),
-		Assignee:   api.DerefUser(c.Assignee, ""),
-		AssigneeID: api.DerefUserID(c.Assignee, ""),
+		Assignee:   c.Assignee.DisplayOr(""),
+		AssigneeID: c.Assignee.IDOr(""),
 	}
 }
 

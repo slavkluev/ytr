@@ -201,7 +201,7 @@ func TestFakeAnswersAnUnmatchedRequestWith501AndFailsTheTest(t *testing.T) {
 	fake := New(tb, nil)
 
 	client := tracker.NewClient(tracker.WithHTTPClient(&http.Client{Transport: fake}))
-	_, _, err := client.Statuses.List(t.Context())
+	_, _, err := client.Statuses.List(t.Context(), nil)
 
 	var errResp *tracker.ErrorResponse
 	if !errors.As(err, &errResp) {

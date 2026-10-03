@@ -36,8 +36,8 @@ func toComponentItem(c *tracker.Component) componentItem {
 		ID:          api.DerefFlexString(c.ID, ""),
 		Name:        api.DerefString(c.Name, ""),
 		Queue:       queue,
-		Lead:        api.DerefUser(c.Lead, ""),
-		LeadID:      api.DerefUserID(c.Lead, ""),
+		Lead:        c.Lead.DisplayOr(""),
+		LeadID:      c.Lead.IDOr(""),
 		Description: api.DerefString(c.Description, ""),
 		AssignAuto:  api.DerefBool(c.AssignAuto, false),
 	}
@@ -158,7 +158,7 @@ func renderListOutput(w io.Writer, opts *output.Options, components []*tracker.C
 			api.DerefFlexString(c.ID, ""),
 			api.DerefString(c.Name, "-"),
 			queue,
-			api.DerefUser(c.Lead, "-"),
+			c.Lead.DisplayOr("-"),
 		)
 	}
 

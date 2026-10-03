@@ -55,7 +55,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return api.MapAPIError(err)
 	}
 
-	username := api.DerefUser(user, "unknown")
+	username := user.DisplayOr("unknown")
 
 	// No field selection or hints -- fixed-structure JSON.
 	jsonRequested := cmd.Flags().Changed("json") || opts.IsJSON()

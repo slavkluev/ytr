@@ -36,7 +36,7 @@ SEE ALSO
   ytr resolution list --json id,key,name`,
 		Empty: "No resolutions found",
 		Call: func(ctx context.Context, c *tracker.Client) ([]*tracker.Resolution, error) {
-			resolutions, _, err := c.Resolutions.List(ctx)
+			resolutions, _, err := c.Resolutions.List(ctx, nil)
 			return resolutions, err
 		},
 		Item:   toItem,

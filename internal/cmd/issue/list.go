@@ -391,7 +391,7 @@ func renderListTable(w io.Writer, opts *output.Options, issues []*tracker.Issue)
 	for _, issue := range issues {
 		key := api.DerefString(issue.Key, "-")
 		statusVal := issueStatusDisplay(issue)
-		assigneeVal := api.DerefUser(issue.Assignee, "-")
+		assigneeVal := issue.Assignee.DisplayOr("-")
 		summary := opts.FitColumn(api.DerefString(issue.Summary, "-"), tableReservedWidth, minColumnWidth)
 
 		if opts.Colors {
@@ -410,8 +410,8 @@ func toListItem(issue *tracker.Issue) issueListItem {
 		Key:        api.DerefString(issue.Key, ""),
 		Summary:    api.DerefString(issue.Summary, ""),
 		Status:     issueStatusDisplay(issue),
-		Assignee:   api.DerefUser(issue.Assignee, ""),
-		AssigneeID: api.DerefUserID(issue.Assignee, ""),
+		Assignee:   issue.Assignee.DisplayOr(""),
+		AssigneeID: issue.Assignee.IDOr(""),
 	}
 
 	if issue.Priority != nil {

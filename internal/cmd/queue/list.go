@@ -252,7 +252,7 @@ func renderListTable(w io.Writer, opts *output.Options, queues []*tracker.Queue)
 	for _, q := range queues {
 		key := api.DerefString(q.Key, "-")
 		name := api.DerefString(q.Name, "-")
-		lead := api.DerefUser(q.Lead, "-")
+		lead := q.Lead.DisplayOr("-")
 
 		tbl.AddRow(key, name, lead)
 	}
@@ -265,7 +265,7 @@ func toQueueItem(q *tracker.Queue) queueItem {
 	return queueItem{
 		Key:    api.DerefString(q.Key, ""),
 		Name:   api.DerefString(q.Name, ""),
-		Lead:   api.DerefUser(q.Lead, ""),
-		LeadID: api.DerefUserID(q.Lead, ""),
+		Lead:   q.Lead.DisplayOr(""),
+		LeadID: q.Lead.IDOr(""),
 	}
 }

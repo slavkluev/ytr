@@ -120,8 +120,8 @@ func renderDetailJSON(w io.Writer, opts *output.Options, q *tracker.Queue) error
 	detail := queueDetail{
 		Key:             api.DerefString(q.Key, ""),
 		Name:            api.DerefString(q.Name, ""),
-		Lead:            api.DerefUser(q.Lead, ""),
-		LeadID:          api.DerefUserID(q.Lead, ""),
+		Lead:            q.Lead.DisplayOr(""),
+		LeadID:          q.Lead.IDOr(""),
 		DefaultType:     derefIssueType(q.DefaultType),
 		DefaultPriority: derefPriority(q.DefaultPriority),
 		AssignAuto:      derefBool(q.AssignAuto),
@@ -149,7 +149,7 @@ func renderDetailTable(w io.Writer, opts *output.Options, q *tracker.Queue) erro
 
 	d.Field("Key", api.DerefString(q.Key, "-"))
 	d.Field("Name", api.DerefString(q.Name, "-"))
-	d.Field("Lead", api.DerefUser(q.Lead, "-"))
+	d.Field("Lead", q.Lead.DisplayOr("-"))
 	d.Field("Default Type", derefIssueTypeOrFallback(q.DefaultType, "-"))
 	d.Field("Default Priority", derefPriorityOrFallback(q.DefaultPriority, "-"))
 

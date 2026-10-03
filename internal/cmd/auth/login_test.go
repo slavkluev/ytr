@@ -15,7 +15,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/config"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
@@ -306,7 +305,7 @@ func TestDefaultOrgTypeDetector_Prefers360(t *testing.T) {
 	if orgType != config.OrgType360 {
 		t.Errorf("orgType = %q, want %q", orgType, config.OrgType360)
 	}
-	if got := api.DerefUser(user, ""); got != display {
+	if got := user.DisplayOr(""); got != display {
 		t.Errorf("user = %q, want %q", got, display)
 	}
 	if len(seen) != 1 || seen[0] != config.OrgType360 {
@@ -344,7 +343,7 @@ func TestDefaultOrgTypeDetector_FallsBackToCloud(t *testing.T) {
 	if orgType != config.OrgTypeCloud {
 		t.Errorf("orgType = %q, want %q", orgType, config.OrgTypeCloud)
 	}
-	if got := api.DerefUser(user, ""); got != display {
+	if got := user.DisplayOr(""); got != display {
 		t.Errorf("user = %q, want %q", got, display)
 	}
 	wantOrder := []config.OrgType{config.OrgType360, config.OrgTypeCloud}

@@ -141,7 +141,7 @@ func renderListOutput(w io.Writer, opts *output.Options, worklogs []*tracker.Wor
 
 	for _, wl := range worklogs {
 		id := api.DerefFlexString(wl.ID, "-")
-		author := api.DerefUser(wl.CreatedBy, "-")
+		author := wl.CreatedBy.DisplayOr("-")
 		duration := formatDuration(wl.Duration)
 		start := "-"
 		if wl.Start != nil {
@@ -157,8 +157,8 @@ func renderListOutput(w io.Writer, opts *output.Options, worklogs []*tracker.Wor
 func toWorklogItem(wl *tracker.Worklog) worklogItem {
 	item := worklogItem{
 		ID:       api.DerefFlexString(wl.ID, ""),
-		Author:   api.DerefUser(wl.CreatedBy, ""),
-		AuthorID: api.DerefUserID(wl.CreatedBy, ""),
+		Author:   wl.CreatedBy.DisplayOr(""),
+		AuthorID: wl.CreatedBy.IDOr(""),
 		Duration: formatDuration(wl.Duration),
 		Comment:  api.DerefString(wl.Comment, ""),
 	}
@@ -175,15 +175,5 @@ func formatDuration(d *tracker.Duration) string {
 		return "-"
 	}
 
-	data, err := d.MarshalJSON()
-	if err != nil {
-		return "-"
-	}
-
-	s := string(data)
-	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
-		return s[1 : len(s)-1]
-	}
-
-	return s
+	return d.String()
 }

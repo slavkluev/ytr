@@ -301,7 +301,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	username := api.DerefUser(user, "unknown")
+	username := user.DisplayOr("unknown")
 
 	if err := config.Save(&config.Config{
 		Token:   token,
