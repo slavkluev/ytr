@@ -163,6 +163,16 @@ func helpRow(path, sections string) leafRow {
 	return leafRow{name: "Help", args: append(strings.Fields(path), "--help"), holds: []string{sections}}
 }
 
+// assertAlignedTable fails when a TTY run printed the tab-separated table
+// meant for a pipe.
+func assertAlignedTable(t *testing.T, res cliResult) {
+	t.Helper()
+
+	if strings.Contains(res.Stdout, "\t") {
+		t.Errorf("stdout = %q, want a table aligned with spaces on a TTY", res.Stdout)
+	}
+}
+
 var ansiEscape = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
 func withoutANSI(s string) string {

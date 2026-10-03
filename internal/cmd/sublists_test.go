@@ -47,6 +47,7 @@ func TestWorklogList(t *testing.T) {
 			name: "TTY", args: []string{"worklog", "list", "PROJ-1"}, term: tty,
 			exchanges: []faketracker.Exchange{recent},
 			holds:     []string{"ID", "AUTHOR", "DURATION", "START", "101", "Иван Петров", "PT1H30M", "2h ago"},
+			check:     assertAlignedTable,
 		},
 		{
 			name: "Quiet", args: []string{"worklog", "list", "PROJ-1", "--quiet"},
@@ -59,6 +60,10 @@ func TestWorklogList(t *testing.T) {
 		{
 			name: "Empty", args: []string{"worklog", "list", "PROJ-1"},
 			exchanges: []faketracker.Exchange{empty}, stdout: "No worklogs found\n",
+		},
+		{
+			name: "Extra arg", args: []string{"worklog", "list", "PROJ-1", "PROJ-2"}, code: ytrerrors.ExitUserError,
+			stderr: []string{"accepts 1 arg(s), received 2"},
 		},
 		{
 			name: "Bad arg", args: []string{"worklog", "list", "bad"}, code: ytrerrors.ExitUserError,
@@ -112,6 +117,7 @@ func TestLinkList(t *testing.T) {
 			name: "TTY", args: []string{"link", "list", "PROJ-1"}, term: output.Options{TTY: true, Colors: true},
 			exchanges: []faketracker.Exchange{links},
 			holds:     []string{"ID", "TYPE", "ISSUE", "SUMMARY", "depends on", "PROJ-456", "Setup database"},
+			check:     assertAlignedTable,
 		},
 		{
 			name: "Quiet", args: []string{"link", "list", "PROJ-1", "--quiet"},
@@ -171,6 +177,7 @@ func TestChecklistList(t *testing.T) {
 			name: "TTY", args: []string{"checklist", "list", "PROJ-1"}, term: output.Options{TTY: true, Colors: true},
 			exchanges: []faketracker.Exchange{items},
 			holds:     []string{"ID", "TEXT", "CHECKED", "ASSIGNEE", "item-1", "Review code", "yes", "Иван Петров"},
+			check:     assertAlignedTable,
 		},
 		{
 			name: "Quiet", args: []string{"checklist", "list", "PROJ-1", "--quiet"},

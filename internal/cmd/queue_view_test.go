@@ -16,6 +16,8 @@ func TestQueueView(t *testing.T) {
 		"defaultType": {"name": "Bug", "key": "bug"}, "defaultPriority": {"name": "Critical", "key": "critical"}}`)
 	byKey := trackerGET(path, `{"key": "MYQUEUE", "name": "My Queue",
 		"defaultType": {"key": "task"}, "defaultPriority": {}}`)
+	emptyDisplay := trackerGET(path, `{"key": "MYQUEUE", "name": "My Queue",
+		"defaultType": {"display": "", "name": "Bug"}, "defaultPriority": {"display": "", "key": "critical"}}`)
 	bare := trackerGET(path, `{"key": "MYQUEUE"}`)
 	all := "key,name,description,lead,leadId,defaultType,defaultPriority,assignAuto,allowExternals"
 
@@ -53,6 +55,17 @@ func TestQueueView(t *testing.T) {
 			name: "Card names types by key", args: []string{"queue", "view", "MYQUEUE"},
 			exchanges: []faketracker.Exchange{byKey},
 			stdout:    "Key\tMYQUEUE\nName\tMy Queue\nLead\t-\nDefault Type\ttask\nDefault Priority\t-\n",
+		},
+		{
+			name: "JSON keeps an empty display", args: []string{"queue", "view", "MYQUEUE", "--json", all},
+			exchanges: []faketracker.Exchange{emptyDisplay},
+			json: `{"key": "MYQUEUE", "name": "My Queue", "leadId": "", "assignAuto": false,
+				"allowExternals": false}`,
+		},
+		{
+			name: "Card keeps an empty display", args: []string{"queue", "view", "MYQUEUE"},
+			exchanges: []faketracker.Exchange{emptyDisplay},
+			stdout:    "Key\tMYQUEUE\nName\tMy Queue\nLead\t-\nDefault Type\t-\nDefault Priority\t-\n",
 		},
 		{
 			name: "Card of a bare queue", args: []string{"queue", "view", "MYQUEUE"},

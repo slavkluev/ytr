@@ -607,6 +607,9 @@ func TestStrayPositionalOnFlagsOnlyLeaf(t *testing.T) {
 		{"issue", "create"},
 		{"queue", "list"},
 		{"user", "list"},
+		{"status", "list"},
+		{"component", "list"},
+		{"user", "myself"},
 	} {
 		label := "ytr " + strings.Join(path, " ")
 		got := runProbe(t, slices.Concat(path, []string{"APP"}))

@@ -88,6 +88,7 @@ func TestFieldList(t *testing.T) {
 			name: "TTY", args: []string{"field", "list"}, term: output.Options{TTY: true, Colors: true},
 			exchanges: []faketracker.Exchange{fields},
 			holds:     []string{"ID", "KEY", "NAME", "SCHEMA", "READONLY", "summary", "Summary", "string", "yes"},
+			check:     assertAlignedTable,
 		},
 		{
 			name: "Quiet", args: []string{"field", "list", "--quiet"},

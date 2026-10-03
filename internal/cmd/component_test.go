@@ -47,6 +47,7 @@ func TestComponentList(t *testing.T) {
 			name: "TTY", args: []string{"component", "list"}, term: output.Options{TTY: true, Colors: true},
 			exchanges: []faketracker.Exchange{components},
 			holds:     []string{"ID", "NAME", "QUEUE", "LEAD", "Backend", "PROJ", "Иван Петров"},
+			check:     assertAlignedTable,
 		},
 		{
 			name: "Quiet", args: []string{"component", "list", "--quiet"},

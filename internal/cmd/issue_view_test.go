@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
 	"github.com/slavkluev/ytr/internal/output"
 )
@@ -71,6 +72,10 @@ func TestIssueView(t *testing.T) {
 			name: "Any arg", args: []string{"issue", "view", "123", "--quiet"},
 			exchanges: []faketracker.Exchange{trackerGET("/v3/issues/123", `{"key": "PROJ-123"}`)},
 			stdout:    "PROJ-123\n",
+		},
+		{
+			name: "Extra arg", args: []string{"issue", "view", "PROJ-1", "PROJ-2"}, code: ytrerrors.ExitUserError,
+			stderr: []string{"accepts 1 arg(s), received 2"},
 		},
 		fieldHintRow("issue view", []string{"PROJ-123"}, "key", "summary", "status", "priority", "type",
 			"author", "authorId", "assignee", "assigneeId", "createdAt", "updatedAt", "description"),
