@@ -36,8 +36,7 @@ SEE ALSO
   ytr priority list --json id,key,name`,
 		Empty: "No priorities found",
 		Call: func(ctx context.Context, c *tracker.Client) ([]*tracker.Priority, error) {
-			priorities, _, err := c.Priorities.List(ctx, nil)
-			return priorities, err
+			return runner.Collect(c.Priorities.ListIter(ctx, nil))
 		},
 		Item:   toItem,
 		Header: []string{"ID", "KEY", "NAME"},

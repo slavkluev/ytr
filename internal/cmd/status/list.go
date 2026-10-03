@@ -36,8 +36,7 @@ SEE ALSO
   ytr status list --json id,key,name`,
 		Empty: "No statuses found",
 		Call: func(ctx context.Context, c *tracker.Client) ([]*tracker.Status, error) {
-			statuses, _, err := c.Statuses.List(ctx, nil)
-			return statuses, err
+			return runner.Collect(c.Statuses.ListIter(ctx, nil))
 		},
 		Item:   toItem,
 		Header: []string{"ID", "KEY", "NAME"},

@@ -143,7 +143,7 @@ func TestRecordFixtureWritesWhatReplayServes(t *testing.T) {
 		Method: http.MethodGet,
 		Path:   "/v3/statuses",
 		Status: http.StatusOK,
-		Header: http.Header{"Content-Type": {"application/json"}, "X-Request-Id": {"req-1"}},
+		Header: http.Header{"Content-Type": {"application/json"}, "X-Request-Id": {"req-1"}, "X-Total-Pages": {"1"}},
 		Body:   []byte(`[{"self":"https://api.tracker.yandex.net/v3/statuses/1","id":1,"key":"open","name":"Open"}]`),
 	}})
 	path := filepath.Join(t.TempDir(), "status-list.json")
@@ -186,8 +186,9 @@ func TestRecordFixtureRefusesALeakedOrgID(t *testing.T) {
 		Path:   "/v3/statuses",
 		Status: http.StatusOK,
 		Header: http.Header{
-			"Content-Type": {"application/json"},
-			"Link":         {`<https://api.tracker.yandex.net/v3/statuses?org=bpf-record-org>; rel="next"`},
+			"Content-Type":  {"application/json"},
+			"Link":          {`<https://api.tracker.yandex.net/v3/statuses?org=bpf-record-org>; rel="next"`},
+			"X-Total-Pages": {"1"},
 		},
 		Body: []byte(`[{"id":1,"key":"open","name":"Open"}]`),
 	}})

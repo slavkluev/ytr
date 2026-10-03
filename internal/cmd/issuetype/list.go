@@ -36,8 +36,7 @@ SEE ALSO
   ytr issuetype list --json id,key,name`,
 		Empty: "No issue types found",
 		Call: func(ctx context.Context, c *tracker.Client) ([]*tracker.IssueType, error) {
-			issueTypes, _, err := c.IssueTypes.List(ctx, nil)
-			return issueTypes, err
+			return runner.Collect(c.IssueTypes.ListIter(ctx, nil))
 		},
 		Item:   toItem,
 		Header: []string{"ID", "KEY", "NAME"},

@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -21,13 +22,16 @@ type refdataItem struct {
 }
 
 // refdataLeaf is one of the four reference-data list commands, which share
-// every behavior and differ only in their nouns.
+// every behavior and differ only in their nouns. Its fixture holds the
+// leaf's items over its pages, one GET request per page Tracker returned.
 type refdataLeaf struct {
 	noun    string
 	short   string
 	path    string
 	fixture string
 	empty   string
+	items   int
+	pages   int
 }
 
 // refdataRow is one behavior every refdata leaf must show, run as prefix, the
@@ -44,14 +48,22 @@ type refdataRow struct {
 
 func TestRefdataList(t *testing.T) {
 	leaves := []refdataLeaf{
-		{"status", "List workflow statuses", "/v3/statuses", "status-list.json", "No statuses found"},
-		{"priority", "List priorities", "/v3/priorities", "priority-list.json", "No priorities found"},
-		{"resolution", "List resolutions", "/v3/resolutions", "resolution-list.json", "No resolutions found"},
-		{"issuetype", "List issue types", "/v3/issuetypes", "issuetype-list.json", "No issue types found"},
+		{"status", "List workflow statuses", "/v3/statuses", "status-list.json", "No statuses found", 106, 3},
+		{"priority", "List priorities", "/v3/priorities", "priority-list.json", "No priorities found", 7, 1},
+		{"resolution", "List resolutions", "/v3/resolutions", "resolution-list.json", "No resolutions found", 22, 1},
+		{"issuetype", "List issue types", "/v3/issuetypes", "issuetype-list.json", "No issue types found", 29, 1},
 	}
 
 	for _, leaf := range leaves {
-		recorded := fixtureItems(t, loadRefdataFixture(t, leaf)[0].Body)
+		pages := loadRefdataFixture(t, leaf)
+		var recorded []refdataItem
+		for _, page := range pages {
+			recorded = append(recorded, fixtureItems(t, page.Body)...)
+		}
+		if len(recorded) != leaf.items || len(pages) != leaf.pages {
+			t.Fatalf("%s fixture holds %d items over %d requests, want %d over %d",
+				leaf.fixture, len(recorded), len(pages), leaf.items, leaf.pages)
+		}
 
 		for _, row := range refdataRows() {
 			argv := slices.Concat(row.prefix, []string{leaf.noun}, row.args)
@@ -67,7 +79,7 @@ func TestRefdataList(t *testing.T) {
 				if res.Code != row.code {
 					t.Errorf("exit = %d, want %d (stderr: %s)", res.Code, row.code, res.Stderr)
 				}
-				assertRefdataRequests(t, leaf, row.exchanges != nil, res.Requests)
+				assertRefdataRequests(t, leaf, len(exchanges), res.Requests)
 				row.check(t, leaf, recorded, res)
 			})
 		}
@@ -290,18 +302,23 @@ func expectRecordedKeys(t *testing.T, _ refdataLeaf, recorded []refdataItem, res
 	assertLines(t, res.Stdout, keys)
 }
 
-func assertRefdataRequests(t *testing.T, leaf refdataLeaf, wantOne bool, requests []faketracker.Request) {
+// assertRefdataRequests wants one GET of leaf's path per page served: the
+// first with no page parameter, then page=2, page=3 and so on.
+func assertRefdataRequests(t *testing.T, leaf refdataLeaf, pages int, requests []faketracker.Request) {
 	t.Helper()
 
-	if !wantOne {
-		if len(requests) != 0 {
-			t.Errorf("requests = %+v, want none", requests)
-		}
-		return
+	if len(requests) != pages {
+		t.Fatalf("requests = %+v, want %d GET %s", requests, pages, leaf.path)
 	}
 
-	if len(requests) != 1 || requests[0].Method != http.MethodGet || requests[0].Path != leaf.path {
-		t.Errorf("requests = %+v, want only GET %s", requests, leaf.path)
+	for i, req := range requests {
+		wantPage := ""
+		if i > 0 {
+			wantPage = strconv.Itoa(i + 1)
+		}
+		if req.Method != http.MethodGet || req.Path != leaf.path || req.Query.Get("page") != wantPage {
+			t.Errorf("request %d = %+v, want GET %s with page %q", i+1, req, leaf.path, wantPage)
+		}
 	}
 }
 

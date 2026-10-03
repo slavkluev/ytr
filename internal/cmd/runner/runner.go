@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"iter"
 	"reflect"
 	"strings"
 
@@ -95,6 +96,21 @@ func (l List[T, Item]) run(cmd *cobra.Command, fields []string) error {
 	}
 
 	return l.render(cmd.OutOrStdout(), opts, values)
+}
+
+// Collect drains seq, the iterator a library List method pages through, so a
+// Call returns every page instead of the first. It returns nothing but the
+// error once seq yields one.
+func Collect[T any](seq iter.Seq2[T, error]) ([]T, error) {
+	var values []T
+	for v, err := range seq {
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, v)
+	}
+
+	return values, nil
 }
 
 func newClient(cmd *cobra.Command) (*tracker.Client, error) {

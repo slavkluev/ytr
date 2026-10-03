@@ -40,8 +40,10 @@ func TestQuietPrintsOneStatusKeyPerLine(t *testing.T) {
 	}
 
 	var keys []string
-	for _, item := range fixtureItems(t, exchanges[0].Body) {
-		keys = append(keys, item.Key)
+	for _, page := range exchanges {
+		for _, item := range fixtureItems(t, page.Body) {
+			keys = append(keys, item.Key)
+		}
 	}
 	if got := strings.Split(strings.TrimSuffix(res.Stdout, "\n"), "\n"); !slices.Equal(got, keys) {
 		t.Errorf("stdout lines = %q, want the fixture's keys %q", got, keys)

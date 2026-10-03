@@ -500,5 +500,541 @@
         "version": 1
       }
     ]
+  },
+  {
+    "method": "GET",
+    "path": "/v3/statuses",
+    "query": {
+      "page": [
+        "2"
+      ]
+    },
+    "status": 200,
+    "header": {
+      "Content-Type": [
+        "application/json;charset=utf-8"
+      ],
+      "Link": [
+        "<https://api.tracker.yandex.net/v3/statuses?perPage=50>; rel=\"first\"",
+        "<https://api.tracker.yandex.net/v3/statuses?page=1&perPage=50>; rel=\"prev\"",
+        "<https://api.tracker.yandex.net/v3/statuses?page=3&perPage=50>; rel=\"next\"",
+        "<https://api.tracker.yandex.net/v3/statuses?page=3&perPage=50>; rel=\"last\"",
+        "<https://api.tracker.yandex.net/v3/statuses?perPage=50{&page}>; rel=\"seek\""
+      ],
+      "X-Total-Count": [
+        "106"
+      ],
+      "X-Total-Pages": [
+        "3"
+      ]
+    },
+    "body": [
+      {
+        "id": 51,
+        "key": "customStatus51",
+        "name": "Статус 51",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/51",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 52,
+        "key": "customStatus52",
+        "name": "Статус 52",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/52",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 53,
+        "key": "customStatus53",
+        "name": "Статус 53",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/53",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 54,
+        "key": "customStatus54",
+        "name": "Статус 54",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/54",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 55,
+        "key": "customStatus55",
+        "name": "Статус 55",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/55",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 56,
+        "key": "customStatus56",
+        "name": "Статус 56",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/56",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 57,
+        "key": "customStatus57",
+        "name": "Статус 57",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/57",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 58,
+        "key": "customStatus58",
+        "name": "Статус 58",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/58",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 59,
+        "key": "customStatus59",
+        "name": "Статус 59",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/59",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 60,
+        "key": "customStatus60",
+        "name": "Статус 60",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/60",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 61,
+        "key": "customStatus61",
+        "name": "Статус 61",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/61",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 62,
+        "key": "customStatus62",
+        "name": "Статус 62",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/62",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 63,
+        "key": "customStatus63",
+        "name": "Статус 63",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/63",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 64,
+        "key": "customStatus64",
+        "name": "Статус 64",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/64",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 65,
+        "key": "customStatus65",
+        "name": "Статус 65",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/65",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 66,
+        "key": "customStatus66",
+        "name": "Статус 66",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/66",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 67,
+        "key": "customStatus67",
+        "name": "Статус 67",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/67",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 68,
+        "key": "customStatus68",
+        "name": "Статус 68",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/68",
+        "version": 1
+      },
+      {
+        "id": 69,
+        "key": "customStatus69",
+        "name": "Статус 69",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/69",
+        "version": 1
+      },
+      {
+        "id": 71,
+        "key": "customStatus71",
+        "name": "Статус 71",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/71",
+        "version": 1
+      },
+      {
+        "id": 72,
+        "key": "customStatus72",
+        "name": "Статус 72",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/72",
+        "version": 1
+      },
+      {
+        "id": 70,
+        "key": "customStatus70",
+        "name": "Статус 70",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/70",
+        "version": 1
+      },
+      {
+        "id": 73,
+        "key": "customStatus73",
+        "name": "Статус 73",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/73",
+        "version": 1
+      },
+      {
+        "id": 75,
+        "key": "customStatus75",
+        "name": "Статус 75",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/75",
+        "version": 1
+      },
+      {
+        "id": 74,
+        "key": "customStatus74",
+        "name": "Статус 74",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/74",
+        "version": 1
+      },
+      {
+        "id": 76,
+        "key": "customStatus76",
+        "name": "Статус 76",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/76",
+        "version": 1
+      },
+      {
+        "id": 78,
+        "key": "customStatus78",
+        "name": "Статус 78",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/78",
+        "version": 1
+      },
+      {
+        "id": 79,
+        "key": "customStatus79",
+        "name": "Статус 79",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/79",
+        "version": 1
+      },
+      {
+        "id": 80,
+        "key": "customStatus80",
+        "name": "Статус 80",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/80",
+        "version": 1
+      },
+      {
+        "id": 77,
+        "key": "customStatus77",
+        "name": "Статус 77",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/77",
+        "version": 1
+      },
+      {
+        "id": 81,
+        "key": "customStatus81",
+        "name": "Статус 81",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/81",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 82,
+        "key": "customStatus82",
+        "name": "Статус 82",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/82",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 83,
+        "key": "customStatus83",
+        "name": "Статус 83",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/83",
+        "version": 1
+      },
+      {
+        "id": 85,
+        "key": "customStatus85",
+        "name": "Статус 85",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/85",
+        "version": 1
+      },
+      {
+        "id": 86,
+        "key": "customStatus86",
+        "name": "Статус 86",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/86",
+        "version": 1
+      },
+      {
+        "id": 88,
+        "key": "customStatus88",
+        "name": "Статус 88",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/88",
+        "version": 1
+      },
+      {
+        "id": 89,
+        "key": "customStatus89",
+        "name": "Статус 89",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/89",
+        "version": 1
+      },
+      {
+        "id": 92,
+        "key": "customStatus92",
+        "name": "Статус 92",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/92",
+        "version": 1
+      },
+      {
+        "id": 94,
+        "key": "customStatus94",
+        "name": "Статус 94",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/94",
+        "version": 1
+      },
+      {
+        "id": 90,
+        "key": "customStatus90",
+        "name": "Статус 90",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/90",
+        "version": 1
+      },
+      {
+        "id": 87,
+        "key": "customStatus87",
+        "name": "Статус 87",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/87",
+        "version": 1
+      },
+      {
+        "id": 91,
+        "key": "customStatus91",
+        "name": "Статус 91",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/91",
+        "version": 1
+      },
+      {
+        "id": 93,
+        "key": "customStatus93",
+        "name": "Статус 93",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/93",
+        "version": 1
+      },
+      {
+        "id": 97,
+        "key": "customStatus97",
+        "name": "Статус 97",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/97",
+        "version": 1
+      },
+      {
+        "id": 95,
+        "key": "customStatus95",
+        "name": "Статус 95",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/95",
+        "version": 1
+      },
+      {
+        "id": 96,
+        "key": "customStatus96",
+        "name": "Статус 96",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/96",
+        "version": 1
+      },
+      {
+        "id": 98,
+        "key": "customStatus98",
+        "name": "Статус 98",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/98",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 99,
+        "key": "customStatus99",
+        "name": "Статус 99",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/99",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 100,
+        "key": "customStatus100",
+        "name": "Статус 100",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/100",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 101,
+        "key": "customStatus101",
+        "name": "Статус 101",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/101",
+        "type": "paused",
+        "version": 1
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/v3/statuses",
+    "query": {
+      "page": [
+        "3"
+      ]
+    },
+    "status": 200,
+    "header": {
+      "Content-Type": [
+        "application/json;charset=utf-8"
+      ],
+      "Link": [
+        "<https://api.tracker.yandex.net/v3/statuses?perPage=50>; rel=\"first\"",
+        "<https://api.tracker.yandex.net/v3/statuses?page=2&perPage=50>; rel=\"prev\"",
+        "<https://api.tracker.yandex.net/v3/statuses?page=3&perPage=50>; rel=\"last\"",
+        "<https://api.tracker.yandex.net/v3/statuses?perPage=50{&page}>; rel=\"seek\""
+      ],
+      "X-Total-Count": [
+        "106"
+      ],
+      "X-Total-Pages": [
+        "3"
+      ]
+    },
+    "body": [
+      {
+        "id": 102,
+        "key": "customStatus102",
+        "name": "Статус 102",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/102",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 103,
+        "key": "customStatus103",
+        "name": "Статус 103",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/103",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 104,
+        "key": "customStatus104",
+        "name": "Статус 104",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/104",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 105,
+        "key": "customStatus105",
+        "name": "Статус 105",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/105",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 106,
+        "key": "customStatus106",
+        "name": "Статус 106",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/106",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 107,
+        "key": "customStatus107",
+        "name": "Статус 107",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/107",
+        "type": "paused",
+        "version": 1
+      }
+    ]
   }
 ]
