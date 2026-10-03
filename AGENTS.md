@@ -14,7 +14,7 @@ Yandex Tracker CLI for LLM agents and humans: Go 1.26, cobra, built on `github.c
 
 ## Where things are
 
-- New or changed command: copy `internal/cmd/worklog/` — `worklog.go` (SDK interface plus a replaceable factory var for tests), `list.go` (read and JSON fields), `edit.go` (partial update, `--from-json`).
+- New or changed command: copy `internal/cmd/worklog/` — `worklog.go` (the group command only), `list.go` (`runner.List`: read and JSON fields), `edit.go` (`runner.Write`: partial update, `--from-json`), `create.go` (`runner.Write` with `Required` keys), `delete.go` (`runner.Delete`).
 
 ## Running and verifying
 

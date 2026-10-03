@@ -18,9 +18,6 @@ type linkItem struct {
 	Summary string `json:"summary"`
 }
 
-// LinkListFields are the --json fields of every link command.
-var LinkListFields = runner.ItemFields[linkItem]()
-
 func linkTypeDisplay(link *tracker.IssueLink) string {
 	if link.Type == nil || link.Direction == nil {
 		return "-"
