@@ -402,6 +402,58 @@ func TestContractEveryLeafRejectsBadArgCount(t *testing.T) {
 	}
 }
 
+// issueKeyArgs returns the fewest positional arguments cmd accepts, each shaped
+// like an issue key, so an argument validator lets the probe reach flag checks.
+func issueKeyArgs(t *testing.T, cmd *cobra.Command) []string {
+	t.Helper()
+
+	for count := range maxProbeArgCount + 1 {
+		args := slices.Repeat([]string{"PROJ-1"}, count)
+		if cmd.Args(cmd, args) == nil {
+			return args
+		}
+	}
+
+	t.Fatalf("%q accepts no argument count up to %d", cmd.CommandPath(), maxProbeArgCount)
+	return nil
+}
+
+// TestEveryLeafRejectsAllWithCursor finds every leaf that offers both --all and
+// --cursor and checks that it refuses the pair instead of letting --all win
+// silently. runProbe clears credentials, so a leaf that checked auth first would
+// exit 3 here rather than 1.
+func TestEveryLeafRejectsAllWithCursor(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	var probed []string
+	walkCommands(newRootCmd(), func(cmd *cobra.Command) {
+		if cmd.HasSubCommands() || cmd.Flags().Lookup("all") == nil || cmd.Flags().Lookup("cursor") == nil {
+			return
+		}
+		probed = append(probed, cmd.CommandPath())
+
+		argv := slices.Concat(argPath(cmd), issueKeyArgs(t, cmd), []string{"--all", "--cursor", "2"})
+		label := "ytr " + strings.Join(argv, " ")
+		got := runProbe(t, argv)
+
+		if got.code != ytrerrors.ExitUserError {
+			t.Errorf("%s: exit = %d, want %d (stderr: %s)", label, got.code, ytrerrors.ExitUserError, got.stderr)
+		}
+		if got.stdout != "" {
+			t.Errorf("%s: stdout = %q, want empty", label, got.stdout)
+		}
+		if !strings.Contains(got.stderr, "cannot combine --all with --cursor") {
+			t.Errorf("%s: stderr = %q, want it to name the conflict", label, got.stderr)
+		}
+	})
+
+	for _, known := range []string{"ytr issue list", "ytr issue changelog", "ytr queue list", "ytr user list"} {
+		if !slices.Contains(probed, known) {
+			t.Errorf("%q was not probed; the walk found only %v", known, probed)
+		}
+	}
+}
+
 // TestContractProbeSetCoversTheTree checks the derived probe set against the tree
 // itself: it reads each command's Args validator directly instead of going
 // through rejectedArgCounts, so it disagrees when the derivation is what broke --

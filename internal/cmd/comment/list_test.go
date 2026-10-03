@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -237,47 +238,65 @@ func TestListNilFields(t *testing.T) {
 	}
 }
 
-// mockPagingLister returns pre-canned pages keyed by the cursor (opts.ID),
-// letting us exercise auto-pagination.
-type mockPagingLister struct {
-	pages map[string][]*tracker.Comment
+// cursorLister serves comments the way the Tracker endpoint pages them: up to
+// opts.PerPage comments that come after the comment whose ID is opts.ID.
+type cursorLister struct {
+	comments []*tracker.Comment
+	calls    []tracker.CommentListOptions
+}
+
+func (m *cursorLister) ListComments(
+	_ context.Context,
+	_ string,
+	opts *tracker.CommentListOptions,
+) ([]*tracker.Comment, *tracker.Response, error) {
+	m.calls = append(m.calls, *opts)
+
+	start := 0
+	if opts.ID != "" {
+		for i, c := range m.comments {
+			if string(*c.ID) == opts.ID {
+				start = i + 1
+				break
+			}
+		}
+	}
+	end := min(start+opts.PerPage, len(m.comments))
+
+	return m.comments[start:end], &tracker.Response{}, nil
+}
+
+// stuckCursorLister returns a full page on every call, and every page ends
+// with the same comment ID.
+type stuckCursorLister struct {
 	calls int
 }
 
-func (m *mockPagingLister) ListComments(
+func (m *stuckCursorLister) ListComments(
 	_ context.Context,
 	_ string,
 	opts *tracker.CommentListOptions,
 ) ([]*tracker.Comment, *tracker.Response, error) {
 	m.calls++
-	cursor := ""
-	if opts != nil {
-		cursor = opts.ID
+	if m.calls > 10 {
+		return nil, &tracker.Response{}, nil
 	}
-	return m.pages[cursor], &tracker.Response{}, nil
+
+	ids := make([]string, opts.PerPage)
+	for i := range ids {
+		ids[i] = "page-" + strconv.Itoa(m.calls) + "-" + strconv.Itoa(i)
+	}
+	ids[len(ids)-1] = "stuck"
+
+	return makeComments(ids...), &tracker.Response{}, nil
 }
 
-func TestListAutoPaginates(t *testing.T) {
-	testutil.ResetOutputFlags(t)
+func runCommentListQuiet(t *testing.T, lister commentLister) (string, error) {
+	t.Helper()
 	output.QuietFlag = true
 
-	// A full first page (exactly commentPageSize) forces a follow-up fetch;
-	// the short second page ends pagination.
-	firstIDs := make([]string, commentPageSize)
-	for i := range firstIDs {
-		firstIDs[i] = "p1-" + strconv.Itoa(i)
-	}
-	lastID := firstIDs[commentPageSize-1]
-
-	mock := &mockPagingLister{
-		pages: map[string][]*tracker.Comment{
-			"":     makeComments(firstIDs...),
-			lastID: makeComments("p2-a", "p2-b"),
-		},
-	}
-
 	origLister := newCommentLister
-	newCommentLister = func(_ *config.ResolvedAuth) commentLister { return mock }
+	newCommentLister = func(_ *config.ResolvedAuth) commentLister { return lister }
 	t.Cleanup(func() { newCommentLister = origLister })
 
 	buf := &bytes.Buffer{}
@@ -289,16 +308,54 @@ func TestListAutoPaginates(t *testing.T) {
 	cmd.PersistentFlags().String("org-type", "360", "")
 	cmd.SetArgs([]string{"PROJ-1"})
 
-	if err := cmd.Execute(); err != nil {
+	err := cmd.Execute()
+	return buf.String(), err
+}
+
+func TestCommentListFollowsCursorPastFirstPage(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	ids := make([]string, 120)
+	for i := range ids {
+		ids[i] = strconv.Itoa(i + 1)
+	}
+	lister := &cursorLister{comments: makeComments(ids...)}
+
+	out, err := runCommentListQuiet(t, lister)
+	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if mock.calls != 2 {
-		t.Errorf("expected 2 paginated calls, got %d", mock.calls)
+	got := strings.Split(strings.TrimSpace(out), "\n")
+	if !slices.Equal(got, ids) {
+		t.Errorf("printed %d comment IDs, want all %d in order:\n%s", len(got), len(ids), out)
 	}
-	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-	if len(lines) != commentPageSize+2 {
-		t.Errorf("expected %d comment IDs across pages, got %d", commentPageSize+2, len(lines))
+
+	if len(lister.calls) != 2 {
+		t.Fatalf("made %d list calls, want 2", len(lister.calls))
+	}
+	wantCursors := []string{"", "100"}
+	for i, call := range lister.calls {
+		if call.PerPage != 100 {
+			t.Errorf("call %d: PerPage = %d, want 100", i+1, call.PerPage)
+		}
+		if call.ID != wantCursors[i] {
+			t.Errorf("call %d: ID = %q, want %q, the last ID of the previous page", i+1, call.ID, wantCursors[i])
+		}
+	}
+}
+
+func TestCommentListStopsOnRepeatedCursor(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+
+	lister := &stuckCursorLister{}
+
+	if _, err := runCommentListQuiet(t, lister); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if lister.calls != 2 {
+		t.Errorf("made %d list calls, want 2: the second page ends on the cursor it was asked for", lister.calls)
 	}
 }
 

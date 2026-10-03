@@ -1195,3 +1195,64 @@ func TestChangelogNamesakesKeepDistinctAuthorIDs(t *testing.T) {
 			first["authorId"], second["authorId"])
 	}
 }
+
+func TestChangelogFieldSelectionOmitsEmptySections(t *testing.T) {
+	testutil.ResetOutputFlags(t)
+	output.JSONFields = []string{"date", "links"}
+
+	ts := makeTimestamp(time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC))
+	dirOut := "outward"
+	linked := &tracker.Changelog{
+		ID:        testutil.FlexStringPtr("cl-1"),
+		UpdatedAt: ts,
+		Type:      testutil.StrPtr("IssueLinked"),
+		Links: []*tracker.ChangelogLink{{
+			To: &tracker.ChangelogLinkValue{
+				Direction: &dirOut,
+				Object:    &tracker.Issue{Key: testutil.StrPtr("SIG-1")},
+				Type:      &tracker.IssueLinkType{ID: testutil.FlexStringPtr("relates")},
+			},
+		}},
+	}
+	unlinked := &tracker.Changelog{
+		ID:        testutil.FlexStringPtr("cl-2"),
+		UpdatedAt: ts,
+		Type:      testutil.StrPtr("IssueUpdated"),
+		Fields:    []*tracker.ChangelogEvent{{Field: fieldRef("summary"), From: "Old", To: "New"}},
+	}
+
+	mock := &mockChangelogGetter{
+		entries: []*tracker.Changelog{linked, unlinked},
+		resp:    &tracker.Response{},
+	}
+
+	out, err := setupChangelogCmd(t, mock, []string{"PROJ-123"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var result struct {
+		Items []map[string]any `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\nraw: %s", err, out)
+	}
+	if len(result.Items) != 2 {
+		t.Fatalf("expected 2 items, got %d\nraw: %s", len(result.Items), out)
+	}
+
+	if _, ok := result.Items[0]["links"]; !ok {
+		t.Errorf("entry with links lost its links key: %v", result.Items[0])
+	}
+	if links, ok := result.Items[1]["links"]; ok {
+		t.Errorf("entry without links has links = %v, want no links key", links)
+	}
+	for i, item := range result.Items {
+		if _, ok := item["date"]; !ok {
+			t.Errorf("item %d has no date key: %v", i, item)
+		}
+		if _, ok := item["fields"]; ok {
+			t.Errorf("item %d has fields, which was not selected: %v", i, item)
+		}
+	}
+}
