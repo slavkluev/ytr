@@ -1,8 +1,8 @@
 package field
 
 import (
+	"context"
 	"fmt"
-	"io"
 	"sort"
 	"strings"
 
@@ -10,28 +10,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
-	"github.com/slavkluev/ytr/internal/config"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/output"
 )
-
-// FieldGetFields lists the available JSON field names for field get output.
-var FieldGetFields = []string{
-	"id",
-	"key",
-	"name",
-	"type",
-	"schema",
-	"items",
-	"required",
-	"readonly",
-	"category",
-	"queue",
-	"options",
-	"queueOptions",
-	"defaultOptions",
-	"description",
-}
 
 // Option values are []any so each keeps the JSON type Tracker sent.
 type fieldDetail struct {
@@ -86,9 +67,9 @@ func toFieldDetail(f *tracker.Field) fieldDetail {
 }
 
 func newGetCmd() *cobra.Command {
-	var queueFlag string
+	var queue string
 
-	cmd := &cobra.Command{
+	cmd := runner.Get[*tracker.Field, fieldDetail]{
 		Use:   "get FIELD-KEY",
 		Short: "Show field details",
 		Long: `Display detailed information about a Yandex Tracker field.
@@ -98,13 +79,8 @@ When --queue is specified, retrieves a queue-local field instead of a global fie
 options lists the field's allowed values in the JSON type Tracker sent, so
 numeric options stay numbers. When Tracker sets the values per queue, options
 is omitted: queueOptions maps each queue key to its list, and defaultOptions
-holds Tracker's defaults list.
-
-JSON FIELDS
-  id, key, name, type, schema, items, required, readonly, category, queue, options, queueOptions, defaultOptions, description
-
-SEE ALSO
-  ytr field list  - List available fields`,
+holds Tracker's defaults list.`,
+		SeeAlso: `  ytr field list  - List available fields`,
 		Example: `  # View global field details
   ytr field get summary
 
@@ -113,87 +89,27 @@ SEE ALSO
 
   # Get specific fields as JSON
   ytr field get priority --json id,key,name,schema,options`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runGet(cmd, args[0], queueFlag)
+		Args: []runner.Arg{runner.AnyArg},
+		Call: func(ctx context.Context, c *tracker.Client, args []string) (*tracker.Field, error) {
+			if queue != "" {
+				field, _, err := c.Fields.GetLocal(ctx, queue, args[0])
+				return field, err
+			}
+
+			field, _, err := c.Fields.Get(ctx, args[0])
+			return field, err
 		},
-	}
+		Item:   toFieldDetail,
+		Detail: fieldCard,
+		Quiet:  func(f *tracker.Field) string { return api.DerefString(f.Key, "") },
+	}.Command()
 
-	cmd.Flags().StringVar(&queueFlag, "queue", "", "Queue key for local fields")
-
-	jsonfields.Register("ytr field get", FieldGetFields)
+	cmd.Flags().StringVar(&queue, "queue", "", "Queue key for local fields")
 
 	return cmd
 }
 
-func runGet(cmd *cobra.Command, fieldKey, queueFlag string) error {
-	opts := output.FromContext(cmd.Context())
-
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "field get", FieldGetFields)
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = FieldGetFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, FieldGetFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, FieldGetFields)
-	}
-
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
-	if err != nil {
-		return err
-	}
-
-	getter := newFieldGetter(auth)
-
-	var field *tracker.Field
-	if queueFlag != "" {
-		field, _, err = getter.GetLocal(cmd.Context(), queueFlag, fieldKey)
-	} else {
-		field, _, err = getter.Get(cmd.Context(), fieldKey)
-	}
-	if err != nil {
-		return api.MapAPIError(err)
-	}
-
-	w := cmd.OutOrStdout()
-
-	if opts.IsJSON() {
-		detail := toFieldDetail(field)
-
-		if opts.HasFieldSelection() {
-			filtered := output.FilterFields(detail, opts.JSONFields)
-			if opts.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, opts.JQFilter)
-			}
-			return opts.PrintJSON(w, filtered)
-		}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(w, detail, opts.JQFilter)
-		}
-		return opts.PrintJSON(w, detail)
-	}
-
-	if opts.Quiet {
-		output.PrintQuiet(w, api.DerefString(field.Key, ""))
-		return nil
-	}
-
-	return renderFieldCard(w, opts, field)
-}
-
-func renderFieldCard(w io.Writer, opts *output.Options, field *tracker.Field) error {
-	d := opts.NewDetail(w)
-
+func fieldCard(d *output.DetailPrinter, _ *output.Options, field *tracker.Field) {
 	d.Field("ID", api.DerefFlexString(field.ID, "-"))
 	d.Field("Key", api.DerefString(field.Key, "-"))
 	d.Field("Name", api.DerefString(field.Name, "-"))
@@ -204,8 +120,6 @@ func renderFieldCard(w io.Writer, opts *output.Options, field *tracker.Field) er
 	renderOptionalFields(d, field)
 
 	renderDescription(d, field)
-
-	return d.Err()
 }
 
 func formatSchema(field *tracker.Field) string {
