@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"path/filepath"
+	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
+	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
 )
 
@@ -17,45 +20,316 @@ type refdataItem struct {
 	Name string `json:"name"`
 }
 
-func TestRefdataListPrintsTheRecordedItems(t *testing.T) {
-	rows := []struct {
-		args    []string
-		path    string
-		fixture string
-	}{
-		{[]string{"status", "list"}, "/v3/statuses", "status-list.json"},
-		{[]string{"priority", "list"}, "/v3/priorities", "priority-list.json"},
-		{[]string{"resolution", "list"}, "/v3/resolutions", "resolution-list.json"},
-		{[]string{"issuetype", "list"}, "/v3/issuetypes", "issuetype-list.json"},
+// refdataLeaf is one of the four reference-data list commands, which share
+// every behavior and differ only in their nouns.
+type refdataLeaf struct {
+	noun    string
+	short   string
+	path    string
+	fixture string
+	empty   string
+}
+
+// refdataRow is one behavior every refdata leaf must show, run as prefix, the
+// leaf's noun, then args. A nil exchanges means the run must send no request
+// at all.
+type refdataRow struct {
+	name      string
+	prefix    []string
+	args      []string
+	exchanges func(t *testing.T, leaf refdataLeaf) []faketracker.Exchange
+	code      int
+	check     func(t *testing.T, leaf refdataLeaf, recorded []refdataItem, res cliResult)
+}
+
+func TestRefdataList(t *testing.T) {
+	leaves := []refdataLeaf{
+		{"status", "List workflow statuses", "/v3/statuses", "status-list.json", "No statuses found"},
+		{"priority", "List priorities", "/v3/priorities", "priority-list.json", "No priorities found"},
+		{"resolution", "List resolutions", "/v3/resolutions", "resolution-list.json", "No resolutions found"},
+		{"issuetype", "List issue types", "/v3/issuetypes", "issuetype-list.json", "No issue types found"},
 	}
 
-	for _, row := range rows {
-		t.Run(strings.Join(row.args, " "), func(t *testing.T) {
-			exchanges := faketracker.Load(t, filepath.Join(fixtureDir, row.fixture))
+	for _, leaf := range leaves {
+		recorded := fixtureItems(t, loadRefdataFixture(t, leaf)[0].Body)
 
-			res := runCLI(t, exchanges, slices.Concat(row.args, []string{"--json", "id,key,name"})...)
+		for _, row := range refdataRows() {
+			argv := slices.Concat(row.prefix, []string{leaf.noun}, row.args)
 
-			if res.Code != 0 || res.Stderr != "" {
-				t.Fatalf("exit = %d, stderr = %q, want 0 and empty", res.Code, res.Stderr)
-			}
-			if len(res.Requests) != 1 || res.Requests[0].Method != http.MethodGet || res.Requests[0].Path != row.path {
-				t.Errorf("requests = %+v, want only GET %s", res.Requests, row.path)
-			}
-
-			var items []refdataItem
-			if err := json.Unmarshal([]byte(res.Stdout), &items); err != nil {
-				t.Fatalf("stdout is not a JSON array of items: %v\n%s", err, res.Stdout)
-			}
-
-			if want := fixtureItems(t, exchanges[0].Body); !slices.Equal(items, want) {
-				t.Errorf("items = %+v,\nwant the fixture's %+v", items, want)
-			}
-			for _, item := range items {
-				if item.Key == "" || item.Name == "" {
-					t.Errorf("item %+v has an empty key or name", item)
+			t.Run(leaf.noun+"/"+row.name, func(t *testing.T) {
+				var exchanges []faketracker.Exchange
+				if row.exchanges != nil {
+					exchanges = row.exchanges(t, leaf)
 				}
-			}
-		})
+
+				res := runCLI(t, exchanges, argv...)
+
+				if res.Code != row.code {
+					t.Errorf("exit = %d, want %d (stderr: %s)", res.Code, row.code, res.Stderr)
+				}
+				assertRefdataRequests(t, leaf, row.exchanges != nil, res.Requests)
+				row.check(t, leaf, recorded, res)
+			})
+		}
+	}
+}
+
+func refdataRows() []refdataRow {
+	return []refdataRow{
+		{
+			name: "JSON", args: []string{"list", "--json", "id,key,name"}, exchanges: loadRefdataFixture,
+			check: func(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
+				t.Helper()
+				assertEmpty(t, "stderr", res.Stderr)
+
+				var items []refdataItem
+				if err := json.Unmarshal([]byte(res.Stdout), &items); err != nil {
+					t.Fatalf("stdout is not a JSON array of items: %v\n%s", err, res.Stdout)
+				}
+				if !slices.Equal(items, recorded) {
+					t.Errorf("items = %+v,\nwant the fixture's %+v", items, recorded)
+				}
+				for _, item := range items {
+					if item.Key == "" || item.Name == "" {
+						t.Errorf("item %+v has an empty key or name", item)
+					}
+				}
+			},
+		},
+		{
+			name: "Table", args: []string{"list"}, exchanges: loadRefdataFixture,
+			check: func(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
+				t.Helper()
+				assertEmpty(t, "stderr", res.Stderr)
+
+				want := []string{"ID\tKEY\tNAME"}
+				for _, item := range recorded {
+					want = append(want, item.ID+"\t"+item.Key+"\t"+item.Name)
+				}
+				assertLines(t, res.Stdout, want)
+			},
+		},
+		{
+			name: "JSON subset in any case", args: []string{"list", "--json", "ID,Key"}, exchanges: loadRefdataFixture,
+			check: func(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
+				t.Helper()
+				assertEmpty(t, "stderr", res.Stderr)
+
+				want := make([]map[string]any, len(recorded))
+				for i, item := range recorded {
+					want[i] = map[string]any{"id": item.ID, "key": item.Key}
+				}
+				assertObjects(t, res.Stdout, want)
+			},
+		},
+		{
+			name: "Quiet", args: []string{"list", "--quiet"}, exchanges: loadRefdataFixture,
+			check: expectRecordedKeys,
+		},
+		{
+			name: "jq default", args: []string{"list", "--jq", ".[].key"}, exchanges: loadRefdataFixture,
+			check: expectRecordedKeys,
+		},
+		{
+			name: "jq whole document", args: []string{"list", "--jq", "."}, exchanges: loadRefdataFixture,
+			check: func(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
+				t.Helper()
+				assertEmpty(t, "stderr", res.Stderr)
+
+				want := make([]map[string]any, len(recorded))
+				for i, item := range recorded {
+					want[i] = map[string]any{"id": item.ID, "key": item.Key, "name": item.Name}
+				}
+				assertObjects(t, res.Stdout, want)
+			},
+		},
+		{
+			name: "Empty", args: []string{"list"}, exchanges: emptyRefdataList,
+			check: func(t *testing.T, leaf refdataLeaf, _ []refdataItem, res cliResult) {
+				t.Helper()
+				assertEmpty(t, "stderr", res.Stderr)
+				assertLines(t, res.Stdout, []string{leaf.empty})
+			},
+		},
+		{
+			name: "Empty quiet", args: []string{"list", "--quiet"}, exchanges: emptyRefdataList,
+			check: func(t *testing.T, _ refdataLeaf, _ []refdataItem, res cliResult) {
+				t.Helper()
+				assertEmpty(t, "stderr", res.Stderr)
+				assertEmpty(t, "stdout", res.Stdout)
+			},
+		},
+		{
+			name: "Empty JSON", args: []string{"list", "--json", "id"}, exchanges: emptyRefdataList,
+			check: func(t *testing.T, _ refdataLeaf, _ []refdataItem, res cliResult) {
+				t.Helper()
+				assertEmpty(t, "stderr", res.Stderr)
+
+				if res.Stdout != "[]\n" {
+					t.Errorf("stdout = %q, want an empty JSON array", res.Stdout)
+				}
+			},
+		},
+		{
+			name: "Field hint", args: []string{"list", "--json="}, code: ytrerrors.ExitUserError,
+			check: func(t *testing.T, leaf refdataLeaf, _ []refdataItem, res cliResult) {
+				t.Helper()
+				assertEmpty(t, "stdout", res.Stdout)
+
+				if want := "Available fields for " + leaf.noun + " list:\n  id\n  key\n  name\n"; !strings.Contains(
+					res.Stderr, want,
+				) {
+					t.Errorf("stderr = %q, want it to list the fields as %q", res.Stderr, want)
+				}
+			},
+		},
+		{
+			name: "Bad field", args: []string{"list", "--json", "bogus"}, code: ytrerrors.ExitUserError,
+			check: func(t *testing.T, _ refdataLeaf, _ []refdataItem, res cliResult) {
+				t.Helper()
+				assertEmpty(t, "stdout", res.Stdout)
+
+				var doc errorDocument
+				if err := json.Unmarshal([]byte(res.Stderr), &doc); err != nil ||
+					strings.Count(res.Stderr, "\n") != 1 {
+					t.Fatalf("stderr = %q, want exactly one JSON document (%v)", res.Stderr, err)
+				}
+				if doc.Code != ytrerrors.CodeInvalidField {
+					t.Errorf("code = %q, want %q", doc.Code, ytrerrors.CodeInvalidField)
+				}
+			},
+		},
+		{
+			name: "Tracker 500", args: []string{"list", "--json", "id"}, exchanges: refdataServerError,
+			code: ytrerrors.ExitUserError,
+			check: func(t *testing.T, leaf refdataLeaf, _ []refdataItem, res cliResult) {
+				t.Helper()
+				assertEmpty(t, "stdout", res.Stdout)
+
+				doc := decodeOneJSONError(t, "ytr "+leaf.noun+" list --json id", res.Stderr)
+				if !strings.Contains(doc.Message, "Internal server error") {
+					t.Errorf("message = %q, want the server's text", doc.Message)
+				}
+			},
+		},
+		{
+			name: "Completion", prefix: []string{"__complete"}, args: []string{"list", "--json", ""},
+			check: func(t *testing.T, _ refdataLeaf, _ []refdataItem, res cliResult) {
+				t.Helper()
+
+				// Cobra ends the offers with a ":<directive>" line.
+				offered, _, _ := strings.Cut(res.Stdout, "\n:")
+				if got := strings.Split(offered, "\n"); !slices.Equal(got, []string{"id", "key", "name"}) {
+					t.Errorf("completion offers %q, want id, key and name (stdout: %q)", got, res.Stdout)
+				}
+			},
+		},
+		{
+			name: "Help", args: []string{"list", "--help"},
+			check: func(t *testing.T, leaf refdataLeaf, _ []refdataItem, res cliResult) {
+				t.Helper()
+
+				for _, want := range []string{
+					"JSON FIELDS\n  id, key, name\n",
+					"ytr " + leaf.noun + " list --json id,key,name\n",
+				} {
+					if !strings.Contains(res.Stdout, want) {
+						t.Errorf("stdout = %q, want it to hold %q", res.Stdout, want)
+					}
+				}
+			},
+		},
+		{
+			name: "Group help", args: []string{"--help"},
+			check: func(t *testing.T, leaf refdataLeaf, _ []refdataItem, res cliResult) {
+				t.Helper()
+
+				listLine := regexp.MustCompile(`(?m)^  list +` + regexp.QuoteMeta(leaf.short) + `$`)
+				if !listLine.MatchString(res.Stdout) {
+					t.Errorf("stdout = %q, want the list command described as %q", res.Stdout, leaf.short)
+				}
+			},
+		},
+	}
+}
+
+func loadRefdataFixture(t *testing.T, leaf refdataLeaf) []faketracker.Exchange {
+	t.Helper()
+
+	return faketracker.Load(t, filepath.Join(fixtureDir, leaf.fixture))
+}
+
+func emptyRefdataList(_ *testing.T, leaf refdataLeaf) []faketracker.Exchange {
+	return []faketracker.Exchange{refdataExchange(leaf, http.StatusOK, `[]`)}
+}
+
+func refdataServerError(_ *testing.T, leaf refdataLeaf) []faketracker.Exchange {
+	return []faketracker.Exchange{refdataExchange(
+		leaf, http.StatusInternalServerError, `{"errorMessages":["Internal server error"],"errors":{}}`,
+	)}
+}
+
+func refdataExchange(leaf refdataLeaf, status int, body string) faketracker.Exchange {
+	return faketracker.Exchange{
+		Method: http.MethodGet,
+		Path:   leaf.path,
+		Status: status,
+		Header: http.Header{"Content-Type": {"application/json"}},
+		Body:   []byte(body),
+	}
+}
+
+func expectRecordedKeys(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
+	t.Helper()
+	assertEmpty(t, "stderr", res.Stderr)
+
+	keys := make([]string, len(recorded))
+	for i, item := range recorded {
+		keys[i] = item.Key
+	}
+	assertLines(t, res.Stdout, keys)
+}
+
+func assertRefdataRequests(t *testing.T, leaf refdataLeaf, wantOne bool, requests []faketracker.Request) {
+	t.Helper()
+
+	if !wantOne {
+		if len(requests) != 0 {
+			t.Errorf("requests = %+v, want none", requests)
+		}
+		return
+	}
+
+	if len(requests) != 1 || requests[0].Method != http.MethodGet || requests[0].Path != leaf.path {
+		t.Errorf("requests = %+v, want only GET %s", requests, leaf.path)
+	}
+}
+
+func assertEmpty(t *testing.T, stream, got string) {
+	t.Helper()
+
+	if got != "" {
+		t.Errorf("%s = %q, want empty", stream, got)
+	}
+}
+
+func assertObjects(t *testing.T, stdout string, want []map[string]any) {
+	t.Helper()
+
+	var got []map[string]any
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("stdout is not a JSON array of objects: %v\n%s", err, stdout)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("objects = %v,\nwant %v", got, want)
+	}
+}
+
+func assertLines(t *testing.T, stdout string, want []string) {
+	t.Helper()
+
+	if got := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n"); !slices.Equal(got, want) {
+		t.Errorf("stdout lines = %q,\nwant %q", got, want)
 	}
 }
 
@@ -84,26 +358,4 @@ func fixtureItems(t *testing.T, body json.RawMessage) []refdataItem {
 	}
 
 	return items
-}
-
-func TestRefdataListTrackerErrorLeavesStdoutEmpty(t *testing.T) {
-	res := runCLI(t, []faketracker.Exchange{{
-		Method: http.MethodGet,
-		Path:   "/v3/statuses",
-		Status: http.StatusInternalServerError,
-		Header: http.Header{"Content-Type": {"application/json"}},
-		Body:   []byte(`{"errorMessages":["Internal server error"],"errors":{}}`),
-	}}, "status", "list", "--json", "id")
-
-	if res.Code == 0 {
-		t.Errorf("exit = 0, want non-zero")
-	}
-	if res.Stdout != "" {
-		t.Errorf("stdout = %q, want empty", res.Stdout)
-	}
-
-	doc := decodeOneJSONError(t, "ytr status list --json id", res.Stderr)
-	if !strings.Contains(doc.Message, "Internal server error") {
-		t.Errorf("message = %q, want the server's text", doc.Message)
-	}
 }
