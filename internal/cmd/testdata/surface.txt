@@ -1,0 +1,441 @@
+version 11.1
+command ytr
+command ytr auth
+command ytr auth login
+command ytr auth logout
+command ytr auth status
+command ytr bulk
+command ytr bulk move
+command ytr bulk status
+command ytr bulk transition
+command ytr bulk update
+command ytr checklist
+command ytr checklist create
+command ytr checklist delete
+command ytr checklist edit
+command ytr checklist list
+command ytr comment
+command ytr comment create
+command ytr comment delete
+command ytr comment edit
+command ytr comment list
+command ytr completion
+command ytr completion bash
+command ytr completion fish
+command ytr completion zsh
+command ytr component
+command ytr component create
+command ytr component delete
+command ytr component edit
+command ytr component get
+command ytr component list
+command ytr field
+command ytr field get
+command ytr field list
+command ytr help
+command ytr issue
+command ytr issue changelog
+command ytr issue create
+command ytr issue list
+command ytr issue transition
+command ytr issue update
+command ytr issue view
+command ytr issuetype
+command ytr issuetype list
+command ytr link
+command ytr link create
+command ytr link delete
+command ytr link list
+command ytr priority
+command ytr priority list
+command ytr queue
+command ytr queue context
+command ytr queue list
+command ytr queue view
+command ytr resolution
+command ytr resolution list
+command ytr status
+command ytr status list
+command ytr user
+command ytr user get
+command ytr user list
+command ytr user myself
+command ytr version
+command ytr worklog
+command ytr worklog create
+command ytr worklog delete
+command ytr worklog edit
+command ytr worklog list
+field ytr bulk move createdAt
+field ytr bulk move createdBy
+field ytr bulk move createdById
+field ytr bulk move executionChunkPercent
+field ytr bulk move executionIssuePercent
+field ytr bulk move id
+field ytr bulk move status
+field ytr bulk move statusText
+field ytr bulk move totalCompletedIssues
+field ytr bulk move totalIssues
+field ytr bulk status createdAt
+field ytr bulk status createdBy
+field ytr bulk status createdById
+field ytr bulk status executionChunkPercent
+field ytr bulk status executionIssuePercent
+field ytr bulk status id
+field ytr bulk status status
+field ytr bulk status statusText
+field ytr bulk status totalCompletedIssues
+field ytr bulk status totalIssues
+field ytr bulk transition createdAt
+field ytr bulk transition createdBy
+field ytr bulk transition createdById
+field ytr bulk transition executionChunkPercent
+field ytr bulk transition executionIssuePercent
+field ytr bulk transition id
+field ytr bulk transition status
+field ytr bulk transition statusText
+field ytr bulk transition totalCompletedIssues
+field ytr bulk transition totalIssues
+field ytr bulk update createdAt
+field ytr bulk update createdBy
+field ytr bulk update createdById
+field ytr bulk update executionChunkPercent
+field ytr bulk update executionIssuePercent
+field ytr bulk update id
+field ytr bulk update status
+field ytr bulk update statusText
+field ytr bulk update totalCompletedIssues
+field ytr bulk update totalIssues
+field ytr checklist create assignee
+field ytr checklist create assigneeId
+field ytr checklist create checked
+field ytr checklist create id
+field ytr checklist create text
+field ytr checklist delete deleted
+field ytr checklist delete id
+field ytr checklist edit assignee
+field ytr checklist edit assigneeId
+field ytr checklist edit checked
+field ytr checklist edit id
+field ytr checklist edit text
+field ytr checklist list assignee
+field ytr checklist list assigneeId
+field ytr checklist list checked
+field ytr checklist list id
+field ytr checklist list text
+field ytr comment create author
+field ytr comment create authorId
+field ytr comment create body
+field ytr comment create createdAt
+field ytr comment create id
+field ytr comment create updatedAt
+field ytr comment delete deleted
+field ytr comment delete id
+field ytr comment edit author
+field ytr comment edit authorId
+field ytr comment edit body
+field ytr comment edit createdAt
+field ytr comment edit id
+field ytr comment edit updatedAt
+field ytr comment list author
+field ytr comment list authorId
+field ytr comment list body
+field ytr comment list createdAt
+field ytr comment list id
+field ytr comment list updatedAt
+field ytr component create assignAuto
+field ytr component create description
+field ytr component create id
+field ytr component create lead
+field ytr component create leadId
+field ytr component create name
+field ytr component create queue
+field ytr component delete deleted
+field ytr component delete id
+field ytr component edit assignAuto
+field ytr component edit description
+field ytr component edit id
+field ytr component edit lead
+field ytr component edit leadId
+field ytr component edit name
+field ytr component edit queue
+field ytr component get assignAuto
+field ytr component get description
+field ytr component get id
+field ytr component get lead
+field ytr component get leadId
+field ytr component get name
+field ytr component get queue
+field ytr component list assignAuto
+field ytr component list description
+field ytr component list id
+field ytr component list lead
+field ytr component list leadId
+field ytr component list name
+field ytr component list queue
+field ytr field get category
+field ytr field get defaultOptions
+field ytr field get description
+field ytr field get id
+field ytr field get items
+field ytr field get key
+field ytr field get name
+field ytr field get options
+field ytr field get queue
+field ytr field get queueOptions
+field ytr field get readonly
+field ytr field get required
+field ytr field get schema
+field ytr field get type
+field ytr field list defaultOptions
+field ytr field list id
+field ytr field list items
+field ytr field list key
+field ytr field list name
+field ytr field list options
+field ytr field list queueOptions
+field ytr field list readonly
+field ytr field list schema
+field ytr issue changelog attachments
+field ytr issue changelog author
+field ytr issue changelog authorId
+field ytr issue changelog comments
+field ytr issue changelog date
+field ytr issue changelog fields
+field ytr issue changelog links
+field ytr issue changelog relatedResolutions
+field ytr issue changelog transport
+field ytr issue changelog type
+field ytr issue changelog worklog
+field ytr issue create assignee
+field ytr issue create assigneeId
+field ytr issue create author
+field ytr issue create authorId
+field ytr issue create createdAt
+field ytr issue create description
+field ytr issue create key
+field ytr issue create priority
+field ytr issue create status
+field ytr issue create summary
+field ytr issue create type
+field ytr issue create updatedAt
+field ytr issue list assignee
+field ytr issue list assigneeId
+field ytr issue list createdAt
+field ytr issue list key
+field ytr issue list priority
+field ytr issue list status
+field ytr issue list summary
+field ytr issue list type
+field ytr issue list updatedAt
+field ytr issue transition key
+field ytr issue transition transition
+field ytr issue update assignee
+field ytr issue update assigneeId
+field ytr issue update author
+field ytr issue update authorId
+field ytr issue update createdAt
+field ytr issue update description
+field ytr issue update key
+field ytr issue update priority
+field ytr issue update status
+field ytr issue update summary
+field ytr issue update type
+field ytr issue update updatedAt
+field ytr issue view assignee
+field ytr issue view assigneeId
+field ytr issue view author
+field ytr issue view authorId
+field ytr issue view createdAt
+field ytr issue view description
+field ytr issue view key
+field ytr issue view priority
+field ytr issue view status
+field ytr issue view summary
+field ytr issue view type
+field ytr issue view updatedAt
+field ytr issuetype list id
+field ytr issuetype list key
+field ytr issuetype list name
+field ytr link create id
+field ytr link create issue
+field ytr link create summary
+field ytr link create type
+field ytr link delete deleted
+field ytr link delete id
+field ytr link list id
+field ytr link list issue
+field ytr link list summary
+field ytr link list type
+field ytr priority list id
+field ytr priority list key
+field ytr priority list name
+field ytr queue context components
+field ytr queue context defaultPriority
+field ytr queue context defaultType
+field ytr queue context globalFields
+field ytr queue context incomplete
+field ytr queue context issueTypes
+field ytr queue context key
+field ytr queue context localFields
+field ytr queue context name
+field ytr queue context requiredFields
+field ytr queue context statuses
+field ytr queue context workflows
+field ytr queue list key
+field ytr queue list lead
+field ytr queue list leadId
+field ytr queue list name
+field ytr queue view allowExternals
+field ytr queue view assignAuto
+field ytr queue view defaultPriority
+field ytr queue view defaultType
+field ytr queue view description
+field ytr queue view key
+field ytr queue view lead
+field ytr queue view leadId
+field ytr queue view name
+field ytr resolution list id
+field ytr resolution list key
+field ytr resolution list name
+field ytr status list id
+field ytr status list key
+field ytr status list name
+field ytr user get dismissed
+field ytr user get display
+field ytr user get email
+field ytr user get external
+field ytr user get firstName
+field ytr user get hasLicense
+field ytr user get lastName
+field ytr user get login
+field ytr user get uid
+field ytr user list display
+field ytr user list email
+field ytr user list login
+field ytr user list uid
+field ytr user myself dismissed
+field ytr user myself display
+field ytr user myself email
+field ytr user myself external
+field ytr user myself firstName
+field ytr user myself hasLicense
+field ytr user myself lastName
+field ytr user myself login
+field ytr user myself uid
+field ytr version arch
+field ytr version commit
+field ytr version date
+field ytr version goVersion
+field ytr version os
+field ytr version version
+field ytr worklog create author
+field ytr worklog create authorId
+field ytr worklog create comment
+field ytr worklog create duration
+field ytr worklog create id
+field ytr worklog create start
+field ytr worklog delete deleted
+field ytr worklog delete id
+field ytr worklog edit author
+field ytr worklog edit authorId
+field ytr worklog edit comment
+field ytr worklog edit duration
+field ytr worklog edit id
+field ytr worklog edit start
+field ytr worklog list author
+field ytr worklog list authorId
+field ytr worklog list comment
+field ytr worklog list duration
+field ytr worklog list id
+field ytr worklog list start
+flag ytr --debug bool
+flag ytr --jq string
+flag ytr --json stringSlice
+flag ytr --org-id string
+flag ytr --org-type string
+flag ytr --quiet bool
+flag ytr --token string
+flag ytr auth login --org-id string
+flag ytr auth login --org-type string
+flag ytr auth login --token string
+flag ytr bulk move --field stringArray
+flag ytr bulk move --from-json string
+flag ytr bulk move --queue string
+flag ytr bulk move --timeout duration
+flag ytr bulk transition --field stringArray
+flag ytr bulk transition --from-json string
+flag ytr bulk transition --timeout duration
+flag ytr bulk transition --transition string
+flag ytr bulk update --field stringArray
+flag ytr bulk update --from-json string
+flag ytr bulk update --timeout duration
+flag ytr checklist create --assignee string
+flag ytr checklist create --from-json string
+flag ytr checklist create --text string
+flag ytr checklist edit --assignee string
+flag ytr checklist edit --checked bool
+flag ytr checklist edit --from-json string
+flag ytr checklist edit --text string
+flag ytr comment create --body string
+flag ytr comment edit --body string
+flag ytr comment edit --from-json string
+flag ytr component create --assign-auto bool
+flag ytr component create --description string
+flag ytr component create --from-json string
+flag ytr component create --lead string
+flag ytr component create --name string
+flag ytr component create --queue string
+flag ytr component edit --assign-auto bool
+flag ytr component edit --description string
+flag ytr component edit --from-json string
+flag ytr component edit --lead string
+flag ytr component edit --name string
+flag ytr component edit --queue string
+flag ytr field get --queue string
+flag ytr field list --queue string
+flag ytr issue changelog --all bool
+flag ytr issue changelog --cursor string
+flag ytr issue changelog --field string
+flag ytr issue changelog --limit int
+flag ytr issue changelog --type string
+flag ytr issue create --assignee string
+flag ytr issue create --description string
+flag ytr issue create --from-json string
+flag ytr issue create --parent string
+flag ytr issue create --priority string
+flag ytr issue create --queue string
+flag ytr issue create --summary string
+flag ytr issue create --type string
+flag ytr issue list --all bool
+flag ytr issue list --cursor string
+flag ytr issue list --filter stringArray
+flag ytr issue list --limit int
+flag ytr issue list --order-asc bool
+flag ytr issue list --order-by string
+flag ytr issue list --query string
+flag ytr issue transition --to string
+flag ytr issue update --assignee string
+flag ytr issue update --description string
+flag ytr issue update --from-json string
+flag ytr issue update --parent string
+flag ytr issue update --priority string
+flag ytr issue update --summary string
+flag ytr issue update --type string
+flag ytr link create --from-json string
+flag ytr link create --issue string
+flag ytr link create --type string
+flag ytr queue list --all bool
+flag ytr queue list --cursor string
+flag ytr queue list --limit int
+flag ytr user list --all bool
+flag ytr user list --cursor string
+flag ytr user list --limit int
+flag ytr worklog create --comment string
+flag ytr worklog create --duration string
+flag ytr worklog create --from-json string
+flag ytr worklog create --start string
+flag ytr worklog edit --comment string
+flag ytr worklog edit --duration string
+flag ytr worklog edit --from-json string
+flag ytr worklog edit --start string
