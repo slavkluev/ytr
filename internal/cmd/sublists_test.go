@@ -9,11 +9,6 @@ import (
 	"github.com/slavkluev/ytr/internal/output"
 )
 
-// trackerTime formats t the way Tracker sends a timestamp.
-func trackerTime(t time.Time) string {
-	return t.Format("2006-01-02T15:04:05.000-0700")
-}
-
 func TestWorklogList(t *testing.T) {
 	const path = "/v3/issues/PROJ-1/worklog"
 	worklogs := trackerGET(path, `[

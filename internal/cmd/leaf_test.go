@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
@@ -103,6 +104,11 @@ func trackerGET(path, body string) faketracker.Exchange {
 		Header: http.Header{"Content-Type": {"application/json"}},
 		Body:   []byte(body),
 	}
+}
+
+// trackerTime formats t the way Tracker sends a timestamp.
+func trackerTime(t time.Time) string {
+	return t.Format("2006-01-02T15:04:05.000-0700")
 }
 
 func trackerNotFound(path string) faketracker.Exchange {
