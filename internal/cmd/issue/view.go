@@ -75,7 +75,7 @@ func newViewCmd() *cobra.Command {
 
   # Get just the description
   ytr issue view PROJ-123 --json description --jq '.description'`,
-		Args: []runner.Arg{runner.AnyArg},
+		Args: []runner.Arg{runner.IssueKey},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) (*tracker.Issue, error) {
 			issue, _, err := c.Issues.Get(ctx, args[0], nil)
 			return issue, err

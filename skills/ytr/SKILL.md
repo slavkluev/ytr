@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "10.0"
+  version: "11.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -478,8 +478,9 @@ Any invocation ytr cannot serve exits 1, leaves stdout empty, and writes one
 error to stderr -- a single JSON document under `--json` or `--jq`, plain text
 otherwise. This covers a mistyped subcommand, a group named without a
 subcommand (`ytr issue`), `ytr` with no arguments at all, an unknown flag, a
-stray positional argument, and an unknown `ytr help` topic. None of them print
-help and exit 0.
+stray positional argument, a malformed one such as `ytr issue view 123` (not an
+issue key) or an empty one, and an unknown `ytr help` topic. None of them reach
+Tracker, and none print help and exit 0.
 
 `--json` is honoured even when it comes after the mistake, so
 `ytr issue list --nosuchflag --json key` still answers with JSON.

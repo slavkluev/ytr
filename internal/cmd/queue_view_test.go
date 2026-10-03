@@ -3,6 +3,7 @@ package cmd
 import (
 	"testing"
 
+	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
 	"github.com/slavkluev/ytr/internal/output"
 )
@@ -87,8 +88,8 @@ func TestQueueView(t *testing.T) {
 			exchanges: []faketracker.Exchange{queue}, stdout: "uid-a\n",
 		},
 		{
-			name: "Any arg", args: []string{"queue", "view", "q", "--quiet"},
-			exchanges: []faketracker.Exchange{trackerGET("/v3/queues/q", `{"key": "Q"}`)}, stdout: "Q\n",
+			name: "Blank key", args: []string{"queue", "view", " ", "--quiet"},
+			code: ytrerrors.ExitUserError, stderr: []string{"invalid queue key: expected a non-empty value"},
 		},
 		fieldHintRow("queue view", []string{"MYQUEUE"}, "key", "name", "description", "lead", "leadId",
 			"defaultType", "defaultPriority", "assignAuto", "allowExternals"),

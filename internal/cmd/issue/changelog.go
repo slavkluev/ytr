@@ -146,6 +146,9 @@ SEE ALSO
   # Fetch all pages automatically
   ytr issue changelog PROJ-123 --all`,
 		Args: cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return validate.ValidateIssueKey(args[0])
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runChangelog(cmd, args, fieldFilter, typeFilter, limit, cursor, all)
 		},

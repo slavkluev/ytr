@@ -401,9 +401,6 @@ var IssueKey = Arg{parse: func(arg string) (string, error) {
 	return arg, validate.ValidateIssueKey(arg)
 }}
 
-// AnyArg takes the argument as given.
-var AnyArg = Arg{parse: func(arg string) (string, error) { return arg, nil }}
-
 // StringID is a non-empty ID, which Call receives with its surrounding spaces
 // trimmed. label names it in the error.
 func StringID(label string) Arg {

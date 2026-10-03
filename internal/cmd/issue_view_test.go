@@ -69,9 +69,8 @@ func TestIssueView(t *testing.T) {
 			exchanges: []faketracker.Exchange{issue}, stdout: description + "\n",
 		},
 		{
-			name: "Any arg", args: []string{"issue", "view", "123", "--quiet"},
-			exchanges: []faketracker.Exchange{trackerGET("/v3/issues/123", `{"key": "PROJ-123"}`)},
-			stdout:    "PROJ-123\n",
+			name: "Not an issue key", args: []string{"issue", "view", "123", "--quiet"},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "123"`},
 		},
 		{
 			name: "Extra arg", args: []string{"issue", "view", "PROJ-1", "PROJ-2"}, code: ytrerrors.ExitUserError,

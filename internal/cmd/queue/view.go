@@ -36,7 +36,7 @@ func newViewCmd() *cobra.Command {
 
   # Get queue config as JSON
   ytr queue view PROJ --json key,name,lead,defaultType`,
-		Args: []runner.Arg{runner.AnyArg},
+		Args: []runner.Arg{runner.StringID("queue key")},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) (*tracker.Queue, error) {
 			q, _, err := c.Queues.Get(ctx, args[0], nil)
 			return q, err

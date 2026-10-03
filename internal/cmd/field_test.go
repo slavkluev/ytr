@@ -209,8 +209,8 @@ func TestFieldGet(t *testing.T) {
 			exchanges: []faketracker.Exchange{summary}, stdout: "string\n",
 		},
 		{
-			name: "Any arg", args: []string{"field", "get", "x", "--quiet"},
-			exchanges: []faketracker.Exchange{trackerGET("/v3/fields/x", `{"key": "x"}`)}, stdout: "x\n",
+			name: "Blank key", args: []string{"field", "get", " ", "--quiet"},
+			code: ytrerrors.ExitUserError, stderr: []string{"invalid field key: expected a non-empty value"},
 		},
 		{
 			name: "Options Tracker cannot send", args: []string{"field", "get", "size"},

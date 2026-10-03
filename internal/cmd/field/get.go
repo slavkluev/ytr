@@ -89,7 +89,7 @@ holds Tracker's defaults list.`,
 
   # Get specific fields as JSON
   ytr field get priority --json id,key,name,schema,options`,
-		Args: []runner.Arg{runner.AnyArg},
+		Args: []runner.Arg{runner.StringID("field key")},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) (*tracker.Field, error) {
 			if queue != "" {
 				field, _, err := c.Fields.GetLocal(ctx, queue, args[0])
