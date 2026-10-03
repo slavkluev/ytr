@@ -69,26 +69,16 @@ func (b Body) CheckFlags(changed func(name string) bool) error {
 }
 
 // Decode decodes data, the body --from-json or the flags give, into req with
-// UnmarshalRequestJSON, and fails an update whose data has no key and a body
-// that lacks a required key.
+// UnmarshalRequestJSON, and fails an update that would send no key and a body
+// that would send no required key.
 func (b Body) Decode(data []byte, req any) error {
 	if err := UnmarshalRequestJSON(data, req); err != nil {
 		return err
 	}
 
-	if b.Update {
-		var keys map[string]json.RawMessage
-		if json.Unmarshal(data, &keys) == nil && len(keys) == 0 {
-			return b.nothingToUpdate()
-		}
-	}
-
-	if len(b.Required) == 0 {
-		return nil
-	}
-
 	// What req sends, not data, says whether a key is set: decoding matches a
-	// key case-insensitively and leaves a null one unset.
+	// key case-insensitively, and a null or empty value is left out of the
+	// request.
 	sent, err := json.Marshal(req)
 	if err != nil {
 		return err
@@ -97,6 +87,10 @@ func (b Body) Decode(data []byte, req any) error {
 	var present map[string]json.RawMessage
 	if err := json.Unmarshal(sent, &present); err != nil {
 		return err
+	}
+
+	if b.Update && len(present) == 0 {
+		return b.nothingToUpdate()
 	}
 
 	return b.missing(func(f BodyFlag) bool {

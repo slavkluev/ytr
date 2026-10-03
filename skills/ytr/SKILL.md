@@ -470,7 +470,7 @@ each exits 1 before any request:
   suggestion names the keys. `comment create --body` and
   `issue transition --to` are required the same way.
 - `nothing to update`: an edit or `issue update` with no request flag, or with a
-  `--from-json` object that has no key, such as `'{}'`.
+  `--from-json` object that sets no key, such as `'{}'` or `'{"text": null}'`.
 
 ### Bad invocations
 

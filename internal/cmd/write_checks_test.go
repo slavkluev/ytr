@@ -162,6 +162,14 @@ func TestWriteChecksShareOneWording(t *testing.T) {
 			suggestion: "Pass --body, or a --from-json object with at least one key",
 		},
 		{
+			args:       []string{"comment", "edit", "PROJ-1", "555", "--from-json", `{"text": null}`},
+			suggestion: "Pass --body, or a --from-json object with at least one key",
+		},
+		{
+			args:       []string{"comment", "edit", "PROJ-1", "555", "--from-json", `{"attachmentIds": []}`},
+			suggestion: "Pass --body, or a --from-json object with at least one key",
+		},
+		{
 			args:       []string{"worklog", "edit", "PROJ-1", "101"},
 			suggestion: "Pass at least one of --duration, --comment, --start, or a --from-json object with at least one key",
 		},
