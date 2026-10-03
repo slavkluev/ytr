@@ -19,9 +19,6 @@ type checklistItem struct {
 	AssigneeID string `json:"assigneeId"`
 }
 
-// ChecklistFields are the --json fields of every checklist command.
-var ChecklistFields = runner.ItemFields[checklistItem]()
-
 func newListCmd() *cobra.Command {
 	return runner.List[*tracker.ChecklistItem, checklistItem]{
 		Use:   "list ISSUE-KEY",
@@ -70,4 +67,14 @@ func checkedDisplay(checked bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+// sameItem is the Item of a write, whose Call already answers with the item it
+// prints.
+func sameItem(item checklistItem) checklistItem {
+	return item
+}
+
+func itemID(item checklistItem) string {
+	return item.ID
 }

@@ -1,24 +1,20 @@
 package checklist
 
 import (
-	"fmt"
+	"context"
 
+	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
-	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/config"
-	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/validate"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 )
 
 func newDeleteCmd() *cobra.Command {
-	cmd := &cobra.Command{
+	return runner.Delete{
 		Use:   "delete ISSUE-KEY ITEM-ID",
 		Short: "Delete a checklist item",
-		Long: `Delete a checklist item from a Yandex Tracker issue.
-
-SEE ALSO
-  ytr checklist list    - List checklist items on issue
+		Long:  `Delete a checklist item from a Yandex Tracker issue.`,
+		SeeAlso: `  ytr checklist list    - List checklist items on issue
   ytr checklist create  - Add checklist item to issue
   ytr checklist edit    - Edit a checklist item`,
 		Example: `  # Delete checklist item
@@ -26,57 +22,11 @@ SEE ALSO
 
   # Delete and confirm via JSON
   ytr checklist delete PROJ-123 item-1 --json id`,
-		Args: cobra.ExactArgs(2),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := validate.ValidateIssueKey(args[0]); err != nil {
-				return err
-			}
-			_, err := validate.ValidateStringID(args[1], "checklist item ID")
+		Args: []runner.Arg{runner.IssueKey, runner.StringID("checklist item ID")},
+		Call: func(ctx context.Context, c *tracker.Client, args []string) error {
+			_, _, err := c.Issues.DeleteChecklistItem(ctx, args[0], args[1])
 			return err
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			itemID, _ := validate.ValidateStringID(args[1], "checklist item ID")
-			return runDelete(cmd, args[0], itemID)
-		},
-	}
-
-	return cmd
-}
-
-func runDelete(cmd *cobra.Command, issueKey, itemID string) error {
-	opts := output.FromContext(cmd.Context())
-
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
-	if err != nil {
-		return err
-	}
-
-	deleter := newChecklistDeleter(auth)
-
-	_, _, err = deleter.DeleteChecklistItem(cmd.Context(), issueKey, itemID)
-	if err != nil {
-		return api.MapAPIError(err)
-	}
-
-	w := cmd.OutOrStdout()
-
-	if opts.IsJSON() {
-		result := map[string]any{"id": itemID, "deleted": true}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(w, result, opts.JQFilter)
-		}
-		return opts.PrintJSON(w, result)
-	}
-
-	if opts.Quiet {
-		output.PrintQuiet(w, itemID)
-		return nil
-	}
-
-	_, err = fmt.Fprintf(w, "Checklist item %s deleted\n", itemID)
-	return err
+		Confirm: func(id string) string { return "Checklist item " + id + " deleted" },
+	}.Command()
 }
