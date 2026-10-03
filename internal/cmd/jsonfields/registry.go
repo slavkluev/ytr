@@ -1,6 +1,8 @@
 // Package jsonfields provides a registry for JSON field completions.
-// Each command package registers its available --json field names here,
-// and a single root-level completion function delegates lookups.
+// Command packages register their available --json field names here, and a
+// single root-level completion function delegates lookups. Commands built by
+// internal/cmd/runner carry their fields on the command instead and are not
+// registered here.
 package jsonfields
 
 import "sync"
@@ -11,8 +13,9 @@ var (
 )
 
 // Register stores JSON field names for a command path.
-// Called by each command package in its NewCmd() or subcommand constructor.
-// commandPath should match cmd.CommandPath() output, e.g. "ytr issue list".
+// Called by command packages in their NewCmd() or subcommand constructors;
+// commands built by internal/cmd/runner carry their fields on the command
+// instead. commandPath should match cmd.CommandPath() output, e.g. "ytr issue list".
 func Register(commandPath string, fields []string) {
 	mu.Lock()
 	defer mu.Unlock()

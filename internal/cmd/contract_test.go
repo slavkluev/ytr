@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/slavkluev/ytr/internal/cmd/issue"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 )
@@ -934,6 +935,15 @@ func TestHelpTopicCompletionOffersNothingForAnUnknownTopic(t *testing.T) {
 	// Only cobra's trailing directive line is expected.
 	if offered := strings.TrimSpace(strings.TrimSuffix(got.stdout, ":4\n")); offered != "" {
 		t.Errorf("stdout = %q, want no completions for an unresolvable topic", got.stdout)
+	}
+}
+
+func TestJSONCompletionOffersRegisteredFieldsOfACommandOutsideTheRunner(t *testing.T) {
+	got := runProbe(t, []string{"__complete", "issue", "list", "--json", ""})
+
+	offered, _, _ := strings.Cut(got.stdout, "\n:")
+	if fields := strings.Split(offered, "\n"); !slices.Equal(fields, issue.IssueListFields) {
+		t.Errorf("completion offers %q, want issue list's fields %q", fields, issue.IssueListFields)
 	}
 }
 

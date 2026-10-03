@@ -1,23 +1,7 @@
 // Package resolution provides resolution commands for the ytr CLI.
 package resolution
 
-import (
-	"context"
-
-	"github.com/slavkluev/go-yandex-tracker/tracker"
-	"github.com/spf13/cobra"
-
-	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/config"
-)
-
-type resolutionLister interface {
-	List(ctx context.Context) ([]*tracker.Resolution, *tracker.Response, error)
-}
-
-var newResolutionLister = func(auth *config.ResolvedAuth) resolutionLister {
-	return api.NewClient(auth).Resolutions
-}
+import "github.com/spf13/cobra"
 
 // NewCmd creates the parent "resolution" command.
 func NewCmd() *cobra.Command {
