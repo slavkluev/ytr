@@ -104,7 +104,11 @@ func (f *Fake) serve(w http.ResponseWriter, got Request) {
 		return
 	}
 
-	maps.Copy(w.Header(), ex.Header.Clone())
+	for name, values := range ex.Header {
+		for _, value := range values {
+			w.Header().Add(name, value)
+		}
+	}
 	w.WriteHeader(ex.Status)
 	_, _ = w.Write(ex.Body)
 }

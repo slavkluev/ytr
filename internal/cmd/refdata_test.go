@@ -47,8 +47,8 @@ func TestRefdataListPrintsTheRecordedItems(t *testing.T) {
 				t.Fatalf("stdout is not a JSON array of items: %v\n%s", err, res.Stdout)
 			}
 
-			if got, want := itemIDs(items), fixtureIDs(t, exchanges[0].Body); !slices.Equal(got, want) {
-				t.Errorf("ids = %q, want the fixture's %q", got, want)
+			if want := fixtureItems(t, exchanges[0].Body); !slices.Equal(items, want) {
+				t.Errorf("items = %+v,\nwant the fixture's %+v", items, want)
 			}
 			for _, item := range items {
 				if item.Key == "" || item.Name == "" {
@@ -59,37 +59,31 @@ func TestRefdataListPrintsTheRecordedItems(t *testing.T) {
 	}
 }
 
-func itemIDs(items []refdataItem) []string {
-	ids := make([]string, len(items))
-	for i, item := range items {
-		ids[i] = item.ID
-	}
-
-	return ids
-}
-
-// fixtureIDs reads each id as Tracker sent it: a JSON string or a bare number.
-func fixtureIDs(t *testing.T, body json.RawMessage) []string {
+// fixtureItems reads id, key and name of each object as Tracker sent them, the
+// id being a JSON string or a bare number.
+func fixtureItems(t *testing.T, body json.RawMessage) []refdataItem {
 	t.Helper()
 
 	var objects []struct {
-		ID json.RawMessage `json:"id"`
+		ID   json.RawMessage `json:"id"`
+		Key  string          `json:"key"`
+		Name string          `json:"name"`
 	}
 	if err := json.Unmarshal(body, &objects); err != nil {
 		t.Fatalf("fixture body is not an array of objects: %v", err)
 	}
 
-	ids := make([]string, len(objects))
+	items := make([]refdataItem, len(objects))
 	for i, object := range objects {
-		var s string
-		if err := json.Unmarshal(object.ID, &s); err == nil {
-			ids[i] = s
-			continue
+		items[i] = refdataItem{ID: string(object.ID), Key: object.Key, Name: object.Name}
+
+		var id string
+		if err := json.Unmarshal(object.ID, &id); err == nil {
+			items[i].ID = id
 		}
-		ids[i] = string(object.ID)
 	}
 
-	return ids
+	return items
 }
 
 func TestRefdataListTrackerErrorLeavesStdoutEmpty(t *testing.T) {

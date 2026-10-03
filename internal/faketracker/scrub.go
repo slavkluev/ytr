@@ -244,6 +244,10 @@ func secretForms(value string) []string {
 	return forms
 }
 
+// wordPattern treats a JSON escape before the value as a boundary: in the
+// encoded fixture a name opening a new line reads "\nIvan", and the n of the
+// escape is a letter.
 func wordPattern(value string) *regexp.Regexp {
-	return regexp.MustCompile(`(?i)(?:^|[^\pL\pN_])` + regexp.QuoteMeta(value) + `(?:$|[^\pL\pN_])`)
+	return regexp.MustCompile(`(?i)(?:^|[^\pL\pN_]|\\[nrtbf]|\\u[0-9a-fA-F]{4})` +
+		regexp.QuoteMeta(value) + `(?:$|[^\pL\pN_])`)
 }

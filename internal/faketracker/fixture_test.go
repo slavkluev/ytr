@@ -135,6 +135,18 @@ func TestSaveRefusesALeakedOrgIDAnywhereInTheFixture(t *testing.T) {
 	assertRefused(t, err, path, "org ID")
 }
 
+func TestSaveRefusesAUserValueAfterAJSONEscape(t *testing.T) {
+	for _, escape := range []string{`\n`, `\t`, `\u2028`} {
+		path := filepath.Join(t.TempDir(), "fixture.json")
+		body := `[{"self":"https://api.tracker.yandex.net/v3/users/42","display":"Ivan Petrov"},` +
+			`{"description":"Hello` + escape + `Ivan Petrov"}]`
+
+		err := Save(path, []Exchange{exchange("/v3/x", nil, body)})
+
+		assertRefused(t, err, path, "display")
+	}
+}
+
 func TestSaveIgnoresASecretInsideALongerWord(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "fixture.json")
 	body := `[{"self":"https://api.tracker.yandex.net/v3/users/42","lastName":"Li"},{"key":"Linked","name":"Lists"}]`

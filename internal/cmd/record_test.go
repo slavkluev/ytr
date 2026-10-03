@@ -3,6 +3,8 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -55,7 +57,10 @@ func TestRecordFixtures(t *testing.T) {
 
 	for _, row := range rows {
 		t.Run(strings.Join(row.args, " "), func(t *testing.T) {
-			recordFixture(t, http.DefaultTransport, filepath.Join(fixtureDir, row.fixture), secrets, row.args...)
+			path := filepath.Join(fixtureDir, row.fixture)
+			if err := recordFixture(t, http.DefaultTransport, path, secrets, row.args...); err != nil {
+				t.Fatal(err)
+			}
 		})
 	}
 }
@@ -63,14 +68,16 @@ func TestRecordFixtures(t *testing.T) {
 // recordFixture runs a read-only invocation with credentials resolved the way
 // ytr resolves them, sends its requests through base, and saves the scrubbed
 // exchanges to path only when the invocation succeeded.
-func recordFixture(t *testing.T, base http.RoundTripper, path string, secrets []faketracker.Secret, args ...string) {
+func recordFixture(
+	t *testing.T, base http.RoundTripper, path string, secrets []faketracker.Secret, args ...string,
+) error {
 	t.Helper()
 	testutil.ResetOutputFlags(t)
 	output.SetTTY(false)
 
 	leaf, _, err := newRootCmd().Find(args)
 	if err != nil || !isReadOnlyLeaf(leaf) {
-		t.Fatalf("refusing to record ytr %s: only AGENTS.md's read-only commands may reach the real Tracker",
+		return fmt.Errorf("refusing to record ytr %s: only AGENTS.md's read-only commands may reach the real Tracker",
 			strings.Join(args, " "))
 	}
 
@@ -80,12 +87,10 @@ func recordFixture(t *testing.T, base http.RoundTripper, path string, secrets []
 	output.SetDebugWriter(&errOut)
 	code := execute(api.WithTransport(t.Context(), rec), newRootCmd(), args, &out, &errOut)
 	if code != 0 {
-		t.Fatalf("ytr %s exited %d, nothing recorded: %s", strings.Join(args, " "), code, errOut.String())
+		return fmt.Errorf("ytr %s exited %d, nothing recorded: %s", strings.Join(args, " "), code, errOut.String())
 	}
 
-	if err := rec.Save(path, secrets...); err != nil {
-		t.Fatal(err)
-	}
+	return rec.Save(path, secrets...)
 }
 
 func isReadOnlyLeaf(cmd *cobra.Command) bool {
@@ -151,7 +156,9 @@ func TestRecordFixtureWritesWhatReplayServes(t *testing.T) {
 		{Name: "org ID", Value: "bpf-record-org"},
 	}
 
-	recordFixture(t, upstream, path, secrets, "status", "list")
+	if err := recordFixture(t, upstream, path, secrets, "status", "list"); err != nil {
+		t.Fatal(err)
+	}
 
 	if got := upstream.Requests(); len(got) != 1 || got[0].Method != http.MethodGet {
 		t.Fatalf("upstream requests = %+v, want one GET", got)
@@ -169,5 +176,64 @@ func TestRecordFixtureWritesWhatReplayServes(t *testing.T) {
 	want := []map[string]string{{"id": "1", "key": "open", "name": "Open"}}
 	if !reflect.DeepEqual(items, want) {
 		t.Errorf("replay items = %v, want %v", items, want)
+	}
+}
+
+func TestRecordFixtureRefusesALeakedOrgID(t *testing.T) {
+	t.Setenv("YTR_CONFIG_DIR", t.TempDir())
+	t.Setenv("YTR_TOKEN", "y0_record-token")
+	t.Setenv("YTR_ORG_ID", "bpf-record-org")
+	t.Setenv("YTR_ORG_TYPE", "cloud")
+
+	upstream := faketracker.New(t, []faketracker.Exchange{{
+		Method: http.MethodGet,
+		Path:   "/v3/statuses",
+		Status: http.StatusOK,
+		Header: http.Header{
+			"Content-Type": {"application/json"},
+			"Link":         {`<https://api.tracker.yandex.net/v3/statuses?org=bpf-record-org>; rel="next"`},
+		},
+		Body: []byte(`[{"id":1,"key":"open","name":"Open"}]`),
+	}})
+	path := filepath.Join(t.TempDir(), "status-list.json")
+	secrets := []faketracker.Secret{
+		{Name: "token", Value: "y0_record-token"},
+		{Name: "org ID", Value: "bpf-record-org"},
+	}
+
+	err := recordFixture(t, upstream, path, secrets, "status", "list")
+
+	if err == nil || !strings.Contains(err.Error(), "org ID") {
+		t.Errorf("recordFixture error = %v, want a refusal naming org ID", err)
+	}
+	if _, statErr := os.Stat(path); !errors.Is(statErr, os.ErrNotExist) {
+		t.Errorf("Stat(%s) = %v, want the fixture not written", path, statErr)
+	}
+}
+
+func TestRecordFixtureRefusesAWriteBeforeAnyRequest(t *testing.T) {
+	t.Setenv("YTR_CONFIG_DIR", t.TempDir())
+	t.Setenv("YTR_TOKEN", "y0_record-token")
+	t.Setenv("YTR_ORG_ID", "bpf-record-org")
+	t.Setenv("YTR_ORG_TYPE", "cloud")
+
+	for _, args := range [][]string{
+		{"auth", "logout"},
+		{"issue", "create", "--queue", "PROJ", "--summary", "x"},
+	} {
+		upstream := faketracker.New(t, nil)
+		path := filepath.Join(t.TempDir(), "write.json")
+
+		err := recordFixture(t, upstream, path, nil, args...)
+
+		if err == nil || !strings.Contains(err.Error(), "refusing to record") {
+			t.Errorf("recordFixture(ytr %s) error = %v, want a refusal", strings.Join(args, " "), err)
+		}
+		if got := upstream.Requests(); len(got) != 0 {
+			t.Errorf("ytr %s sent %+v upstream, want nothing", strings.Join(args, " "), got)
+		}
+		if _, statErr := os.Stat(path); !errors.Is(statErr, os.ErrNotExist) {
+			t.Errorf("Stat(%s) = %v, want nothing written", path, statErr)
+		}
 	}
 }

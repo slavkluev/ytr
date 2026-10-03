@@ -130,6 +130,28 @@ func TestFakeServesStatusHeadersAndBody(t *testing.T) {
 	}
 }
 
+func TestFakeCanonicalizesFixtureHeaderNames(t *testing.T) {
+	ex := exchange("/v3/statuses", nil, `[]`)
+	ex.Header = http.Header{"link": {`<https://api.tracker.yandex.net/v3/statuses?page=2>; rel="next"`}}
+	fake := New(t, []Exchange{ex})
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet,
+		"https://api.tracker.yandex.net/v3/statuses", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+
+	resp, err := fake.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("RoundTrip: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.Header.Get("Link") == "" {
+		t.Errorf("Link header missing from %v", resp.Header)
+	}
+}
+
 func TestFakeRecordsEveryRequest(t *testing.T) {
 	fake := New(t, []Exchange{
 		exchange("/v3/statuses", nil, `[]`),

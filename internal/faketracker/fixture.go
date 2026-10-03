@@ -62,10 +62,11 @@ func Load(t testing.TB, path string) []Exchange {
 	return exchanges
 }
 
-// Save scrubs personal data from the exchanges' bodies and writes them to path
-// as a fixture. It writes nothing when a replaced value or one of the secrets
-// still appears anywhere in the fixture, and its error names each of those by
-// key, never by value.
+// Save replaces the identity keys, id, self, display and names of every user
+// object in the exchanges' bodies with fakes, and writes the exchanges to path
+// as a fixture. Nothing else is scrubbed: it writes nothing when a replaced
+// value or one of the secrets still appears anywhere in the fixture, and its
+// error names each of those by key, never by value.
 func Save(path string, exchanges []Exchange, secrets ...Secret) error {
 	scrubbed, replaced, err := scrub(exchanges)
 	if err != nil {

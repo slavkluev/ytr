@@ -22,11 +22,13 @@ type cliResult struct {
 
 // runCLI runs args through the real root command and the real Tracker client,
 // with a fake Tracker serving exchanges in place of the network. Complete auth
-// flags win over the environment and the config file, so no test credential
-// or config ever comes from the developer's machine.
+// flags win over the environment and the config file, and the config directory
+// is a fresh one, so no credential comes from the developer's machine and a
+// command that writes config, such as auth login or logout, never touches theirs.
 func runCLI(t *testing.T, exchanges []faketracker.Exchange, args ...string) cliResult {
 	t.Helper()
 	testutil.ResetOutputFlags(t)
+	t.Setenv("YTR_CONFIG_DIR", t.TempDir())
 	output.SetTTY(false)
 
 	fake := faketracker.New(t, exchanges)
