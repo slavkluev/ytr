@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
@@ -260,7 +260,7 @@ func newContextCmd() *cobra.Command {
 		},
 	}
 
-	jsonfields.Register("ytr queue context", QueueContextFields)
+	runner.SetFields(cmd, QueueContextFields)
 
 	return cmd
 }

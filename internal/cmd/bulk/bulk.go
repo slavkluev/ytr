@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 )
 
@@ -56,20 +57,6 @@ var newBulkStatusGetter = func(auth *config.ResolvedAuth) bulkStatusGetter {
 	return api.NewClient(auth).BulkChange
 }
 
-// BulkStatusFields lists the available JSON field names for bulk status output.
-var BulkStatusFields = []string{
-	"id",
-	"status",
-	"statusText",
-	"totalIssues",
-	"totalCompletedIssues",
-	"executionIssuePercent",
-	"executionChunkPercent",
-	"createdBy",
-	"createdById",
-	"createdAt",
-}
-
 type bulkChangeDetail struct {
 	ID                    string `json:"id"`
 	Status                string `json:"status"`
@@ -82,6 +69,9 @@ type bulkChangeDetail struct {
 	CreatedByID           string `json:"createdById"`
 	CreatedAt             string `json:"createdAt"`
 }
+
+// BulkStatusFields are the --json fields of every bulk command.
+var BulkStatusFields = runner.ItemFields[bulkChangeDetail]()
 
 func toBulkChangeDetail(bc *tracker.BulkChange) bulkChangeDetail {
 	detail := bulkChangeDetail{

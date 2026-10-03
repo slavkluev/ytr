@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
@@ -47,7 +47,7 @@ SEE ALSO
 	cmd.Flags().StringVar(&bodyFlag, "body", "", "Comment text (required)")
 	_ = cmd.MarkFlagRequired("body")
 
-	jsonfields.Register("ytr comment create", CommentFields)
+	runner.SetFields(cmd, CommentFields)
 
 	return cmd
 }

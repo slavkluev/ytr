@@ -174,6 +174,16 @@ func Fields(cmd *cobra.Command) ([]string, bool) {
 	return strings.Split(joined, ","), true
 }
 
+// SetFields records fields as the --json fields of cmd, a command Command did
+// not build, so completion and Fields find them as they find any other's.
+func SetFields(cmd *cobra.Command, fields []string) {
+	if cmd.Annotations == nil {
+		cmd.Annotations = make(map[string]string, 1)
+	}
+
+	cmd.Annotations[fieldsAnnotation] = strings.Join(fields, ",")
+}
+
 // ItemFields returns the --json fields of commands that print Item: the names
 // of its json tags, by the rule output.FilterFields applies, in order.
 func ItemFields[Item any]() []string {
@@ -226,15 +236,17 @@ func newCommand(h help, args []Arg, fields []string, runE func(*cobra.Command, [
 		accepts = cobra.ExactArgs(len(args))
 	}
 
-	return &cobra.Command{
-		Use:         h.use,
-		Short:       h.short,
-		Long:        long,
-		Example:     h.example,
-		Args:        accepts,
-		Annotations: map[string]string{fieldsAnnotation: strings.Join(fields, ",")},
-		RunE:        runE,
+	cmd := &cobra.Command{
+		Use:     h.use,
+		Short:   h.short,
+		Long:    long,
+		Example: h.example,
+		Args:    accepts,
+		RunE:    runE,
 	}
+	SetFields(cmd, fields)
+
+	return cmd
 }
 
 func run[V any](

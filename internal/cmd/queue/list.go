@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
@@ -67,7 +67,7 @@ SEE ALSO
 	cmd.Flags().StringVar(&cursor, "cursor", "", "Page number for pagination")
 	cmd.Flags().BoolVar(&all, "all", false, "Fetch all pages automatically")
 
-	jsonfields.Register("ytr queue list", QueueListFields)
+	runner.SetFields(cmd, QueueListFields)
 
 	return cmd
 }

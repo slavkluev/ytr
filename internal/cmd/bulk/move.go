@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
@@ -66,7 +66,7 @@ SEE ALSO
 	cmd.Flags().StringVar(&fromJSON, "from-json", "", "Full JSON request body (inline, @file, or - for stdin)")
 	cmd.Flags().DurationVar(&timeoutFlag, "timeout", defaultTimeout, "Maximum time to wait for completion")
 
-	jsonfields.Register("ytr bulk move", BulkStatusFields)
+	runner.SetFields(cmd, BulkStatusFields)
 
 	return cmd
 }

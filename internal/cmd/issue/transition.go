@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
@@ -59,7 +59,7 @@ SEE ALSO
 	cmd.Flags().StringVar(&toFlag, "to", "", "Target status key or display name (required)")
 	cmd.MarkFlagRequired("to") //nolint:errcheck // Cobra flag is known to exist
 
-	jsonfields.Register("ytr issue transition", IssueTransitionFields)
+	runner.SetFields(cmd, IssueTransitionFields)
 
 	return cmd
 }

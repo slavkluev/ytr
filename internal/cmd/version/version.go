@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/output"
 	ver "github.com/slavkluev/ytr/internal/version"
 )
@@ -40,7 +40,7 @@ SEE ALSO
 		RunE: runVersion,
 	}
 
-	jsonfields.Register("ytr version", VersionFields)
+	runner.SetFields(cmd, VersionFields)
 
 	return cmd
 }

@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
@@ -46,7 +46,7 @@ SEE ALSO
 		},
 	}
 
-	jsonfields.Register("ytr bulk status", BulkStatusFields)
+	runner.SetFields(cmd, BulkStatusFields)
 
 	return cmd
 }

@@ -14,7 +14,7 @@ import (
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
@@ -847,7 +847,7 @@ func TestQueueContextFieldHint(t *testing.T) {
 
 // TestQueueContextFieldListsAgree checks the places that name the parts: the
 // fields slice, the document's json tags, the JSON FIELDS help block and the
-// completion registry.
+// fields completion reads off the command.
 func TestQueueContextFieldListsAgree(t *testing.T) {
 	cmd := newContextCmd()
 
@@ -864,7 +864,7 @@ func TestQueueContextFieldListsAgree(t *testing.T) {
 		t.Errorf("JSON FIELDS block does not list the parts; want %q in:\n%s", want, cmd.Long)
 	}
 
-	if got, ok := jsonfields.Get("ytr queue context"); !ok || !slices.Equal(got, QueueContextFields) {
-		t.Errorf("registry = %q (registered %v), want %q", got, ok, QueueContextFields)
+	if got, ok := runner.Fields(cmd); !ok || !slices.Equal(got, QueueContextFields) {
+		t.Errorf("command fields = %q (set %v), want %q", got, ok, QueueContextFields)
 	}
 }

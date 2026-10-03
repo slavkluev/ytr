@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/cmd"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
 	"github.com/slavkluev/ytr/internal/cmd/queue"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 )
 
 func TestCommandTree(t *testing.T) {
@@ -161,10 +161,9 @@ func TestQueueContextRegistered(t *testing.T) {
 		t.Fatal("queue subcommand \"context\" not registered")
 	}
 
-	// Completion looks the fields up by the command path.
-	fields, ok := jsonfields.Get(contextCmd.CommandPath())
+	fields, ok := runner.Fields(contextCmd)
 	if !ok || !slices.Equal(fields, queue.QueueContextFields) {
-		t.Errorf("jsonfields.Get(%q) = %q (registered %v), want %q",
+		t.Errorf("runner.Fields(%q) = %q (set %v), want %q",
 			contextCmd.CommandPath(), fields, ok, queue.QueueContextFields)
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
@@ -79,7 +79,7 @@ SEE ALSO
 	cmd.Flags().StringVar(&bodyFlag, "body", "", "Updated comment text")
 	cmd.Flags().StringVar(&fromJSON, "from-json", "", `JSON input: inline '{"text":"..."}', @file, or - for stdin`)
 
-	jsonfields.Register("ytr comment edit", CommentFields)
+	runner.SetFields(cmd, CommentFields)
 
 	return cmd
 }

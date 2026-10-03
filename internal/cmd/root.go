@@ -17,7 +17,6 @@ import (
 	"github.com/slavkluev/ytr/internal/cmd/field"
 	"github.com/slavkluev/ytr/internal/cmd/issue"
 	"github.com/slavkluev/ytr/internal/cmd/issuetype"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
 	"github.com/slavkluev/ytr/internal/cmd/link"
 	"github.com/slavkluev/ytr/internal/cmd/priority"
 	"github.com/slavkluev/ytr/internal/cmd/queue"
@@ -64,13 +63,8 @@ func newRootCmd(opts *output.Options) *cobra.Command {
 
 	_ = rootCmd.RegisterFlagCompletionFunc("json",
 		func(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-			if fields, ok := runner.Fields(cmd); ok {
-				return fields, cobra.ShellCompDirectiveNoFileComp
-			}
-			if fields, ok := jsonfields.Get(cmd.CommandPath()); ok {
-				return fields, cobra.ShellCompDirectiveNoFileComp
-			}
-			return nil, cobra.ShellCompDirectiveNoFileComp
+			fields, _ := runner.Fields(cmd)
+			return fields, cobra.ShellCompDirectiveNoFileComp
 		},
 	)
 

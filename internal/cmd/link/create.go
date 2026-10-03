@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
@@ -86,7 +86,7 @@ SEE ALSO
 		`JSON input: inline '{"relationship":"...","issue":"..."}', @file, or - for stdin`,
 	)
 
-	jsonfields.Register("ytr link create", LinkListFields)
+	runner.SetFields(cmd, LinkListFields)
 
 	return cmd
 }

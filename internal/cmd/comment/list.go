@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
@@ -28,9 +28,6 @@ const (
 	commentPageSize = 100
 )
 
-// CommentFields lists the available JSON field names for comment output.
-var CommentFields = []string{"id", "author", "authorId", "body", "createdAt", "updatedAt"}
-
 type commentItem struct {
 	ID        string `json:"id"`
 	Author    string `json:"author"`
@@ -39,6 +36,9 @@ type commentItem struct {
 	CreatedAt string `json:"createdAt"`
 	UpdatedAt string `json:"updatedAt,omitempty"`
 }
+
+// CommentFields are the --json fields of every comment command.
+var CommentFields = runner.ItemFields[commentItem]()
 
 func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -69,7 +69,7 @@ SEE ALSO
 		},
 	}
 
-	jsonfields.Register("ytr comment list", CommentFields)
+	runner.SetFields(cmd, CommentFields)
 
 	return cmd
 }

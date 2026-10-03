@@ -938,12 +938,12 @@ func TestHelpTopicCompletionOffersNothingForAnUnknownTopic(t *testing.T) {
 	}
 }
 
-func TestJSONCompletionOffersRegisteredFieldsOfACommandOutsideTheRunner(t *testing.T) {
-	got := runProbe(t, []string{"__complete", "issue", "list", "--json", ""})
+func TestJSONCompletionOffersTheFieldsSetOnACommandOutsideTheRunner(t *testing.T) {
+	got := runProbe(t, []string{"__complete", "issue", "changelog", "--json", ""})
 
 	offered, _, _ := strings.Cut(got.stdout, "\n:")
-	if fields := strings.Split(offered, "\n"); !slices.Equal(fields, issue.IssueListFields) {
-		t.Errorf("completion offers %q, want issue list's fields %q", fields, issue.IssueListFields)
+	if fields := strings.Split(offered, "\n"); !slices.Equal(fields, issue.IssueChangelogFields) {
+		t.Errorf("completion offers %q, want issue changelog's fields %q", fields, issue.IssueChangelogFields)
 	}
 }
 

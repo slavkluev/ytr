@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
@@ -85,7 +85,7 @@ SEE ALSO
 	cmd.Flags().StringVar(&startFlag, "start", "", "Start time in RFC 3339 format")
 	cmd.Flags().StringVar(&fromJSON, "from-json", "", `JSON input: inline '{"duration":"PT1H"}', @file, or - for stdin`)
 
-	jsonfields.Register("ytr worklog edit", WorklogFields)
+	runner.SetFields(cmd, WorklogFields)
 
 	return cmd
 }

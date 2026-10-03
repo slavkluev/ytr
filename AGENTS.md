@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-10-03 against d68d2da. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-10-03 against 12f6b0a. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## ytr
 
@@ -24,23 +24,24 @@ Yandex Tracker CLI for LLM agents and humans: Go 1.26, cobra, built on `github.c
 
 ## Conventions that differ from defaults
 
-- A command's JSON fields live in six places that must match, and nothing checks them: the `XxxFields` slice, json tags on its flat output struct, the `JSON FIELDS` block in `Long`, `jsonfields.Register("ytr <res> <verb>", …)`, the `PrintFieldHint` name, and `skills/ytr/SKILL.md`. A mismatch fails silently — the field vanishes or completion goes empty.
+- A command's `--json` fields are the json tags of its flat item struct, in order. For a `runner.List`/`runner.Get` declaration the runner derives the `JSON FIELDS` help, the `--json=` hint, validation and completion from them; never hand-write them. A command outside the runner keeps its `XxxFields` slice, `JSON FIELDS` block in `Long` and `PrintFieldHint` name matching the tags by hand and gives the slice to `runner.SetFields(cmd, …)` for completion; a slice it shares with a runner command is `runner.ItemFields[item]()`. A mismatch fails silently — the field vanishes.
 - Render JSON from that flat struct with value types, never from an SDK struct; read SDK pointers with `api.Deref*`, falling back to `""` in JSON and `"-"` in tables.
-- Every user-valued JSON field `x` gets a sibling `xId` from `api.DerefUserID`, without `omitempty`.
+- Every user-valued JSON field `x` gets a sibling `xId` from `User.IDOr("")`, without `omitempty`.
 - Return SDK errors as `api.MapAPIError(err)` and other failures as `errors.NewUserError`/`NewAuthError`/`NewNotFoundError` (`internal/errors`) with a Suggestion; never print an error and return nil, never `os.Exit` outside `cmd/ytr/main.go`.
-- Validate positional args before auth (`validate.ValidateIssueKey`, `ValidateStringID`, `ValidateNumericID`); `issue view`, `queue view`, and `field get` still skip this — do not copy them.
+- Declare a runner command's positional args as `runner.IssueKey`, `runner.StringID(label)` or `runner.NumericID(label)`: the runner checks them before the field hint and auth and hands `Call` the parsed values. Outside the runner, validate them before auth with `validate.ValidateIssueKey`, `ValidateStringID` or `ValidateNumericID`. `issue view`, `queue view` and `field get` still take `runner.AnyArg`, which checks nothing — do not copy them.
 - Decode `--from-json` only with `validate.UnmarshalRequestJSON`, which rejects unknown keys; never `json.Unmarshal`.
 - In update and edit commands, set a request field only when `cmd.Flags().Changed(name)` — requests are partial PATCHes.
 - When a flag, JSON field, output shape, or exit code changes, update `skills/ytr/SKILL.md` in the same commit and bump its `metadata.version`: major when a documented invocation stops working or its output changes, minor for additions, none for wording.
 - User-visible changes are `feat` or `fix` commits — goreleaser drops `docs`, `test`, and `chore` from release notes. Commit and branch format: `CONTRIBUTING.md`.
-- Tests are white-box, stdlib `testing` only, never `t.Parallel` — they swap package globals (factory vars, the field registry). Give a run its output flags and terminal facts as an `output.Options` value (`{JSONFields: XxxFields}`, `{TTY: true, Colors: true}`), never through env vars: setup helpers take `opts output.Options` after the mock and run the leaf with `cmd.ExecuteContext(output.NewContext(t.Context(), &opts))`. Stub the factory var with a `t.Cleanup` restore, and pass auth as `--token`/`--org-id`/`--org-type` flags; tests touching env or config set `t.Setenv("YTR_CONFIG_DIR", t.TempDir())`.
+- Test a runner command through `runCLI` (`runCLIOn` for a TTY, `internal/cmd/harness_test.go`) as `leafRow` table rows (`internal/cmd/leaf_test.go`) against inline Tracker exchanges that carry only the fields ytr reads; it has no mock, SDK interface or factory var.
+- Tests are white-box, stdlib `testing` only, never `t.Parallel` — they swap package globals (factory vars). In a mock test, give a run its output flags and terminal facts as an `output.Options` value (`{JSONFields: XxxFields}`, `{TTY: true, Colors: true}`), never through env vars: setup helpers take `opts output.Options` after the mock and run the leaf with `cmd.ExecuteContext(output.NewContext(t.Context(), &opts))`. Stub the factory var with a `t.Cleanup` restore, and pass auth as `--token`/`--org-id`/`--org-type` flags; tests touching env or config set `t.Setenv("YTR_CONFIG_DIR", t.TempDir())`.
 - Comment only a why the code cannot say — never restate a name, label a step, or narrate a past bug; pin the bug with a named regression test instead. `internal/cmd/comments_test.go` fails on the commonest restating shapes.
 
 ## Known pitfalls
 
 - Never do less than asked silently: reject unknown or conflicting input with a user error, paginate to the end instead of capping, pass the server's error text through. This class has been fixed a dozen times (`--from-json` dropping keys, `--all` ignoring `--cursor`, the 50-comment cap).
 - Do not encode assumed API behavior in mocks: check the API reference or make a read-only call to the real Tracker first. Wrong assumptions "verified" by mocks shipped eight times (default page size, where 422 details live, what a field's `type` means).
-- When fixing one command, grep its siblings (every `jsonfields.Register`, every `from-json` flag, every `--all` list) and fix them all or the shared helper — single-site fixes have left the bug live six times.
+- When fixing one command, grep its siblings (every `runner.List`/`runner.Get` declaration and `runner.SetFields` call, every `from-json` flag, every `--all` list) and fix them all or the shared helper — `internal/cmd/runner/runner.go` for anything a declaration hands the runner. Single-site fixes have left the bug live six times.
 - The exit code must say whether the change happened: non-zero on failure, and 0 after a successful non-idempotent write even if a follow-up step fails — a false failure makes agents retry and create duplicates.
 - Write to stdout only after the last step that can fail: under `--json`/`--jq` a successful run writes exactly one document (the result stream under `--jq`) and nothing else, and a failing run leaves stdout empty and puts its single JSON error document on stderr, `--debug` included. A reader cannot tell a truncated stream from a complete one. Buffer instead — `ApplyJQ` collects the whole jq stream before writing, and a FAILED bulk renders nothing. A warning goes inside the document, never as a separate line on either stream.
 - Sub-resource lists (comment, link, worklog, checklist) return bare JSON arrays; only `issue list`, `queue list`, `user list`, and `issue changelog` use the `{items, pagination}` envelope. Changing a shape or flag semantics is a breaking change: its own commit with `!` and a `BREAKING CHANGE:` footer.
