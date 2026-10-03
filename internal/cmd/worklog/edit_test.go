@@ -13,7 +13,20 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
+	"github.com/slavkluev/ytr/internal/testutil"
 )
+
+func makeWorklog(id, comment string, durationMinutes int) *tracker.Worklog {
+	dur := tracker.Duration{Duration: time.Duration(durationMinutes) * time.Minute}
+	ts := tracker.Timestamp{Time: time.Date(2026, 3, 30, 10, 0, 0, 0, time.UTC)}
+	return &tracker.Worklog{
+		ID:        testutil.FlexStringPtr(id),
+		Comment:   testutil.StrPtr(comment),
+		Duration:  &dur,
+		Start:     &ts,
+		CreatedBy: &tracker.User{Display: testutil.StrPtr("testuser")},
+	}
+}
 
 // mockWorklogEditor implements worklogEditor for testing.
 type mockWorklogEditor struct {

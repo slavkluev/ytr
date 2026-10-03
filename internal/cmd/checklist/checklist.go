@@ -11,13 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-type checklistLister interface {
-	ListChecklistItems(
-		ctx context.Context,
-		issueKey string,
-	) ([]*tracker.ChecklistItem, *tracker.Response, error)
-}
-
 // CreateChecklistItem returns *tracker.Issue (not *ChecklistItem),
 // requiring item extraction from Issue.ChecklistItems.
 type checklistCreator interface {
@@ -43,10 +36,6 @@ type checklistDeleter interface {
 		ctx context.Context,
 		issueKey, itemID string,
 	) (*tracker.Issue, *tracker.Response, error)
-}
-
-var newChecklistLister = func(auth *config.ResolvedAuth) checklistLister {
-	return api.NewClient(auth).Issues
 }
 
 var newChecklistCreator = func(auth *config.ResolvedAuth) checklistCreator {

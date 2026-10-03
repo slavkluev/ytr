@@ -11,13 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-type linkLister interface {
-	GetLinks(
-		ctx context.Context,
-		issueKey string,
-	) ([]*tracker.IssueLink, *tracker.Response, error)
-}
-
 type linkCreator interface {
 	CreateLink(
 		ctx context.Context,
@@ -31,10 +24,6 @@ type linkDeleter interface {
 		ctx context.Context,
 		issueKey, linkID string,
 	) (*tracker.Response, error)
-}
-
-var newLinkLister = func(auth *config.ResolvedAuth) linkLister {
-	return api.NewClient(auth).Issues
 }
 
 var newLinkCreator = func(auth *config.ResolvedAuth) linkCreator {

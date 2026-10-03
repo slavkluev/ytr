@@ -1,14 +1,13 @@
 package runner
 
 import (
-	"reflect"
 	"slices"
 	"testing"
 
 	"github.com/slavkluev/ytr/internal/output"
 )
 
-func TestJSONFieldsAreTheNamesFilterFieldsSelects(t *testing.T) {
+func TestItemFieldsAreTheNamesFilterFieldsSelects(t *testing.T) {
 	type probe struct {
 		ID       string `json:"id"`
 		Hidden   string `json:"-"`
@@ -17,7 +16,7 @@ func TestJSONFieldsAreTheNamesFilterFieldsSelects(t *testing.T) {
 		Bare     string `json:",omitempty"`
 	}
 
-	fields := jsonFields(reflect.TypeFor[probe]())
+	fields := ItemFields[probe]()
 
 	if want := []string{"id", "optional", "Bare"}; !slices.Equal(fields, want) {
 		t.Errorf("fields = %q, want %q", fields, want)

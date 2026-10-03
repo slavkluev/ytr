@@ -11,13 +11,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 )
 
-type worklogLister interface {
-	ListWorklogs(
-		ctx context.Context,
-		issueKey string,
-	) ([]*tracker.Worklog, *tracker.Response, error)
-}
-
 type worklogCreator interface {
 	CreateWorklog(
 		ctx context.Context,
@@ -39,10 +32,6 @@ type worklogDeleter interface {
 		ctx context.Context,
 		issueKey, worklogID string,
 	) (*tracker.Response, error)
-}
-
-var newWorklogLister = func(auth *config.ResolvedAuth) worklogLister {
-	return api.NewClient(auth).Issues
 }
 
 var newWorklogCreator = func(auth *config.ResolvedAuth) worklogCreator {

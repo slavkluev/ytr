@@ -1,21 +1,15 @@
 package checklist
 
 import (
-	"fmt"
-	"io"
+	"context"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
-	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
-	"github.com/slavkluev/ytr/internal/config"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/validate"
 )
-
-// ChecklistFields lists the available JSON field names for checklist output.
-var ChecklistFields = []string{"id", "text", "checked", "assignee", "assigneeId"}
 
 type checklistItem struct {
 	ID         string `json:"id"`
@@ -25,17 +19,15 @@ type checklistItem struct {
 	AssigneeID string `json:"assigneeId"`
 }
 
+// ChecklistFields are the --json fields of every checklist command.
+var ChecklistFields = runner.ItemFields[checklistItem]()
+
 func newListCmd() *cobra.Command {
-	cmd := &cobra.Command{
+	return runner.List[*tracker.ChecklistItem, checklistItem]{
 		Use:   "list ISSUE-KEY",
 		Short: "List checklist items on an issue",
-		Long: `List all checklist items on a Yandex Tracker issue.
-
-JSON FIELDS
-  id, text, checked, assignee, assigneeId
-
-SEE ALSO
-  ytr checklist create  - Add checklist item to issue
+		Long:  `List all checklist items on a Yandex Tracker issue.`,
+		SeeAlso: `  ytr checklist create  - Add checklist item to issue
   ytr checklist edit    - Edit a checklist item
   ytr checklist delete  - Delete a checklist item`,
 		Example: `  # List checklist items on an issue
@@ -43,107 +35,24 @@ SEE ALSO
 
   # Get checklist as JSON
   ytr checklist list PROJ-123 --json id,text,checked`,
-		Args: cobra.ExactArgs(1),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return validate.ValidateIssueKey(args[0])
+		Args:  []runner.Arg{runner.IssueKey},
+		Empty: "No checklist items found",
+		Call: func(ctx context.Context, c *tracker.Client, args []string) ([]*tracker.ChecklistItem, error) {
+			items, _, err := c.Issues.ListChecklistItems(ctx, args[0])
+			return items, err
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(cmd, args[0])
+		Item:   toChecklistItem,
+		Header: []string{"ID", "TEXT", "CHECKED", "ASSIGNEE"},
+		Row: func(_ *output.Options, c *tracker.ChecklistItem) []string {
+			return []string{
+				api.DerefFlexString(c.ID, ""),
+				api.DerefString(c.Text, ""),
+				checkedDisplay(api.DerefBool(c.Checked, false)),
+				c.Assignee.DisplayOr("-"),
+			}
 		},
-	}
-
-	jsonfields.Register("ytr checklist list", ChecklistFields)
-
-	return cmd
-}
-
-func runList(cmd *cobra.Command, issueKey string) error {
-	opts := output.FromContext(cmd.Context())
-
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "checklist list", ChecklistFields)
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = ChecklistFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, ChecklistFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, ChecklistFields)
-	}
-
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
-	if err != nil {
-		return err
-	}
-
-	lister := newChecklistLister(auth)
-
-	items, _, err := lister.ListChecklistItems(cmd.Context(), issueKey)
-	if err != nil {
-		return api.MapAPIError(err)
-	}
-
-	return renderListOutput(cmd.OutOrStdout(), opts, items)
-}
-
-func renderListOutput(w io.Writer, opts *output.Options, items []*tracker.ChecklistItem) error {
-	if opts.IsJSON() {
-		result := make([]checklistItem, len(items))
-		for i, c := range items {
-			result[i] = toChecklistItem(c)
-		}
-
-		if opts.HasFieldSelection() {
-			filtered := make([]map[string]any, len(result))
-			for i, item := range result {
-				filtered[i] = output.FilterFields(item, opts.JSONFields)
-			}
-			if opts.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, opts.JQFilter)
-			}
-			return opts.PrintJSON(w, filtered)
-		}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(w, result, opts.JQFilter)
-		}
-		return opts.PrintJSON(w, result)
-	}
-
-	if opts.Quiet {
-		ids := make([]string, len(items))
-		for i, c := range items {
-			ids[i] = api.DerefFlexString(c.ID, "")
-		}
-		output.PrintQuiet(w, ids...)
-		return nil
-	}
-
-	if len(items) == 0 {
-		_, err := fmt.Fprintln(w, "No checklist items found")
-		return err
-	}
-
-	tbl := opts.NewTable(w)
-	tbl.AddHeader("ID", "TEXT", "CHECKED", "ASSIGNEE")
-
-	for _, c := range items {
-		id := api.DerefFlexString(c.ID, "")
-		text := api.DerefString(c.Text, "")
-		checked := checkedDisplay(api.DerefBool(c.Checked, false))
-		assignee := c.Assignee.DisplayOr("-")
-		tbl.AddRow(id, text, checked, assignee)
-	}
-
-	tbl.Render()
-	return nil
+		Quiet: func(c *tracker.ChecklistItem) string { return api.DerefFlexString(c.ID, "") },
+	}.Command()
 }
 
 func toChecklistItem(c *tracker.ChecklistItem) checklistItem {

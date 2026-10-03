@@ -8,6 +8,7 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
+	"github.com/slavkluev/ytr/internal/output"
 )
 
 type item struct {
@@ -20,13 +21,8 @@ func newListCmd() *cobra.Command {
 	return runner.List[*tracker.IssueType, item]{
 		Use:   "list",
 		Short: "List issue types",
-		Long: `List all issue types in Yandex Tracker.
-
-JSON FIELDS
-  id, key, name
-
-SEE ALSO
-  ytr status list      - List workflow statuses
+		Long:  `List all issue types in Yandex Tracker.`,
+		SeeAlso: `  ytr status list      - List workflow statuses
   ytr priority list    - List priorities
   ytr resolution list  - List resolutions`,
 		Example: `  # List all issue types
@@ -35,7 +31,7 @@ SEE ALSO
   # Get issue types as JSON
   ytr issuetype list --json id,key,name`,
 		Empty: "No issue types found",
-		Call: func(ctx context.Context, c *tracker.Client) ([]*tracker.IssueType, error) {
+		Call: func(ctx context.Context, c *tracker.Client, _ []string) ([]*tracker.IssueType, error) {
 			return runner.Collect(c.IssueTypes.ListIter(ctx, nil))
 		},
 		Item:   toItem,
@@ -53,7 +49,7 @@ func toItem(it *tracker.IssueType) item {
 	}
 }
 
-func row(it *tracker.IssueType) []string {
+func row(_ *output.Options, it *tracker.IssueType) []string {
 	return []string{
 		api.DerefFlexString(it.ID, "-"),
 		api.DerefString(it.Key, "-"),
