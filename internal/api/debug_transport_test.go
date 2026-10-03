@@ -229,3 +229,104 @@ func TestSnapshotResponsePreviewPreservesBodyOnReadError(t *testing.T) {
 		t.Fatalf("restored response body = %q, want %q", got, "partial body")
 	}
 }
+
+func failingBase(t *testing.T) roundTripFunc {
+	t.Helper()
+
+	return func(req *http.Request) (*http.Response, error) {
+		t.Errorf("base transport got %s %s, want the context transport to serve it", req.Method, req.URL)
+		return nil, errors.New("base transport called")
+	}
+}
+
+func okTransport(calls *int) roundTripFunc {
+	return func(req *http.Request) (*http.Response, error) {
+		*calls++
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{},
+			Body:       io.NopCloser(strings.NewReader(`[]`)),
+			Request:    req,
+		}, nil
+	}
+}
+
+func TestDebugTransportSendsThroughContextTransport(t *testing.T) {
+	output.ResetFlags()
+	defer output.ResetFlags()
+
+	calls := 0
+	transport := newDebugTransport(failingBase(t), "flag")
+
+	req, err := http.NewRequestWithContext(WithTransport(t.Context(), okTransport(&calls)),
+		http.MethodGet, "https://api.tracker.yandex.net/v3/statuses", nil)
+	if err != nil {
+		t.Fatalf("http.NewRequest() returned error: %v", err)
+	}
+
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("RoundTrip() returned error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if calls != 1 {
+		t.Errorf("context transport calls = %d, want 1", calls)
+	}
+}
+
+func TestDebugTransportUsesBaseWithoutContextTransport(t *testing.T) {
+	output.ResetFlags()
+	defer output.ResetFlags()
+
+	calls := 0
+	transport := newDebugTransport(okTransport(&calls), "flag")
+
+	req, err := http.NewRequestWithContext(t.Context(),
+		http.MethodGet, "https://api.tracker.yandex.net/v3/statuses", nil)
+	if err != nil {
+		t.Fatalf("http.NewRequest() returned error: %v", err)
+	}
+
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("RoundTrip() returned error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if calls != 1 {
+		t.Errorf("base transport calls = %d, want 1", calls)
+	}
+}
+
+func TestDebugTransportLogsContextTransportExchange(t *testing.T) {
+	var buf bytes.Buffer
+	output.DebugFlag = true
+	output.SetDebugWriter(&buf)
+	defer output.ResetFlags()
+
+	calls := 0
+	transport := newDebugTransport(failingBase(t), "flag")
+
+	req, err := http.NewRequestWithContext(WithTransport(t.Context(), okTransport(&calls)),
+		http.MethodGet, "https://api.tracker.yandex.net/v3/statuses", nil)
+	if err != nil {
+		t.Fatalf("http.NewRequest() returned error: %v", err)
+	}
+
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("RoundTrip() returned error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	out := buf.String()
+	for _, want := range []string{
+		`[debug] request GET /v3/statuses auth_source=flag`,
+		`[debug] response 200 method=GET path=/v3/statuses duration=`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("debug output missing %q in %q", want, out)
+		}
+	}
+}

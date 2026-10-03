@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"context"
 	"io"
 	"os"
 
@@ -141,14 +142,14 @@ func registerSubcommands(rootCmd *cobra.Command) {
 // Execute runs the root command and returns the appropriate exit code.
 // The caller (main.go) must pass this to os.Exit.
 func Execute() int {
-	return execute(newRootCmd(), os.Args[1:], os.Stdout, os.Stderr)
+	return execute(context.Background(), newRootCmd(), os.Args[1:], os.Stdout, os.Stderr)
 }
 
 // The arguments reach the renderer as well as cobra, because a failed
 // invocation can hide the output mode it asked for: pflag stops at the first
 // flag it does not know, so a --json placed after the mistake never lands in
 // the globals IsJSON reads.
-func execute(root *cobra.Command, args []string, out, errOut io.Writer) int {
+func execute(ctx context.Context, root *cobra.Command, args []string, out, errOut io.Writer) int {
 	// SetArgs(nil) makes cobra fall back to os.Args[1:], which would turn a bare
 	// invocation into whatever the process was started with.
 	if args == nil {
@@ -159,7 +160,7 @@ func execute(root *cobra.Command, args []string, out, errOut io.Writer) int {
 	root.SetOut(out)
 	root.SetErr(errOut)
 
-	return output.HandleInvocationError(errOut, root.Execute(), args)
+	return output.HandleInvocationError(errOut, root.ExecuteContext(ctx), args)
 }
 
 // RootCmd returns a freshly built root command.

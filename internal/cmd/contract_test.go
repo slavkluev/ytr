@@ -58,7 +58,7 @@ func runProbe(t *testing.T, argv []string) probeResult {
 	// so a probe that passes --debug sees them interleaved the way a caller
 	// would. Pointing them anywhere else would hide the stream they share.
 	output.SetDebugWriter(&errOut)
-	code := execute(newRootCmd(), argv, &out, &errOut)
+	code := execute(t.Context(), newRootCmd(), argv, &out, &errOut)
 
 	return probeResult{code: code, stdout: out.String(), stderr: errOut.String()}
 }

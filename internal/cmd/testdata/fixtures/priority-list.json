@@ -1,0 +1,88 @@
+[
+  {
+    "method": "GET",
+    "path": "/v3/priorities",
+    "status": 200,
+    "header": {
+      "Content-Type": [
+        "application/json;charset=utf-8"
+      ],
+      "Link": [
+        "<https://api.tracker.yandex.net/v3/priorities?perPage=50>; rel=\"first\"",
+        "<https://api.tracker.yandex.net/v3/priorities?page=1&perPage=50>; rel=\"last\"",
+        "<https://api.tracker.yandex.net/v3/priorities?perPage=50{&page}>; rel=\"seek\""
+      ],
+      "X-Total-Count": [
+        "7"
+      ],
+      "X-Total-Pages": [
+        "1"
+      ]
+    },
+    "body": [
+      {
+        "description": "Trivial priority",
+        "id": 1,
+        "key": "trivial",
+        "name": "Незначительный",
+        "order": 10,
+        "self": "https://api.tracker.yandex.net/v3/priorities/1",
+        "version": 1
+      },
+      {
+        "description": "Minor priority",
+        "id": 2,
+        "key": "minor",
+        "name": "Низкий",
+        "order": 20,
+        "self": "https://api.tracker.yandex.net/v3/priorities/2",
+        "version": 1
+      },
+      {
+        "description": "Normal priority",
+        "id": 3,
+        "key": "normal",
+        "name": "Средний",
+        "order": 30,
+        "self": "https://api.tracker.yandex.net/v3/priorities/3",
+        "version": 1
+      },
+      {
+        "description": "Critical priority",
+        "id": 4,
+        "key": "critical",
+        "name": "Критичный",
+        "order": 40,
+        "self": "https://api.tracker.yandex.net/v3/priorities/4",
+        "version": 1
+      },
+      {
+        "description": "Blocker priority",
+        "id": 5,
+        "key": "blocker",
+        "name": "Блокер",
+        "order": 50,
+        "self": "https://api.tracker.yandex.net/v3/priorities/5",
+        "version": 1
+      },
+      {
+        "description": "Minimal priority",
+        "id": 6,
+        "key": "minimal",
+        "name": "Минимальный",
+        "order": 5,
+        "self": "https://api.tracker.yandex.net/v3/priorities/6",
+        "version": 1
+      },
+      {
+        "description": "Important priority",
+        "id": 7,
+        "key": "important",
+        "name": "Важный",
+        "order": 35,
+        "self": "https://api.tracker.yandex.net/v3/priorities/7",
+        "version": 1
+      }
+    ]
+  }
+]

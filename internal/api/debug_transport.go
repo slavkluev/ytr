@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,6 +31,23 @@ type debugTransport struct {
 	authSource string
 }
 
+type transportKey struct{}
+
+// WithTransport returns a context whose Tracker requests go to rt instead of
+// the network. Commands pass their context to every SDK call, so one context
+// serves a whole invocation against a stand-in Tracker.
+func WithTransport(ctx context.Context, rt http.RoundTripper) context.Context {
+	return context.WithValue(ctx, transportKey{}, rt)
+}
+
+func (t *debugTransport) target(req *http.Request) http.RoundTripper {
+	if rt, ok := req.Context().Value(transportKey{}).(http.RoundTripper); ok {
+		return rt
+	}
+
+	return t.base
+}
+
 func newDebugTransport(base http.RoundTripper, authSource string) http.RoundTripper {
 	if base == nil {
 		base = http.DefaultTransport
@@ -42,8 +60,9 @@ func newDebugTransport(base http.RoundTripper, authSource string) http.RoundTrip
 }
 
 func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	base := t.target(req)
 	if !output.DebugEnabled() {
-		return t.base.RoundTrip(req)
+		return base.RoundTrip(req)
 	}
 
 	path := requestPath(req.URL)
@@ -61,7 +80,7 @@ func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	start := time.Now()
-	resp, err := t.base.RoundTrip(req)
+	resp, err := base.RoundTrip(req)
 	duration := formatDebugDuration(time.Since(start))
 	if err != nil {
 		output.Debugf("transport_error method=%s path=%s duration=%s error=%q",

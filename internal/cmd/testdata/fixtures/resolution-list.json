@@ -1,0 +1,209 @@
+[
+  {
+    "method": "GET",
+    "path": "/v3/resolutions",
+    "status": 200,
+    "header": {
+      "Content-Type": [
+        "application/json;charset=utf-8"
+      ],
+      "Link": [
+        "<https://api.tracker.yandex.net/v3/resolutions?perPage=50>; rel=\"first\"",
+        "<https://api.tracker.yandex.net/v3/resolutions?page=1&perPage=50>; rel=\"last\"",
+        "<https://api.tracker.yandex.net/v3/resolutions?perPage=50{&page}>; rel=\"seek\""
+      ],
+      "X-Total-Count": [
+        "22"
+      ],
+      "X-Total-Pages": [
+        "1"
+      ]
+    },
+    "body": [
+      {
+        "description": "Fixed resolution",
+        "id": 1,
+        "key": "fixed",
+        "name": "Решен",
+        "order": 10,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/1",
+        "version": 1
+      },
+      {
+        "description": "Won't fix resolution",
+        "id": 2,
+        "key": "wontFix",
+        "name": "Не будет исправлено",
+        "order": 20,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/2",
+        "version": 1
+      },
+      {
+        "description": "Can't reproduce resolution",
+        "id": 3,
+        "key": "cantReproduce",
+        "name": "Не воспроизводится",
+        "order": 30,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/3",
+        "version": 1
+      },
+      {
+        "description": "Duplicate resolution",
+        "id": 4,
+        "key": "duplicate",
+        "name": "Дубликат",
+        "order": 40,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/4",
+        "version": 1
+      },
+      {
+        "description": "Later resolution",
+        "id": 5,
+        "key": "later",
+        "name": "Позже",
+        "order": 50,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/5",
+        "version": 1
+      },
+      {
+        "description": "Overfulfilled resolution",
+        "id": 6,
+        "key": "overfulfilled",
+        "name": "Перевыполнено",
+        "order": 60,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/6",
+        "version": 1
+      },
+      {
+        "description": "Successful resolution",
+        "id": 7,
+        "key": "successful",
+        "name": "Успешно",
+        "order": 70,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/7",
+        "version": 1
+      },
+      {
+        "description": "Don't do resolution",
+        "id": 8,
+        "key": "dontDo",
+        "name": "Не делаем",
+        "order": 80,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/8",
+        "version": 1
+      },
+      {
+        "id": 9,
+        "key": "customResolution9",
+        "name": "Резолюция 9",
+        "order": 90,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/9",
+        "version": 1
+      },
+      {
+        "id": 10,
+        "key": "customResolution10",
+        "name": "Резолюция 10",
+        "order": 100,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/10",
+        "version": 1
+      },
+      {
+        "id": 12,
+        "key": "customResolution12",
+        "name": "Резолюция 12",
+        "order": 120,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/12",
+        "version": 1
+      },
+      {
+        "id": 13,
+        "key": "customResolution13",
+        "name": "Резолюция 13",
+        "order": 130,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/13",
+        "version": 1
+      },
+      {
+        "id": 14,
+        "key": "customResolution14",
+        "name": "Резолюция 14",
+        "order": 140,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/14",
+        "version": 1
+      },
+      {
+        "id": 15,
+        "key": "customResolution15",
+        "name": "Резолюция 15",
+        "order": 150,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/15",
+        "version": 1
+      },
+      {
+        "id": 11,
+        "key": "customResolution11",
+        "name": "Резолюция 11",
+        "order": 110,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/11",
+        "version": 1
+      },
+      {
+        "id": 16,
+        "key": "customResolution16",
+        "name": "Резолюция 16",
+        "order": 160,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/16",
+        "version": 1
+      },
+      {
+        "id": 20,
+        "key": "customResolution20",
+        "name": "Резолюция 20",
+        "order": 200,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/20",
+        "version": 1
+      },
+      {
+        "id": 17,
+        "key": "customResolution17",
+        "name": "Резолюция 17",
+        "order": 170,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/17",
+        "version": 1
+      },
+      {
+        "id": 18,
+        "key": "customResolution18",
+        "name": "Резолюция 18",
+        "order": 180,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/18",
+        "version": 1
+      },
+      {
+        "id": 19,
+        "key": "customResolution19",
+        "name": "Резолюция 19",
+        "order": 190,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/19",
+        "version": 1
+      },
+      {
+        "id": 21,
+        "key": "customResolution21",
+        "name": "Резолюция 21",
+        "order": 210,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/21",
+        "version": 1
+      },
+      {
+        "id": 22,
+        "key": "customResolution22",
+        "name": "Резолюция 22",
+        "order": 220,
+        "self": "https://api.tracker.yandex.net/v3/resolutions/22",
+        "version": 1
+      }
+    ]
+  }
+]

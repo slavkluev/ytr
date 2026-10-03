@@ -1,0 +1,249 @@
+[
+  {
+    "method": "GET",
+    "path": "/v3/issuetypes",
+    "status": 200,
+    "header": {
+      "Content-Type": [
+        "application/json;charset=utf-8"
+      ],
+      "Link": [
+        "<https://api.tracker.yandex.net/v3/issuetypes?perPage=50>; rel=\"first\"",
+        "<https://api.tracker.yandex.net/v3/issuetypes?page=1&perPage=50>; rel=\"last\"",
+        "<https://api.tracker.yandex.net/v3/issuetypes?perPage=50{&page}>; rel=\"seek\""
+      ],
+      "X-Total-Count": [
+        "29"
+      ],
+      "X-Total-Pages": [
+        "1"
+      ]
+    },
+    "body": [
+      {
+        "description": "Bug issue type",
+        "id": 1,
+        "key": "bug",
+        "name": "Ошибка",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/1",
+        "version": 1
+      },
+      {
+        "description": "Task issue type",
+        "id": 2,
+        "key": "task",
+        "name": "Задача",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/2",
+        "version": 1
+      },
+      {
+        "description": "New feature issue type",
+        "id": 3,
+        "key": "newFeature",
+        "name": "Новая возможность",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/3",
+        "version": 1
+      },
+      {
+        "description": "Improvement issue type",
+        "id": 4,
+        "key": "improvement",
+        "name": "Улучшение",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/4",
+        "version": 1
+      },
+      {
+        "description": "Refactoring issue type",
+        "id": 5,
+        "key": "refactoring",
+        "name": "Рефакторинг",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/5",
+        "version": 1
+      },
+      {
+        "description": "Epic issue type",
+        "id": 6,
+        "key": "epic",
+        "name": "Epic",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/6",
+        "version": 1
+      },
+      {
+        "description": "Story issue type",
+        "id": 7,
+        "key": "story",
+        "name": "Story",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/7",
+        "version": 1
+      },
+      {
+        "description": "Change request issue type",
+        "id": 8,
+        "key": "changeRequest",
+        "name": "Change request",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/8",
+        "version": 1
+      },
+      {
+        "description": "Incident issue type",
+        "id": 9,
+        "key": "incident",
+        "name": "Инцидент",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/9",
+        "version": 1
+      },
+      {
+        "description": "Service request issue type",
+        "id": 10,
+        "key": "serviceRequest",
+        "name": "Запрос на обслуживание",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/10",
+        "version": 1
+      },
+      {
+        "description": "Release issue type",
+        "id": 11,
+        "key": "release",
+        "name": "Релиз",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/11",
+        "version": 1
+      },
+      {
+        "description": "Project issue type",
+        "id": 12,
+        "key": "project",
+        "name": "Проект",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/12",
+        "version": 1
+      },
+      {
+        "description": "Leave issue type",
+        "id": 13,
+        "key": "leave",
+        "name": "Отсутствие",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/13",
+        "version": 1
+      },
+      {
+        "description": "Business Trip issue type",
+        "id": 14,
+        "key": "businessTrip",
+        "name": "Командировка",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/14",
+        "version": 1
+      },
+      {
+        "description": "Changes issue type",
+        "id": 15,
+        "key": "changes",
+        "name": "Изменения",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/15",
+        "version": 1
+      },
+      {
+        "description": "Documents issue type",
+        "id": 16,
+        "key": "documents",
+        "name": "Документы",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/16",
+        "version": 1
+      },
+      {
+        "description": "Request issue type",
+        "id": 17,
+        "key": "request",
+        "name": "Запрос",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/17",
+        "version": 1
+      },
+      {
+        "description": "Vacancy issue type",
+        "id": 18,
+        "key": "vacancy",
+        "name": "Вакансия",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/18",
+        "version": 1
+      },
+      {
+        "description": "Applicant issue type",
+        "id": 19,
+        "key": "applicant",
+        "name": "Кандидат",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/19",
+        "version": 1
+      },
+      {
+        "description": "Goal issue type",
+        "id": 20,
+        "key": "goal",
+        "name": "Цель",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/20",
+        "version": 1
+      },
+      {
+        "description": "Milestone issue type",
+        "id": 21,
+        "key": "milestone",
+        "name": "Веха",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/21",
+        "version": 1
+      },
+      {
+        "id": 22,
+        "key": "customType22",
+        "name": "Тип задачи 22",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/22",
+        "version": 1
+      },
+      {
+        "id": 23,
+        "key": "customType23",
+        "name": "Тип задачи 23",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/23",
+        "version": 1
+      },
+      {
+        "id": 24,
+        "key": "customType24",
+        "name": "Тип задачи 24",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/24",
+        "version": 1
+      },
+      {
+        "id": 25,
+        "key": "customType25",
+        "name": "Тип задачи 25",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/25",
+        "version": 1
+      },
+      {
+        "id": 28,
+        "key": "customType28",
+        "name": "Тип задачи 28",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/28",
+        "version": 1
+      },
+      {
+        "id": 29,
+        "key": "customType29",
+        "name": "Тип задачи 29",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/29",
+        "version": 1
+      },
+      {
+        "id": 26,
+        "key": "customType26",
+        "name": "Тип задачи 26",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/26",
+        "version": 1
+      },
+      {
+        "id": 27,
+        "key": "customType27",
+        "name": "Тип задачи 27",
+        "self": "https://api.tracker.yandex.net/v3/issuetypes/27",
+        "version": 1
+      }
+    ]
+  }
+]

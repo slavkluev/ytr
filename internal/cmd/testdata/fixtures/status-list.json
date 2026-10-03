@@ -1,0 +1,504 @@
+[
+  {
+    "method": "GET",
+    "path": "/v3/statuses",
+    "status": 200,
+    "header": {
+      "Content-Type": [
+        "application/json;charset=utf-8"
+      ],
+      "Link": [
+        "<https://api.tracker.yandex.net/v3/statuses?perPage=50>; rel=\"first\"",
+        "<https://api.tracker.yandex.net/v3/statuses?page=2&perPage=50>; rel=\"next\"",
+        "<https://api.tracker.yandex.net/v3/statuses?page=3&perPage=50>; rel=\"last\"",
+        "<https://api.tracker.yandex.net/v3/statuses?perPage=50{&page}>; rel=\"seek\""
+      ],
+      "X-Total-Count": [
+        "106"
+      ],
+      "X-Total-Pages": [
+        "3"
+      ]
+    },
+    "body": [
+      {
+        "description": "Open status",
+        "id": 1,
+        "key": "open",
+        "name": "Открыт",
+        "order": 100,
+        "self": "https://api.tracker.yandex.net/v3/statuses/1",
+        "type": "new",
+        "version": 1
+      },
+      {
+        "description": "Need info status",
+        "id": 2,
+        "key": "needInfo",
+        "name": "Требуется информация",
+        "order": 200,
+        "self": "https://api.tracker.yandex.net/v3/statuses/2",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "In progress status",
+        "id": 3,
+        "key": "inProgress",
+        "name": "В работе",
+        "order": 300,
+        "self": "https://api.tracker.yandex.net/v3/statuses/3",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "description": "Testing status",
+        "id": 4,
+        "key": "testing",
+        "name": "Тестируется",
+        "order": 400,
+        "self": "https://api.tracker.yandex.net/v3/statuses/4",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "description": "Tested status",
+        "id": 5,
+        "key": "tested",
+        "name": "Протестировано",
+        "order": 500,
+        "self": "https://api.tracker.yandex.net/v3/statuses/5",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "In review status",
+        "id": 6,
+        "key": "inReview",
+        "name": "Ревью",
+        "order": 600,
+        "self": "https://api.tracker.yandex.net/v3/statuses/6",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "Resolved status",
+        "id": 7,
+        "key": "resolved",
+        "name": "Решен",
+        "order": 700,
+        "self": "https://api.tracker.yandex.net/v3/statuses/7",
+        "type": "done",
+        "version": 1
+      },
+      {
+        "description": "Closed status",
+        "id": 8,
+        "key": "closed",
+        "name": "Закрыт",
+        "order": 800,
+        "self": "https://api.tracker.yandex.net/v3/statuses/8",
+        "type": "done",
+        "version": 1
+      },
+      {
+        "description": "Ready for release status",
+        "id": 9,
+        "key": "rc",
+        "name": "Готово к релизу",
+        "order": 900,
+        "self": "https://api.tracker.yandex.net/v3/statuses/9",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "Backlog status",
+        "id": 10,
+        "key": "backlog",
+        "name": "Беклог",
+        "order": 1000,
+        "self": "https://api.tracker.yandex.net/v3/statuses/10",
+        "type": "new",
+        "version": 1
+      },
+      {
+        "description": "Selected for dev status",
+        "id": 11,
+        "key": "selectedForDev",
+        "name": "Будем делать",
+        "order": 1100,
+        "self": "https://api.tracker.yandex.net/v3/statuses/11",
+        "type": "new",
+        "version": 1
+      },
+      {
+        "description": "Ready for test status",
+        "id": 12,
+        "key": "readyForTest",
+        "name": "Можно тестировать",
+        "order": 1200,
+        "self": "https://api.tracker.yandex.net/v3/statuses/12",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "Need acceptance status",
+        "id": 13,
+        "key": "needAcceptance",
+        "name": "Ждем подтверждения",
+        "order": 1300,
+        "self": "https://api.tracker.yandex.net/v3/statuses/13",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "Cancelled status",
+        "id": 14,
+        "key": "cancelled",
+        "name": "Отменено",
+        "order": 1400,
+        "self": "https://api.tracker.yandex.net/v3/statuses/14",
+        "type": "cancelled",
+        "version": 1
+      },
+      {
+        "description": "Confirmed status",
+        "id": 15,
+        "key": "confirmed",
+        "name": "Подтверждён",
+        "order": 1500,
+        "self": "https://api.tracker.yandex.net/v3/statuses/15",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "Need estimate status",
+        "id": 16,
+        "key": "needEstimate",
+        "name": "Оценка задачи",
+        "order": 1600,
+        "self": "https://api.tracker.yandex.net/v3/statuses/16",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "Demonstration to customer status",
+        "id": 17,
+        "key": "demoToCustomer",
+        "name": "Демонстрация заказчику",
+        "order": 1700,
+        "self": "https://api.tracker.yandex.net/v3/statuses/17",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "1 line of support status",
+        "id": 18,
+        "key": "firstSupportLine",
+        "name": "Первая линия поддержки",
+        "order": 1800,
+        "self": "https://api.tracker.yandex.net/v3/statuses/18",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "description": "2 line of support status",
+        "id": 19,
+        "key": "secondSupportLine",
+        "name": "Вторая линия поддержки",
+        "order": 1900,
+        "self": "https://api.tracker.yandex.net/v3/statuses/19",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "description": "New status",
+        "id": 20,
+        "key": "new",
+        "name": "Новый",
+        "order": 2000,
+        "self": "https://api.tracker.yandex.net/v3/statuses/20",
+        "type": "new",
+        "version": 1
+      },
+      {
+        "description": "Documents prepared status",
+        "id": 21,
+        "key": "documentsPrepared",
+        "name": "Документы подготовлены",
+        "order": 2100,
+        "self": "https://api.tracker.yandex.net/v3/statuses/21",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "On Hold status",
+        "id": 22,
+        "key": "onHold",
+        "name": "Приостановлено",
+        "order": 2200,
+        "self": "https://api.tracker.yandex.net/v3/statuses/22",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "Result Acceptance status",
+        "id": 23,
+        "key": "resultAcceptance",
+        "name": "Согласование результата",
+        "order": 2300,
+        "self": "https://api.tracker.yandex.net/v3/statuses/23",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "New goal status",
+        "id": 24,
+        "key": "newGoal",
+        "name": "Новая цель",
+        "order": 2400,
+        "self": "https://api.tracker.yandex.net/v3/statuses/24",
+        "type": "new",
+        "version": 1
+      },
+      {
+        "description": "As planned status",
+        "id": 25,
+        "key": "asPlanned",
+        "name": "По плану",
+        "order": 2500,
+        "self": "https://api.tracker.yandex.net/v3/statuses/25",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "description": "With risks status",
+        "id": 26,
+        "key": "withRisks",
+        "name": "Есть риски",
+        "order": 2600,
+        "self": "https://api.tracker.yandex.net/v3/statuses/26",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "description": "Achieved status",
+        "id": 27,
+        "key": "achieved",
+        "name": "Достигнута",
+        "order": 2700,
+        "self": "https://api.tracker.yandex.net/v3/statuses/27",
+        "type": "done",
+        "version": 1
+      },
+      {
+        "description": "Blocked goal status",
+        "id": 28,
+        "key": "blockedGoal",
+        "name": "Цель заблокирована",
+        "order": 2800,
+        "self": "https://api.tracker.yandex.net/v3/statuses/28",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 29,
+        "key": "customStatus29",
+        "name": "Статус 29",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/29",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 30,
+        "key": "customStatus30",
+        "name": "Статус 30",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/30",
+        "type": "cancelled",
+        "version": 1
+      },
+      {
+        "id": 31,
+        "key": "customStatus31",
+        "name": "Статус 31",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/31",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 32,
+        "key": "customStatus32",
+        "name": "Статус 32",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/32",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 33,
+        "key": "customStatus33",
+        "name": "Статус 33",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/33",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 34,
+        "key": "customStatus34",
+        "name": "Статус 34",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/34",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 35,
+        "key": "customStatus35",
+        "name": "Статус 35",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/35",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 36,
+        "key": "customStatus36",
+        "name": "Статус 36",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/36",
+        "type": "new",
+        "version": 1
+      },
+      {
+        "id": 37,
+        "key": "customStatus37",
+        "name": "Статус 37",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/37",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 38,
+        "key": "customStatus38",
+        "name": "Статус 38",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/38",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 39,
+        "key": "customStatus39",
+        "name": "Статус 39",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/39",
+        "type": "done",
+        "version": 1
+      },
+      {
+        "id": 40,
+        "key": "customStatus40",
+        "name": "Статус 40",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/40",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 41,
+        "key": "customStatus41",
+        "name": "Статус 41",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/41",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 42,
+        "key": "customStatus42",
+        "name": "Статус 42",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/42",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 43,
+        "key": "customStatus43",
+        "name": "Статус 43",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/43",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 44,
+        "key": "customStatus44",
+        "name": "Статус 44",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/44",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 45,
+        "key": "customStatus45",
+        "name": "Статус 45",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/45",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 46,
+        "key": "customStatus46",
+        "name": "Статус 46",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/46",
+        "type": "paused",
+        "version": 1
+      },
+      {
+        "id": 47,
+        "key": "customStatus47",
+        "name": "Статус 47",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/47",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 48,
+        "key": "customStatus48",
+        "name": "Статус 48",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/48",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 49,
+        "key": "customStatus49",
+        "name": "Статус 49",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/49",
+        "type": "inProgress",
+        "version": 1
+      },
+      {
+        "id": 50,
+        "key": "customStatus50",
+        "name": "Статус 50",
+        "order": 1,
+        "self": "https://api.tracker.yandex.net/v3/statuses/50",
+        "type": "inProgress",
+        "version": 1
+      }
+    ]
+  }
+]

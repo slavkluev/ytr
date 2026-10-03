@@ -1,0 +1,40 @@
+package cmd
+
+import (
+	"bytes"
+	"slices"
+	"testing"
+
+	"github.com/slavkluev/ytr/internal/api"
+	"github.com/slavkluev/ytr/internal/faketracker"
+	"github.com/slavkluev/ytr/internal/output"
+	"github.com/slavkluev/ytr/internal/testutil"
+)
+
+// cliResult is what one ytr invocation produced, plus every request Tracker
+// would have received from it.
+type cliResult struct {
+	Code     int
+	Stdout   string
+	Stderr   string
+	Requests []faketracker.Request
+}
+
+// runCLI runs args through the real root command and the real Tracker client,
+// with a fake Tracker serving exchanges in place of the network. Complete auth
+// flags win over the environment and the config file, so no test credential
+// or config ever comes from the developer's machine.
+func runCLI(t *testing.T, exchanges []faketracker.Exchange, args ...string) cliResult {
+	t.Helper()
+	testutil.ResetOutputFlags(t)
+	output.SetTTY(false)
+
+	fake := faketracker.New(t, exchanges)
+	argv := slices.Concat([]string{"--token=test-token", "--org-id=test-org", "--org-type=360"}, args)
+
+	var out, errOut bytes.Buffer
+	output.SetDebugWriter(&errOut)
+	code := execute(api.WithTransport(t.Context(), fake), newRootCmd(), argv, &out, &errOut)
+
+	return cliResult{Code: code, Stdout: out.String(), Stderr: errOut.String(), Requests: fake.Requests()}
+}
