@@ -24,7 +24,17 @@ type cliResult struct {
 // flags win over the environment and the config file, and the config directory
 // is a fresh one, so no credential comes from the developer's machine and a
 // command that writes config, such as auth login or logout, never touches theirs.
+// The run writes to a pipe, not a terminal.
 func runCLI(t *testing.T, exchanges []faketracker.Exchange, args ...string) cliResult {
+	t.Helper()
+
+	return runCLIOn(t, output.Options{}, exchanges, args...)
+}
+
+// runCLIOn is runCLI writing to the terminal term describes, such as
+// output.Options{TTY: true, Colors: true}. Only its terminal facts count: the
+// output flags come from args.
+func runCLIOn(t *testing.T, term output.Options, exchanges []faketracker.Exchange, args ...string) cliResult {
 	t.Helper()
 	t.Setenv("YTR_CONFIG_DIR", t.TempDir())
 
@@ -32,7 +42,7 @@ func runCLI(t *testing.T, exchanges []faketracker.Exchange, args ...string) cliR
 	argv := slices.Concat([]string{"--token=test-token", "--org-id=test-org", "--org-type=360"}, args)
 
 	var out, errOut bytes.Buffer
-	code := execute(api.WithTransport(t.Context(), fake), output.Options{}, argv, &out, &errOut)
+	code := execute(api.WithTransport(t.Context(), fake), term, argv, &out, &errOut)
 
 	return cliResult{Code: code, Stdout: out.String(), Stderr: errOut.String(), Requests: fake.Requests()}
 }
