@@ -14,7 +14,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // mockBulkUpdater implements bulkUpdater for testing.
@@ -45,6 +44,7 @@ func setupUpdateCmd(
 	t *testing.T,
 	updaterMock *mockBulkUpdater,
 	pollMock *mockPollGetter,
+	opts output.Options,
 	args []string,
 ) (string, error) {
 	t.Helper()
@@ -88,18 +88,17 @@ func setupUpdateCmd(
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestUpdateTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("update-op-1")
 	updater := &mockBulkUpdater{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupUpdateCmd(t, updater, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--field", "priority=critical"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -132,14 +131,12 @@ func TestUpdateTable(t *testing.T) {
 }
 
 func TestUpdateJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = BulkStatusFields
-
 	bc := makeCompletedBulkChange("update-json-1")
 	updater := &mockBulkUpdater{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupUpdateCmd(t, updater, poll,
+		output.Options{JSONFields: BulkStatusFields},
 		[]string{"PROJ-1", "--field", "priority=critical"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -159,14 +156,12 @@ func TestUpdateJSON(t *testing.T) {
 }
 
 func TestUpdateQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	bc := makeCompletedBulkChange("update-quiet-1")
 	updater := &mockBulkUpdater{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupUpdateCmd(t, updater, poll,
+		output.Options{Quiet: true},
 		[]string{"PROJ-1", "--field", "priority=critical"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -179,13 +174,12 @@ func TestUpdateQuiet(t *testing.T) {
 }
 
 func TestUpdateMultipleFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("update-multi-1")
 	updater := &mockBulkUpdater{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	_, err := setupUpdateCmd(t, updater, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--field", "priority=critical", "--field", "assignee=user1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -206,13 +200,12 @@ func TestUpdateMultipleFields(t *testing.T) {
 }
 
 func TestUpdateFromJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("update-fj-1")
 	updater := &mockBulkUpdater{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	_, err := setupUpdateCmd(t, updater, poll,
+		output.Options{},
 		[]string{"--from-json", `{"issues":["PROJ-1"],"values":{"priority":"critical"}}`})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -233,12 +226,11 @@ func TestUpdateFromJSON(t *testing.T) {
 }
 
 func TestUpdateMutualExclusion(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	updater := &mockBulkUpdater{}
 	poll := &mockPollGetter{}
 
 	_, err := setupUpdateCmd(t, updater, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--field", "x=y", "--from-json", "{}"})
 	if err == nil {
 		t.Fatal("expected mutual exclusion error, got nil")
@@ -250,12 +242,10 @@ func TestUpdateMutualExclusion(t *testing.T) {
 }
 
 func TestUpdateMissingField(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	updater := &mockBulkUpdater{}
 	poll := &mockPollGetter{}
 
-	_, err := setupUpdateCmd(t, updater, poll, []string{"PROJ-1"})
+	_, err := setupUpdateCmd(t, updater, poll, output.Options{}, []string{"PROJ-1"})
 	if err == nil {
 		t.Fatal("expected error for missing --field, got nil")
 	}
@@ -266,12 +256,11 @@ func TestUpdateMissingField(t *testing.T) {
 }
 
 func TestUpdateAPIError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	updater := &mockBulkUpdater{err: errors.New("connection refused")}
 	poll := &mockPollGetter{}
 
 	_, err := setupUpdateCmd(t, updater, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--field", "priority=critical"})
 	if err == nil {
 		t.Fatal("expected error from API, got nil")
@@ -299,13 +288,12 @@ func TestUpdate_RegisteredAsSubcommand(t *testing.T) {
 }
 
 func TestUpdateFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("update-unknown-1")
 	updater := &mockBulkUpdater{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	_, err := setupUpdateCmd(t, updater, poll,
+		output.Options{},
 		[]string{"--from-json", `{"issues":["PROJ-1"],"values":{"priority":"critical"},"bogus":1}`})
 	if err == nil {
 		t.Fatal("expected an error for an unknown field, got nil")
@@ -320,14 +308,12 @@ func TestUpdateFromJSONRejectsUnknownFields(t *testing.T) {
 }
 
 func TestUpdateFailedStatusWritesNothingToStdout(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = BulkStatusFields
-
 	bc := makeFailedBulkChange("update-fail-1")
 	updater := &mockBulkUpdater{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupUpdateCmd(t, updater, poll,
+		output.Options{JSONFields: BulkStatusFields},
 		[]string{"PROJ-1", "PROJ-2", "--field", "priority=critical"})
 	if err == nil {
 		t.Fatal("expected non-nil error for FAILED bulk operation, got nil")

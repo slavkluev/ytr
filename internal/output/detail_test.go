@@ -6,16 +6,27 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jedib0t/go-pretty/v6/text"
+
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
+// go-pretty decides once, at init, whether to emit ANSI codes, from NO_COLOR
+// and TERM; without this a developer's NO_COLOR=1 would strip the codes a test
+// looks for.
+func enableANSI(t *testing.T) {
+	t.Helper()
+	if text.Bold.Sprint("x") == "x" {
+		text.EnableColors()
+		t.Cleanup(text.DisableColors)
+	}
+}
+
 func TestDetailOffTTYWritesTabSeparatedRows(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	var buf bytes.Buffer
-	d := output.NewDetail(&buf)
+	d := opts.NewDetail(&buf)
 	d.Field("Key", "APP-1")
 	d.Field("Created", "2026-09-19T14:22:31+03:00")
 	if err := d.Err(); err != nil {
@@ -29,12 +40,10 @@ func TestDetailOffTTYWritesTabSeparatedRows(t *testing.T) {
 }
 
 func TestDetailOnTTYWritesLabeledRows(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	t.Setenv("NO_COLOR", "1")
-	output.SetTTY(true)
+	opts := output.Options{TTY: true}
 
 	var buf bytes.Buffer
-	d := output.NewDetail(&buf)
+	d := opts.NewDetail(&buf)
 	d.Field("Key", "APP-1")
 	if err := d.Err(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -45,12 +54,27 @@ func TestDetailOnTTYWritesLabeledRows(t *testing.T) {
 	}
 }
 
-func TestDetailBlockKeepsItsShapeOffTTY(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+func TestDetailOnTTYWithColorsBoldsTheLabel(t *testing.T) {
+	enableANSI(t)
+	opts := output.Options{TTY: true, Colors: true}
 
 	var buf bytes.Buffer
-	d := output.NewDetail(&buf)
+	d := opts.NewDetail(&buf)
+	d.Field("Key", "APP-1")
+	if err := d.Err(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got, want := buf.String(), "\x1b[1mKey:\x1b[0m  APP-1\n"; got != want {
+		t.Errorf("detail = %q, want %q", got, want)
+	}
+}
+
+func TestDetailBlockKeepsItsShapeOffTTY(t *testing.T) {
+	opts := output.Options{}
+
+	var buf bytes.Buffer
+	d := opts.NewDetail(&buf)
 	d.Field("Key", "APP-1")
 	d.Block("Description", "The login page returns 500.")
 	if err := d.Err(); err != nil {
@@ -69,10 +93,9 @@ type failingWriter struct{}
 func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("write failed") }
 
 func TestDetailKeepsFirstWriteError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
-	d := output.NewDetail(failingWriter{})
+	d := opts.NewDetail(failingWriter{})
 	d.Field("Key", "APP-1")
 	d.Field("Name", "second row")
 	d.Block("Description", "third write")
@@ -83,11 +106,10 @@ func TestDetailKeepsFirstWriteError(t *testing.T) {
 }
 
 func TestDetailOffTTYEscapesControlCharacters(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	var buf bytes.Buffer
-	d := output.NewDetail(&buf)
+	d := opts.NewDetail(&buf)
 	d.Field("Summary", "first\nsecond\tthird\rfourth")
 	d.Field("Key", "APP-1")
 	if err := d.Err(); err != nil {

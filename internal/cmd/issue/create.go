@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"io"
 	"slices"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
@@ -106,19 +107,21 @@ func validateCreateFlags(cmd *cobra.Command) error {
 
 func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue create", IssueDetailFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = IssueDetailFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = IssueDetailFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, IssueDetailFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, IssueDetailFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, IssueDetailFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueDetailFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -142,7 +145,7 @@ func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
 		return api.MapAPIError(err)
 	}
 
-	return outputIssueResult(cmd, issue)
+	return outputIssueResult(cmd.OutOrStdout(), opts, issue)
 }
 
 func buildCreateRequest(cmd *cobra.Command, queue, summary, description, issueType,
@@ -195,31 +198,29 @@ func parseIssueRequestFromJSON(fromJSON string) (*tracker.IssueRequest, error) {
 	return req, nil
 }
 
-func outputIssueResult(cmd *cobra.Command, issue *tracker.Issue) error {
-	w := cmd.OutOrStdout()
-
-	if output.IsJSON() {
+func outputIssueResult(w io.Writer, opts *output.Options, issue *tracker.Issue) error {
+	if opts.IsJSON() {
 		detail := toIssueDetail(issue)
 
-		if output.HasFieldSelection() {
-			filtered := output.FilterFields(detail, output.JSONFields)
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+		if opts.HasFieldSelection() {
+			filtered := output.FilterFields(detail, opts.JSONFields)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, detail, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, detail, opts.JQFilter)
 		}
-		return output.PrintJSON(w, detail)
+		return opts.PrintJSON(w, detail)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, api.DerefString(issue.Key, ""))
 		return nil
 	}
 
-	d := output.NewDetail(w)
+	d := opts.NewDetail(w)
 
 	d.Field("Key", api.DerefString(issue.Key, "-"))
 	d.Field("Summary", api.DerefString(issue.Summary, "-"))

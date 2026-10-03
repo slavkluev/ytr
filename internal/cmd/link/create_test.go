@@ -52,7 +52,7 @@ func makeCreatedLink() *tracker.IssueLink {
 	}
 }
 
-func setupCreateCmd(t *testing.T, mock *mockLinkCreator, args []string) (string, error) {
+func setupCreateCmd(t *testing.T, mock *mockLinkCreator, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origCreator := newLinkCreator
@@ -72,7 +72,7 @@ func setupCreateCmd(t *testing.T, mock *mockLinkCreator, args []string) (string,
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -81,7 +81,7 @@ func TestCreate(t *testing.T) {
 		name      string
 		mock      *mockLinkCreator
 		args      []string
-		setup     func()
+		opts      output.Options
 		wantOut   string
 		wantErr   string
 		jsonCheck func(t *testing.T, out string)
@@ -97,9 +97,7 @@ func TestCreate(t *testing.T) {
 			name: "json output",
 			mock: &mockLinkCreator{link: makeCreatedLink()},
 			args: []string{"PROJ-123", "--type", "depends on", "--issue", "PROJ-456"},
-			setup: func() {
-				output.JSONFields = LinkListFields
-			},
+			opts: output.Options{JSONFields: LinkListFields},
 			jsonCheck: func(t *testing.T, out string) {
 				t.Helper()
 				var item map[string]any
@@ -118,12 +116,10 @@ func TestCreate(t *testing.T) {
 			},
 		},
 		{
-			name: "quiet output",
-			mock: &mockLinkCreator{link: makeCreatedLink()},
-			args: []string{"PROJ-123", "--type", "depends on", "--issue", "PROJ-456"},
-			setup: func() {
-				output.QuietFlag = true
-			},
+			name:    "quiet output",
+			mock:    &mockLinkCreator{link: makeCreatedLink()},
+			args:    []string{"PROJ-123", "--type", "depends on", "--issue", "PROJ-456"},
+			opts:    output.Options{Quiet: true},
 			wantOut: "555",
 		},
 		{
@@ -196,12 +192,7 @@ func TestCreate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-
-			out, err := setupCreateCmd(t, tt.mock, tt.args)
+			out, err := setupCreateCmd(t, tt.mock, tt.opts, tt.args)
 
 			if tt.wantErr != "" {
 				if err == nil {
@@ -234,10 +225,13 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreateRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockLinkCreator{link: makeCreatedLink()}
-	_, err := setupCreateCmd(t, mock, []string{"PROJ-123", "--type", "depends on", "--issue", "PROJ-456"})
+	_, err := setupCreateCmd(
+		t,
+		mock,
+		output.Options{},
+		[]string{"PROJ-123", "--type", "depends on", "--issue", "PROJ-456"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -272,11 +266,9 @@ func TestCreateRegistered(t *testing.T) {
 }
 
 func TestCreateFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockLinkCreator{link: makeCreatedLink()}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-123", "--from-json", `{"relationship":"relates","issue":"PROJ-456","bogus":1}`,
 	})
 	if err == nil {

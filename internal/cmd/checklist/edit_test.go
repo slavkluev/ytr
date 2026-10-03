@@ -39,7 +39,7 @@ func (m *mockChecklistEditor) EditChecklistItem(
 	return m.issue, m.resp, nil
 }
 
-func setupEditCmd(t *testing.T, mock *mockChecklistEditor, args []string) (string, error) {
+func setupEditCmd(t *testing.T, mock *mockChecklistEditor, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origEditor := newChecklistEditor
@@ -59,13 +59,11 @@ func setupEditCmd(t *testing.T, mock *mockChecklistEditor, args []string) (strin
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestEditText(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -77,7 +75,7 @@ func TestEditText(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{"PROJ-123", "item-1", "--text", "Updated text"})
+	out, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-123", "item-1", "--text", "Updated text"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -89,8 +87,6 @@ func TestEditText(t *testing.T) {
 }
 
 func TestEditChecked(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -102,7 +98,7 @@ func TestEditChecked(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{"PROJ-123", "item-2", "--checked"})
+	out, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-123", "item-2", "--checked"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -118,8 +114,6 @@ func TestEditChecked(t *testing.T) {
 }
 
 func TestEditCheckedFalse(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -131,7 +125,7 @@ func TestEditCheckedFalse(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{"PROJ-123", "item-3", "--checked=false"})
+	out, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-123", "item-3", "--checked=false"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -147,8 +141,6 @@ func TestEditCheckedFalse(t *testing.T) {
 }
 
 func TestEditAssignee(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -161,7 +153,7 @@ func TestEditAssignee(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{"PROJ-123", "item-4", "--assignee", "alice-uid"})
+	out, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-123", "item-4", "--assignee", "alice-uid"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -176,9 +168,6 @@ func TestEditAssignee(t *testing.T) {
 }
 
 func TestEditJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = ChecklistFields
-
 	mock := &mockChecklistEditor{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -190,7 +179,12 @@ func TestEditJSON(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{"PROJ-1", "item-5", "--text", "Edited"})
+	out, err := setupEditCmd(
+		t,
+		mock,
+		output.Options{JSONFields: ChecklistFields},
+		[]string{"PROJ-1", "item-5", "--text", "Edited"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -212,9 +206,6 @@ func TestEditJSON(t *testing.T) {
 }
 
 func TestEditQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockChecklistEditor{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -226,7 +217,7 @@ func TestEditQuiet(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{"PROJ-1", "item-6", "--text", "Quiet test"})
+	out, err := setupEditCmd(t, mock, output.Options{Quiet: true}, []string{"PROJ-1", "item-6", "--text", "Quiet test"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -238,8 +229,6 @@ func TestEditQuiet(t *testing.T) {
 }
 
 func TestEditFromJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -251,7 +240,7 @@ func TestEditFromJSON(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{
+	out, err := setupEditCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "item-7", "--from-json", `{"text":"JSON edit"}`,
 	})
 	if err != nil {
@@ -264,11 +253,9 @@ func TestEditFromJSON(t *testing.T) {
 }
 
 func TestEditMutualExclusion(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{}
 
-	_, err := setupEditCmd(t, mock, []string{
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "item-1", "--text", "Hello", "--from-json", `{"text":"World"}`,
 	})
 	if err == nil {
@@ -281,11 +268,9 @@ func TestEditMutualExclusion(t *testing.T) {
 }
 
 func TestEditNoFlags(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{}
 
-	_, err := setupEditCmd(t, mock, []string{"PROJ-1", "item-1"})
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-1", "item-1"})
 	if err == nil {
 		t.Fatal("expected error for no flags, got nil")
 	}
@@ -296,11 +281,9 @@ func TestEditNoFlags(t *testing.T) {
 }
 
 func TestEditInvalidKey(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{}
 
-	_, err := setupEditCmd(t, mock, []string{"bad-key", "item-1", "--text", "test"})
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{"bad-key", "item-1", "--text", "test"})
 	if err == nil {
 		t.Fatal("expected error for invalid key, got nil")
 	}
@@ -311,11 +294,9 @@ func TestEditInvalidKey(t *testing.T) {
 }
 
 func TestEditEmptyItemID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{}
 
-	_, err := setupEditCmd(t, mock, []string{"PROJ-1", " ", "--text", "test"})
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-1", " ", "--text", "test"})
 	if err == nil {
 		t.Fatal("expected error for empty item ID, got nil")
 	}
@@ -326,13 +307,11 @@ func TestEditEmptyItemID(t *testing.T) {
 }
 
 func TestEditAPIError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{
 		err: errors.New("connection refused"),
 	}
 
-	_, err := setupEditCmd(t, mock, []string{"PROJ-1", "item-1", "--text", "test"})
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-1", "item-1", "--text", "test"})
 	if err == nil {
 		t.Fatal("expected error from API, got nil")
 	}
@@ -347,8 +326,6 @@ func TestEditAPIError(t *testing.T) {
 // error. The mutation already succeeded, so the command reports a best-effort
 // confirmation carrying the requested item ID.
 func TestEditItemNotFoundBestEffort(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// Mock returns Issue with different item IDs than requested.
 	mock := &mockChecklistEditor{
 		issue: makeIssueWithChecklist(
@@ -361,7 +338,7 @@ func TestEditItemNotFoundBestEffort(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{"PROJ-1", "missing-item", "--text", "test"})
+	out, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-1", "missing-item", "--text", "test"})
 	if err != nil {
 		t.Fatalf("expected no error (edit succeeded), got: %v", err)
 	}
@@ -372,8 +349,6 @@ func TestEditItemNotFoundBestEffort(t *testing.T) {
 }
 
 func TestEditRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -385,7 +360,12 @@ func TestEditRequestCapture(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	_, err := setupEditCmd(t, mock, []string{"PROJ-123", "item-cap", "--text", "Captured", "--checked"})
+	_, err := setupEditCmd(
+		t,
+		mock,
+		output.Options{},
+		[]string{"PROJ-123", "item-cap", "--text", "Captured", "--checked"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -408,8 +388,6 @@ func TestEditRequestCapture(t *testing.T) {
 }
 
 func TestEditFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistEditor{
 		issue: makeIssueWithChecklist(&tracker.ChecklistItem{
 			ID:   testutil.FlexStringPtr("item-7"),
@@ -418,7 +396,7 @@ func TestEditFromJSONRejectsUnknownFields(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	_, err := setupEditCmd(t, mock, []string{
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "item-7", "--from-json", `{"text":"JSON edit","bogus":1}`,
 	})
 	if err == nil {

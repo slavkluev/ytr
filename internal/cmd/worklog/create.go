@@ -106,19 +106,21 @@ func runCreate(
 	cmd *cobra.Command,
 	issueKey, durationFlag, startFlag, commentFlag, fromJSON string,
 ) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "worklog create", WorklogFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = WorklogFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = WorklogFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, WorklogFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, WorklogFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, WorklogFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, WorklogFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -145,26 +147,26 @@ func runCreate(
 		return api.MapAPIError(err)
 	}
 
-	return renderCreateOutput(cmd.OutOrStdout(), wl, issueKey)
+	return renderCreateOutput(cmd.OutOrStdout(), opts, wl, issueKey)
 }
 
-func renderCreateOutput(w io.Writer, wl *tracker.Worklog, issueKey string) error {
-	if output.IsJSON() {
+func renderCreateOutput(w io.Writer, opts *output.Options, wl *tracker.Worklog, issueKey string) error {
+	if opts.IsJSON() {
 		item := toWorklogItem(wl)
-		if output.HasFieldSelection() {
-			filtered := output.FilterFields(item, output.JSONFields)
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+		if opts.HasFieldSelection() {
+			filtered := output.FilterFields(item, opts.JSONFields)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, item, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, item, opts.JQFilter)
 		}
-		return output.PrintJSON(w, item)
+		return opts.PrintJSON(w, item)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, api.DerefFlexString(wl.ID, ""))
 		return nil
 	}

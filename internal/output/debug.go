@@ -2,17 +2,9 @@ package output
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"regexp"
 	"strings"
 )
-
-// DebugFlag controls whether sanitized diagnostics are emitted to stderr.
-// Set by the --debug global persistent flag.
-var DebugFlag bool
-
-var debugWriter io.Writer = os.Stderr
 
 var debugStringRedactors = []struct {
 	pattern *regexp.Regexp
@@ -47,21 +39,6 @@ var debugStringRedactors = []struct {
 		),
 		replace: "$1<redacted>",
 	},
-}
-
-// DebugEnabled returns true when debug diagnostics are enabled.
-func DebugEnabled() bool {
-	return DebugFlag
-}
-
-// SetDebugWriter overrides the writer used for debug diagnostics.
-func SetDebugWriter(w io.Writer) {
-	if w == nil {
-		debugWriter = io.Discard
-		return
-	}
-
-	debugWriter = w
 }
 
 // SanitizeDebugString redacts sensitive values before they are written to
@@ -103,11 +80,11 @@ func SanitizeDebugMap(values map[string]string) map[string]string {
 	return sanitized
 }
 
-// Debugf writes a single debug line when debug mode is enabled.
-func Debugf(format string, args ...any) {
-	if !DebugEnabled() || debugWriter == nil {
+// Debugf writes a single debug line to DebugOut when debug mode is enabled.
+func (o *Options) Debugf(format string, args ...any) {
+	if !o.Debug || o.DebugOut == nil {
 		return
 	}
 
-	_, _ = fmt.Fprintf(debugWriter, "[debug] "+format+"\n", args...)
+	_, _ = fmt.Fprintf(o.DebugOut, "[debug] "+format+"\n", args...)
 }

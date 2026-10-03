@@ -69,7 +69,7 @@ func fullIssue() *tracker.Issue {
 	}
 }
 
-func setupViewCmd(t *testing.T, mock *mockGetter, args []string) (string, error) {
+func setupViewCmd(t *testing.T, mock *mockGetter, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origGetter := newGetter
@@ -89,19 +89,17 @@ func setupViewCmd(t *testing.T, mock *mockGetter, args []string) (string, error)
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestViewTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockGetter{
 		issue: fullIssue(),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupViewCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -122,15 +120,12 @@ func TestViewTable(t *testing.T) {
 }
 
 func TestViewJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueDetailFields
-
 	mock := &mockGetter{
 		issue: fullIssue(),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupViewCmd(t, mock, output.Options{JSONFields: IssueDetailFields}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -158,15 +153,12 @@ func TestViewJSON(t *testing.T) {
 }
 
 func TestViewQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockGetter{
 		issue: fullIssue(),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupViewCmd(t, mock, output.Options{Quiet: true}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -178,14 +170,12 @@ func TestViewQuiet(t *testing.T) {
 }
 
 func TestViewNotFound(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// Simulate a not-found error from the API.
 	mock := &mockGetter{
 		err: errors.New("not found"),
 	}
 
-	_, err := setupViewCmd(t, mock, []string{"NOEXIST-1"})
+	_, err := setupViewCmd(t, mock, output.Options{}, []string{"NOEXIST-1"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -202,8 +192,6 @@ func TestViewNotFound(t *testing.T) {
 }
 
 func TestViewNilFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// Issue with many nil fields should render without panic.
 	issue := &tracker.Issue{
 		Key:     testutil.StrPtr("NIL-1"),
@@ -216,7 +204,7 @@ func TestViewNilFields(t *testing.T) {
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"NIL-1"})
+	out, err := setupViewCmd(t, mock, output.Options{}, []string{"NIL-1"})
 	if err != nil {
 		t.Fatalf("unexpected error (panic?): %v", err)
 	}
@@ -230,37 +218,30 @@ func TestViewNilFields(t *testing.T) {
 }
 
 func TestViewNoArgs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockGetter{
 		issue: fullIssue(),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupViewCmd(t, mock, []string{})
+	_, err := setupViewCmd(t, mock, output.Options{}, []string{})
 	if err == nil {
 		t.Fatal("expected error for no args, got nil")
 	}
 }
 
 func TestViewTooManyArgs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockGetter{
 		issue: fullIssue(),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupViewCmd(t, mock, []string{"PROJ-1", "PROJ-2"})
+	_, err := setupViewCmd(t, mock, output.Options{}, []string{"PROJ-1", "PROJ-2"})
 	if err == nil {
 		t.Fatal("expected error for too many args, got nil")
 	}
 }
 
 func TestViewNamesakesKeepDistinctUserIDs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueDetailFields
-
 	// Author and assignee are two different people sharing one display name.
 	mock := &mockGetter{
 		issue: &tracker.Issue{
@@ -278,7 +259,7 @@ func TestViewNamesakesKeepDistinctUserIDs(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupViewCmd(t, mock, output.Options{JSONFields: IssueDetailFields}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -301,16 +282,12 @@ func TestViewNamesakesKeepDistinctUserIDs(t *testing.T) {
 }
 
 func TestViewTableOnTTYUsesLabeledRowsAndRelativeTimes(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(true)
-	t.Setenv("NO_COLOR", "1")
-
 	mock := &mockGetter{
 		issue: fullIssue(),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupViewCmd(t, mock, output.Options{TTY: true}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -327,9 +304,6 @@ func TestViewTableOnTTYUsesLabeledRowsAndRelativeTimes(t *testing.T) {
 }
 
 func TestViewTableOffTTYUsesISOTimes(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
-
 	created := tracker.Timestamp{
 		Time: time.Date(2026, 9, 17, 9, 5, 0, 0, time.FixedZone("MSK", 3*60*60)),
 	}
@@ -337,7 +311,12 @@ func TestViewTableOffTTYUsesISOTimes(t *testing.T) {
 	issue.CreatedAt = &created
 	issue.UpdatedAt = &created
 
-	out, err := setupViewCmd(t, &mockGetter{issue: issue, resp: &tracker.Response{}}, []string{"PROJ-123"})
+	out, err := setupViewCmd(
+		t,
+		&mockGetter{issue: issue, resp: &tracker.Response{}},
+		output.Options{},
+		[]string{"PROJ-123"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

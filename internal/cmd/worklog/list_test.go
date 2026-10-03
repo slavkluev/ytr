@@ -35,7 +35,7 @@ func (m *mockWorklogLister) ListWorklogs(
 	return m.worklogs, m.resp, nil
 }
 
-func setupListCmd(t *testing.T, mock *mockWorklogLister, args []string) (string, error) {
+func setupListCmd(t *testing.T, mock *mockWorklogLister, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origLister := newWorklogLister
@@ -55,7 +55,7 @@ func setupListCmd(t *testing.T, mock *mockWorklogLister, args []string) (string,
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -72,8 +72,6 @@ func makeWorklog(id, comment string, durationMinutes int) *tracker.Worklog {
 }
 
 func TestListTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogLister{
 		worklogs: []*tracker.Worklog{
 			makeWorklog("abc123", "Bug fix", 90),
@@ -81,7 +79,7 @@ func TestListTable(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -99,14 +97,12 @@ func TestListTable(t *testing.T) {
 }
 
 func TestListEmpty(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogLister{
 		worklogs: []*tracker.Worklog{},
 		resp:     &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -117,9 +113,6 @@ func TestListEmpty(t *testing.T) {
 }
 
 func TestListJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = WorklogFields
-
 	mock := &mockWorklogLister{
 		worklogs: []*tracker.Worklog{
 			makeWorklog("wl-42", "Code review", 120),
@@ -127,7 +120,7 @@ func TestListJSON(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: WorklogFields}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -158,9 +151,6 @@ func TestListJSON(t *testing.T) {
 }
 
 func TestListQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockWorklogLister{
 		worklogs: []*tracker.Worklog{
 			makeWorklog("id1", "", 60),
@@ -169,7 +159,7 @@ func TestListQuiet(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{Quiet: true}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -184,9 +174,6 @@ func TestListQuiet(t *testing.T) {
 }
 
 func TestListJQFilter(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JQFilter = ".[].id"
-
 	mock := &mockWorklogLister{
 		worklogs: []*tracker.Worklog{
 			makeWorklog("abc", "", 60),
@@ -194,7 +181,7 @@ func TestListJQFilter(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{JQFilter: ".[].id"}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -206,11 +193,9 @@ func TestListJQFilter(t *testing.T) {
 }
 
 func TestListInvalidKey(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogLister{}
 
-	_, err := setupListCmd(t, mock, []string{"bad-key"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"bad-key"})
 	if err == nil {
 		t.Fatal("expected error for invalid key, got nil")
 	}
@@ -221,13 +206,11 @@ func TestListInvalidKey(t *testing.T) {
 }
 
 func TestListAPIError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogLister{
 		err: errors.New("connection refused"),
 	}
 
-	_, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-1"})
 	if err == nil {
 		t.Fatal("expected error from API, got nil")
 	}
@@ -238,9 +221,6 @@ func TestListAPIError(t *testing.T) {
 }
 
 func TestListNamesakesKeepDistinctAuthorIDs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = WorklogFields
-
 	first := makeWorklog("wl-1", "Review", 30)
 	first.CreatedBy = &tracker.User{
 		Display: testutil.StrPtr("Иван Петров"),
@@ -257,7 +237,7 @@ func TestListNamesakesKeepDistinctAuthorIDs(t *testing.T) {
 		resp:     &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: WorklogFields}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -281,15 +261,12 @@ func TestListNamesakesKeepDistinctAuthorIDs(t *testing.T) {
 }
 
 func TestListStartOffTTYIsRFC3339(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
-
 	mock := &mockWorklogLister{
 		worklogs: []*tracker.Worklog{makeWorklog("abc123", "Bug fix", 90)},
 		resp:     &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -301,16 +278,12 @@ func TestListStartOffTTYIsRFC3339(t *testing.T) {
 }
 
 func TestListStartOnTTYIsRelative(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(true)
-	t.Setenv("NO_COLOR", "1")
-
 	mock := &mockWorklogLister{
 		worklogs: []*tracker.Worklog{makeWorklog("abc123", "Bug fix", 90)},
 		resp:     &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupListCmd(t, mock, output.Options{TTY: true}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -14,7 +14,6 @@ import (
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // The names no command and no flag answers to. Probes are built from them, so
@@ -41,10 +40,6 @@ type probeResult struct {
 // run, cobra, then the one error renderer.
 func runProbe(t *testing.T, argv []string) probeResult {
 	t.Helper()
-	testutil.ResetOutputFlags(t)
-	// An agent reads ytr off a TTY, and it keeps ANSI codes out of the bytes
-	// these tests compare.
-	output.SetTTY(false)
 	// No probe is supposed to reach RunE, so none should ever need credentials.
 	// Taking them away means a probe that did reach RunE fails on auth, exit 3,
 	// instead of sending a request to the real Tracker.
@@ -54,11 +49,9 @@ func runProbe(t *testing.T, argv []string) probeResult {
 	t.Setenv("YTR_ORG_TYPE", "")
 
 	var out, errOut bytes.Buffer
-	// The binary writes debug diagnostics to the same stream it hands cobra,
-	// so a probe that passes --debug sees them interleaved the way a caller
-	// would. Pointing them anywhere else would hide the stream they share.
-	output.SetDebugWriter(&errOut)
-	code := execute(t.Context(), newRootCmd(), argv, &out, &errOut)
+	// Zero options put the probe off a TTY, as an agent reads ytr, and keep
+	// ANSI codes out of the bytes these tests compare.
+	code := execute(t.Context(), output.Options{}, argv, &out, &errOut)
 
 	return probeResult{code: code, stdout: out.String(), stderr: errOut.String()}
 }
@@ -152,7 +145,7 @@ func commandPaths(t *testing.T, want func(*cobra.Command) bool) [][]string {
 	t.Helper()
 
 	var paths [][]string
-	walkCommands(newRootCmd(), func(cmd *cobra.Command) {
+	walkCommands(newRootCmd(&output.Options{}), func(cmd *cobra.Command) {
 		if want(cmd) {
 			paths = append(paths, argPath(cmd))
 		}
@@ -218,7 +211,7 @@ func argCountProbes(t *testing.T) []argCountProbe {
 	t.Helper()
 
 	var probes []argCountProbe
-	walkCommands(newRootCmd(), func(cmd *cobra.Command) {
+	walkCommands(newRootCmd(&output.Options{}), func(cmd *cobra.Command) {
 		if cmd.HasSubCommands() || cmd.Args == nil {
 			return
 		}
@@ -283,8 +276,6 @@ func debugForms(probe rejectionProbe) [][]string {
 // --debug in both --json positions. The probes come from the tree, so a
 // command added later is covered without this file being edited.
 func TestContractDebugKeepsStdoutEmpty(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	probes := derivedRejections(t)
 	if len(probes) == 0 {
 		t.Fatal("no bad invocation was derived, the walk is not reaching the tree")
@@ -309,9 +300,7 @@ func TestContractDebugKeepsStdoutEmpty(t *testing.T) {
 }
 
 func TestContractEveryLeafDeclaresArgs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
-	walkCommands(newRootCmd(), func(cmd *cobra.Command) {
+	walkCommands(newRootCmd(&output.Options{}), func(cmd *cobra.Command) {
 		if cmd.HasSubCommands() || cmd.Args != nil {
 			return
 		}
@@ -322,8 +311,6 @@ func TestContractEveryLeafDeclaresArgs(t *testing.T) {
 }
 
 func TestContractGroupsRejectUnknownSubcommand(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	paths := commandPaths(t, hasSubCommands)
 	if len(paths) == 0 {
 		t.Fatal("no command with subcommands found, the walk is not reaching the tree")
@@ -343,8 +330,6 @@ func TestContractGroupsRejectUnknownSubcommand(t *testing.T) {
 }
 
 func TestContractGroupsRejectMissingSubcommand(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	paths := commandPaths(t, hasSubCommands)
 	if len(paths) == 0 {
 		t.Fatal("no command with subcommands found, the walk is not reaching the tree")
@@ -364,8 +349,6 @@ func TestContractGroupsRejectMissingSubcommand(t *testing.T) {
 }
 
 func TestContractEveryCommandRejectsUnknownFlag(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	paths := commandPaths(t, acceptAnyCommand)
 	if len(paths) == 0 {
 		t.Fatal("no command found, the walk is not reaching the tree")
@@ -385,8 +368,6 @@ func TestContractEveryCommandRejectsUnknownFlag(t *testing.T) {
 }
 
 func TestContractEveryLeafRejectsBadArgCount(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	probes := argCountProbes(t)
 	if len(probes) == 0 {
 		t.Fatal("no leaf declares an argument count it rejects, the walk is not reaching the tree")
@@ -423,10 +404,8 @@ func issueKeyArgs(t *testing.T, cmd *cobra.Command) []string {
 // silently. runProbe clears credentials, so a leaf that checked auth first would
 // exit 3 here rather than 1.
 func TestEveryLeafRejectsAllWithCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	var probed []string
-	walkCommands(newRootCmd(), func(cmd *cobra.Command) {
+	walkCommands(newRootCmd(&output.Options{}), func(cmd *cobra.Command) {
 		if cmd.HasSubCommands() || cmd.Flags().Lookup("all") == nil || cmd.Flags().Lookup("cursor") == nil {
 			return
 		}
@@ -460,8 +439,6 @@ func TestEveryLeafRejectsAllWithCursor(t *testing.T) {
 // a leaf the walk skipped, a wrong argument path, or a flattening that kept only
 // one of the counts a validator rejects.
 func TestContractProbeSetCoversTheTree(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	flagProbed := pathSet(commandPaths(t, acceptAnyCommand))
 	subcommandProbed := pathSet(commandPaths(t, hasSubCommands))
 
@@ -471,7 +448,7 @@ func TestContractProbeSetCoversTheTree(t *testing.T) {
 		countProbed[key] = append(countProbed[key], probe.count)
 	}
 
-	walkCommands(newRootCmd(), func(cmd *cobra.Command) {
+	walkCommands(newRootCmd(&output.Options{}), func(cmd *cobra.Command) {
 		path := strings.Join(argPath(cmd), " ")
 
 		if !flagProbed[path] {
@@ -831,19 +808,20 @@ func TestUnknownFlagPrefixSuggestsTheFullName(t *testing.T) {
 // os.Stderr are wired up there and nowhere else, so nothing else in this suite
 // notices when that wiring breaks.
 func TestExecuteWiring(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
 	t.Setenv("YTR_CONFIG_DIR", t.TempDir())
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("CLICOLOR_FORCE", "1")
 
 	realArgs, realOut, realErr := os.Args, os.Stdout, os.Stderr
 	t.Cleanup(func() { os.Args, os.Stdout, os.Stderr = realArgs, realOut, realErr })
 
 	cases := []struct {
-		name     string
-		argv     []string
-		wantCode int
-		wantOut  string
-		wantErr  string
+		name          string
+		argv          []string
+		wantCode      int
+		wantOut       string
+		wantErr       string
+		wantErrPrefix string
 	}{
 		// version needs no credentials, so the good invocation stays offline.
 		{
@@ -857,6 +835,12 @@ func TestExecuteWiring(t *testing.T) {
 			argv:     []string{"ytr", "vershon", "--json", "version"},
 			wantCode: ytrerrors.ExitUserError,
 			wantErr:  `"code":"user_error"`,
+		},
+		{
+			name:          "bad invocation in human mode takes colors from the environment",
+			argv:          []string{"ytr", "vershon"},
+			wantCode:      ytrerrors.ExitUserError,
+			wantErrPrefix: "\x1b[1;31mError\x1b[0m",
 		},
 	}
 
@@ -877,11 +861,14 @@ func TestExecuteWiring(t *testing.T) {
 		if c.wantOut != "" && !strings.Contains(gotOut, c.wantOut) {
 			t.Errorf("%s: stdout = %q, want it to contain %q", c.name, gotOut, c.wantOut)
 		}
-		if c.wantErr == "" && gotErr != "" {
+		if c.wantErr == "" && c.wantErrPrefix == "" && gotErr != "" {
 			t.Errorf("%s: stderr = %q, want empty", c.name, gotErr)
 		}
 		if c.wantErr != "" && !strings.Contains(gotErr, c.wantErr) {
 			t.Errorf("%s: stderr = %q, want it to contain %q", c.name, gotErr, c.wantErr)
+		}
+		if !strings.HasPrefix(gotErr, c.wantErrPrefix) {
+			t.Errorf("%s: stderr = %q, want it to start with %q", c.name, gotErr, c.wantErrPrefix)
 		}
 	}
 }

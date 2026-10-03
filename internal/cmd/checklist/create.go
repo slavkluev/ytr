@@ -85,19 +85,21 @@ SEE ALSO
 }
 
 func runCreate(cmd *cobra.Command, issueKey, textFlag, assigneeFlag, fromJSON string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "checklist create", ChecklistFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = ChecklistFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = ChecklistFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, ChecklistFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, ChecklistFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, ChecklistFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, ChecklistFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -142,27 +144,27 @@ func runCreate(cmd *cobra.Command, issueKey, textFlag, assigneeFlag, fromJSON st
 	// exit here would make agents retry and create duplicates (create isn't
 	// idempotent).
 	if created := extractCreatedItem(issue, req); created != nil {
-		return renderCreateOutput(cmd.OutOrStdout(), toChecklistItem(created), issueKey)
+		return renderCreateOutput(cmd.OutOrStdout(), opts, toChecklistItem(created), issueKey)
 	}
-	return renderCreateOutput(cmd.OutOrStdout(), requestedChecklistItem(req), issueKey)
+	return renderCreateOutput(cmd.OutOrStdout(), opts, requestedChecklistItem(req), issueKey)
 }
 
-func renderCreateOutput(w io.Writer, item checklistItem, issueKey string) error {
-	if output.IsJSON() {
-		if output.HasFieldSelection() {
-			filtered := output.FilterFields(item, output.JSONFields)
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+func renderCreateOutput(w io.Writer, opts *output.Options, item checklistItem, issueKey string) error {
+	if opts.IsJSON() {
+		if opts.HasFieldSelection() {
+			filtered := output.FilterFields(item, opts.JSONFields)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, item, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, item, opts.JQFilter)
 		}
-		return output.PrintJSON(w, item)
+		return opts.PrintJSON(w, item)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, item.ID)
 		return nil
 	}

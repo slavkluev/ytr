@@ -59,8 +59,8 @@ type TablePrinter struct {
 // On a TTY it applies the gh-CLI-style borderless format, respects terminal
 // width, and disables header formatting when colors are not enabled.
 // Off a TTY it emits tab-separated rows instead.
-func NewTable(out io.Writer) *TablePrinter {
-	if !IsTTY() {
+func (o *Options) NewTable(out io.Writer) *TablePrinter {
+	if !o.TTY {
 		return &TablePrinter{out: out, lean: true}
 	}
 
@@ -68,12 +68,12 @@ func NewTable(out io.Writer) *TablePrinter {
 	tw.SetOutputMirror(out)
 
 	style := StyleGH
-	if !ColorsEnabled() {
+	if !o.Colors {
 		style.Format.Header = text.FormatDefault
 	}
 	tw.SetStyle(style)
 
-	maxWidth := TerminalWidth()
+	maxWidth := o.TerminalWidth()
 	tw.SetAllowedRowLength(maxWidth)
 
 	return &TablePrinter{

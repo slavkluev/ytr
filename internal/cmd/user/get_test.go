@@ -12,7 +12,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // mockUserGetter implements userGetter for testing.
@@ -29,7 +28,7 @@ func (m *mockUserGetter) Get(_ context.Context, _ string) (*tracker.User, *track
 	return m.user, m.resp, nil
 }
 
-func setupGetCmd(t *testing.T, mock *mockUserGetter, args []string) (string, error) {
+func setupGetCmd(t *testing.T, mock *mockUserGetter, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origGetter := newUserGetter
@@ -49,7 +48,7 @@ func setupGetCmd(t *testing.T, mock *mockUserGetter, args []string) (string, err
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -58,7 +57,7 @@ func TestGet(t *testing.T) {
 		name  string
 		mock  *mockUserGetter
 		args  []string
-		setup func(t *testing.T)
+		opts  output.Options
 		check func(t *testing.T, out string, err error)
 	}{
 		{
@@ -84,10 +83,7 @@ func TestGet(t *testing.T) {
 			name: "json output",
 			mock: &mockUserGetter{user: fullUser(), resp: &tracker.Response{}},
 			args: []string{"user123"},
-			setup: func(t *testing.T) {
-				t.Helper()
-				output.JSONFields = UserDetailFields
-			},
+			opts: output.Options{JSONFields: UserDetailFields},
 			check: func(t *testing.T, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -108,10 +104,7 @@ func TestGet(t *testing.T) {
 			name: "quiet output",
 			mock: &mockUserGetter{user: fullUser(), resp: &tracker.Response{}},
 			args: []string{"user123"},
-			setup: func(t *testing.T) {
-				t.Helper()
-				output.QuietFlag = true
-			},
+			opts: output.Options{Quiet: true},
 			check: func(t *testing.T, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -163,11 +156,7 @@ func TestGet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup(t)
-			}
-			out, err := setupGetCmd(t, tt.mock, tt.args)
+			out, err := setupGetCmd(t, tt.mock, tt.opts, tt.args)
 			tt.check(t, out, err)
 		})
 	}

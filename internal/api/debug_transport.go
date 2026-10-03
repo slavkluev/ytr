@@ -61,7 +61,8 @@ func newDebugTransport(base http.RoundTripper, authSource string) http.RoundTrip
 
 func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	base := t.target(req)
-	if !output.DebugEnabled() {
+	opts := output.FromContext(req.Context())
+	if !opts.Debug {
 		return base.RoundTrip(req)
 	}
 
@@ -72,10 +73,10 @@ func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	if bodySummary := summarizeRequestBody(req); bodySummary != "" {
-		output.Debugf("request %s %s auth_source=%s %s",
+		opts.Debugf("request %s %s auth_source=%s %s",
 			req.Method, path, authSource, bodySummary)
 	} else {
-		output.Debugf("request %s %s auth_source=%s",
+		opts.Debugf("request %s %s auth_source=%s",
 			req.Method, path, authSource)
 	}
 
@@ -83,7 +84,7 @@ func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp, err := base.RoundTrip(req)
 	duration := formatDebugDuration(time.Since(start))
 	if err != nil {
-		output.Debugf("transport_error method=%s path=%s duration=%s error=%q",
+		opts.Debugf("transport_error method=%s path=%s duration=%s error=%q",
 			req.Method, path, duration, output.SanitizeDebugString(err.Error()))
 		return nil, err
 	}
@@ -95,15 +96,15 @@ func (t *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	requestID := output.SanitizeDebugString(extractRequestID(resp.Header))
 	if requestID != "" {
-		output.Debugf("response %d method=%s path=%s duration=%s request_id=%s",
+		opts.Debugf("response %d method=%s path=%s duration=%s request_id=%s",
 			resp.StatusCode, req.Method, path, duration, requestID)
 	} else {
-		output.Debugf("response %d method=%s path=%s duration=%s",
+		opts.Debugf("response %d method=%s path=%s duration=%s",
 			resp.StatusCode, req.Method, path, duration)
 	}
 
 	if responsePreview != "" {
-		output.Debugf("response_preview text=%q", responsePreview)
+		opts.Debugf("response_preview text=%q", responsePreview)
 	}
 
 	return resp, nil

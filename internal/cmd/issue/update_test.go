@@ -11,7 +11,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // mockEditor implements issueEditor for testing.
@@ -41,7 +40,7 @@ func (m *mockEditor) Edit(
 	return m.issue, m.resp, nil
 }
 
-func setupUpdateCmd(t *testing.T, mock *mockEditor, args []string) (string, error) {
+func setupUpdateCmd(t *testing.T, mock *mockEditor, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origEditor := newEditor
@@ -61,18 +60,17 @@ func setupUpdateCmd(t *testing.T, mock *mockEditor, args []string) (string, erro
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestUpdateSummaryOnly(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockEditor{
 		issue: makeCreatedIssue("PROJ-123", "new title", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupUpdateCmd(t, mock, []string{"PROJ-123", "--summary", "new title"})
+	_, err := setupUpdateCmd(t, mock, output.Options{}, []string{"PROJ-123", "--summary", "new title"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -95,13 +93,12 @@ func TestUpdateSummaryOnly(t *testing.T) {
 }
 
 func TestUpdateMultipleFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockEditor{
 		issue: makeCreatedIssue("PROJ-123", "updated", "InProgress"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupUpdateCmd(t, mock, []string{
+	_, err := setupUpdateCmd(t, mock, output.Options{}, []string{
 		"PROJ-123",
 		"--summary", "updated",
 		"--priority", "critical",
@@ -120,13 +117,12 @@ func TestUpdateMultipleFields(t *testing.T) {
 }
 
 func TestUpdateFromJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockEditor{
 		issue: makeCreatedIssue("PROJ-123", "json update", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupUpdateCmd(t, mock, []string{
+	_, err := setupUpdateCmd(t, mock, output.Options{}, []string{
 		"PROJ-123",
 		"--from-json", `{"summary":"json update"}`,
 	})
@@ -141,13 +137,12 @@ func TestUpdateFromJSON(t *testing.T) {
 }
 
 func TestUpdateFromJSONMutualExclusion(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockEditor{
 		issue: makeCreatedIssue("PROJ-123", "test", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupUpdateCmd(t, mock, []string{
+	_, err := setupUpdateCmd(t, mock, output.Options{}, []string{
 		"PROJ-123",
 		"--from-json", `{"summary":"test"}`,
 		"--summary", "extra",
@@ -166,13 +161,12 @@ func TestUpdateFromJSONMutualExclusion(t *testing.T) {
 }
 
 func TestUpdateNoFlags(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockEditor{
 		issue: makeCreatedIssue("PROJ-123", "test", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupUpdateCmd(t, mock, []string{"PROJ-123"})
+	_, err := setupUpdateCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err == nil {
 		t.Fatal("expected error for no flags, got nil")
 	}
@@ -183,13 +177,12 @@ func TestUpdateNoFlags(t *testing.T) {
 }
 
 func TestUpdateInvalidKey(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockEditor{
 		issue: makeCreatedIssue("PROJ-123", "test", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupUpdateCmd(t, mock, []string{"bad-key", "--summary", "test"})
+	_, err := setupUpdateCmd(t, mock, output.Options{}, []string{"bad-key", "--summary", "test"})
 	if err == nil {
 		t.Fatal("expected error for invalid key, got nil")
 	}
@@ -200,14 +193,17 @@ func TestUpdateInvalidKey(t *testing.T) {
 }
 
 func TestUpdateJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueDetailFields
 	mock := &mockEditor{
 		issue: makeCreatedIssue("PROJ-123", "updated", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupUpdateCmd(t, mock, []string{"PROJ-123", "--summary", "updated"})
+	out, err := setupUpdateCmd(
+		t,
+		mock,
+		output.Options{JSONFields: IssueDetailFields},
+		[]string{"PROJ-123", "--summary", "updated"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -223,14 +219,12 @@ func TestUpdateJSON(t *testing.T) {
 }
 
 func TestUpdateQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
 	mock := &mockEditor{
 		issue: makeCreatedIssue("PROJ-123", "updated", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupUpdateCmd(t, mock, []string{"PROJ-123", "--summary", "updated"})
+	out, err := setupUpdateCmd(t, mock, output.Options{Quiet: true}, []string{"PROJ-123", "--summary", "updated"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -242,13 +236,12 @@ func TestUpdateQuiet(t *testing.T) {
 }
 
 func TestUpdateTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockEditor{
 		issue: makeCreatedIssue("PROJ-123", "updated title", "InProgress"),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupUpdateCmd(t, mock, []string{"PROJ-123", "--summary", "updated title"})
+	out, err := setupUpdateCmd(t, mock, output.Options{}, []string{"PROJ-123", "--summary", "updated title"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

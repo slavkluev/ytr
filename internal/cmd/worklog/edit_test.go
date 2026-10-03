@@ -13,7 +13,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // mockWorklogEditor implements worklogEditor for testing.
@@ -40,7 +39,7 @@ func (m *mockWorklogEditor) EditWorklog(
 	return m.worklog, m.resp, nil
 }
 
-func setupEditCmd(t *testing.T, mock *mockWorklogEditor, args []string) (string, error) {
+func setupEditCmd(t *testing.T, mock *mockWorklogEditor, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origEditor := newWorklogEditor
@@ -60,19 +59,17 @@ func setupEditCmd(t *testing.T, mock *mockWorklogEditor, args []string) (string,
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestEditDurationOnly(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{
 		worklog: makeWorklog("wl-edit1", "Updated", 120),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{"PROJ-123", "wl-edit1", "--duration", "PT2H"})
+	out, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-123", "wl-edit1", "--duration", "PT2H"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -84,14 +81,12 @@ func TestEditDurationOnly(t *testing.T) {
 }
 
 func TestEditComment(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{
 		worklog: makeWorklog("wl-c", "New comment", 60),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{"PROJ-1", "wl-c", "--comment", "New comment"})
+	out, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-1", "wl-c", "--comment", "New comment"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -102,14 +97,12 @@ func TestEditComment(t *testing.T) {
 }
 
 func TestEditStart(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{
 		worklog: makeWorklog("wl-s", "", 60),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{
+	out, err := setupEditCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "wl-s", "--start", "2026-03-30T14:00:00Z",
 	})
 	if err != nil {
@@ -122,14 +115,12 @@ func TestEditStart(t *testing.T) {
 }
 
 func TestEditAllFlags(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{
 		worklog: makeWorklog("wl-all", "All updated", 180),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{
+	out, err := setupEditCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "wl-all",
 		"--duration", "PT3H",
 		"--comment", "All updated",
@@ -145,15 +136,17 @@ func TestEditAllFlags(t *testing.T) {
 }
 
 func TestEditJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = WorklogFields
-
 	mock := &mockWorklogEditor{
 		worklog: makeWorklog("wl-json", "JSON edit", 60),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{"PROJ-1", "wl-json", "--duration", "PT1H"})
+	out, err := setupEditCmd(
+		t,
+		mock,
+		output.Options{JSONFields: WorklogFields},
+		[]string{"PROJ-1", "wl-json", "--duration", "PT1H"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -169,15 +162,12 @@ func TestEditJSON(t *testing.T) {
 }
 
 func TestEditQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockWorklogEditor{
 		worklog: makeWorklog("wl-quiet", "", 60),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{"PROJ-1", "wl-quiet", "--duration", "PT1H"})
+	out, err := setupEditCmd(t, mock, output.Options{Quiet: true}, []string{"PROJ-1", "wl-quiet", "--duration", "PT1H"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -189,14 +179,12 @@ func TestEditQuiet(t *testing.T) {
 }
 
 func TestEditFromJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{
 		worklog: makeWorklog("wl-fj", "From JSON", 120),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupEditCmd(t, mock, []string{
+	out, err := setupEditCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "wl-fj", "--from-json", `{"duration":"PT2H"}`,
 	})
 	if err != nil {
@@ -209,11 +197,9 @@ func TestEditFromJSON(t *testing.T) {
 }
 
 func TestEditMutualExclusion(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{}
 
-	_, err := setupEditCmd(t, mock, []string{
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "wl-1", "--from-json", `{"duration":"PT1H"}`, "--duration", "PT2H",
 	})
 	if err == nil {
@@ -226,11 +212,9 @@ func TestEditMutualExclusion(t *testing.T) {
 }
 
 func TestEditNoFlags(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{}
 
-	_, err := setupEditCmd(t, mock, []string{"PROJ-1", "wl-1"})
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-1", "wl-1"})
 	if err == nil {
 		t.Fatal("expected error for no flags, got nil")
 	}
@@ -241,11 +225,9 @@ func TestEditNoFlags(t *testing.T) {
 }
 
 func TestEditInvalidIssueKey(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{}
 
-	_, err := setupEditCmd(t, mock, []string{"bad", "wl-1", "--duration", "PT1H"})
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{"bad", "wl-1", "--duration", "PT1H"})
 	if err == nil {
 		t.Fatal("expected error for invalid issue key, got nil")
 	}
@@ -256,11 +238,9 @@ func TestEditInvalidIssueKey(t *testing.T) {
 }
 
 func TestEditEmptyWorklogID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{}
 
-	_, err := setupEditCmd(t, mock, []string{"PROJ-1", " ", "--duration", "PT1H"})
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-1", " ", "--duration", "PT1H"})
 	if err == nil {
 		t.Fatal("expected error for empty worklog ID, got nil")
 	}
@@ -271,13 +251,11 @@ func TestEditEmptyWorklogID(t *testing.T) {
 }
 
 func TestEditAPIError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{
 		err: errors.New("connection refused"),
 	}
 
-	_, err := setupEditCmd(t, mock, []string{"PROJ-1", "wl-1", "--duration", "PT1H"})
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-1", "wl-1", "--duration", "PT1H"})
 	if err == nil {
 		t.Fatal("expected error from API, got nil")
 	}
@@ -288,14 +266,12 @@ func TestEditAPIError(t *testing.T) {
 }
 
 func TestEditRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{
 		worklog: makeWorklog("wl-cap", "", 60),
 		resp:    &tracker.Response{},
 	}
 
-	_, err := setupEditCmd(t, mock, []string{
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{
 		"PROJ-123", "wl-cap", "--duration", "PT1H",
 	})
 	if err != nil {
@@ -324,14 +300,12 @@ func TestEditRequestCapture(t *testing.T) {
 }
 
 func TestEditFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogEditor{
 		worklog: makeWorklog("wl-unknown", "From JSON", 120),
 		resp:    &tracker.Response{},
 	}
 
-	_, err := setupEditCmd(t, mock, []string{
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "wl-unknown", "--from-json", `{"duration":"PT2H","bogus":1}`,
 	})
 	if err == nil {

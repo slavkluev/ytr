@@ -11,12 +11,10 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 func TestLogout_ClearsAuth(t *testing.T) {
 	dir := setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 	writeConfig(t, dir, "existing-token", "existing-org", "cloud")
 
 	logoutCmd := newLogoutCmd()
@@ -54,7 +52,6 @@ func TestLogout_ClearsAuth(t *testing.T) {
 
 func TestLogout_NoConfig(t *testing.T) {
 	setupConfigDir(t) // empty dir, no config file
-	testutil.ResetOutputFlags(t)
 
 	logoutCmd := newLogoutCmd()
 	buf := new(bytes.Buffer)
@@ -70,7 +67,6 @@ func TestLogout_NoConfig(t *testing.T) {
 
 func TestLogout_PreservesFile(t *testing.T) {
 	dir := setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 	writeConfig(t, dir, "some-token", "some-org", "360")
 
 	logoutCmd := newLogoutCmd()
@@ -93,11 +89,10 @@ func TestLogout_PreservesFile(t *testing.T) {
 
 func TestLogout_JSON(t *testing.T) {
 	dir := setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 	writeConfig(t, dir, "some-token", "some-org", "360")
 
-	// Auth commands detect JSON via output.IsJSON() or cmd.Flags().Changed("json").
-	output.JSONFields = []string{"dummy"}
+	// Auth commands detect JSON via opts.IsJSON() or cmd.Flags().Changed("json").
+	opts := output.Options{JSONFields: []string{"dummy"}}
 
 	logoutCmd := newLogoutCmd()
 	buf := new(bytes.Buffer)
@@ -105,7 +100,7 @@ func TestLogout_JSON(t *testing.T) {
 	logoutCmd.SetErr(buf)
 	logoutCmd.SetArgs([]string{})
 
-	err := logoutCmd.Execute()
+	err := logoutCmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -125,7 +120,6 @@ func TestLogout_JSON(t *testing.T) {
 
 func TestLogout_HumanOutputGoesToStderr(t *testing.T) {
 	dir := setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 	writeConfig(t, dir, "some-token", "some-org", "360")
 
 	logoutCmd := newLogoutCmd()

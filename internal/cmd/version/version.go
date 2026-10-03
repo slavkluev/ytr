@@ -46,40 +46,42 @@ SEE ALSO
 }
 
 func runVersion(cmd *cobra.Command, _ []string) error {
+	opts := output.FromContext(cmd.Context())
+
 	info := ver.Get()
 
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "version", VersionFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = VersionFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = VersionFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, VersionFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, VersionFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, VersionFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, VersionFields)
 	}
 
-	if output.IsJSON() {
-		if output.HasFieldSelection() {
-			filtered := output.FilterFields(info, output.JSONFields)
-			if output.JQFilter != "" {
-				return output.ApplyJQ(cmd.OutOrStdout(), filtered, output.JQFilter)
+	if opts.IsJSON() {
+		if opts.HasFieldSelection() {
+			filtered := output.FilterFields(info, opts.JSONFields)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(cmd.OutOrStdout(), filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(cmd.OutOrStdout(), filtered)
+			return opts.PrintJSON(cmd.OutOrStdout(), filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(cmd.OutOrStdout(), info, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(cmd.OutOrStdout(), info, opts.JQFilter)
 		}
-		return output.PrintJSON(cmd.OutOrStdout(), info)
+		return opts.PrintJSON(cmd.OutOrStdout(), info)
 	}
 
 	w := cmd.OutOrStdout()
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, info.Version)
 		return nil
 	}

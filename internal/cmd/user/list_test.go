@@ -66,7 +66,7 @@ func makeUsers() []*tracker.User {
 	}
 }
 
-func setupListCmd(t *testing.T, mock *mockUserLister, args []string) (string, error) {
+func setupListCmd(t *testing.T, mock *mockUserLister, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origLister := newUserLister
@@ -86,7 +86,7 @@ func setupListCmd(t *testing.T, mock *mockUserLister, args []string) (string, er
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -95,7 +95,7 @@ func TestList(t *testing.T) {
 		name  string
 		mock  *mockUserLister
 		args  []string
-		setup func(t *testing.T)
+		opts  output.Options
 		check func(t *testing.T, out string, err error, mock *mockUserLister)
 	}{
 		{
@@ -128,10 +128,7 @@ func TestList(t *testing.T) {
 				resp:  &tracker.Response{TotalCount: 2},
 			},
 			args: []string{},
-			setup: func(t *testing.T) {
-				t.Helper()
-				output.JSONFields = UserListFields
-			},
+			opts: output.Options{JSONFields: UserListFields},
 			check: func(t *testing.T, out string, err error, _ *mockUserLister) {
 				t.Helper()
 				if err != nil {
@@ -164,10 +161,7 @@ func TestList(t *testing.T) {
 				resp:  &tracker.Response{TotalCount: 2},
 			},
 			args: []string{},
-			setup: func(t *testing.T) {
-				t.Helper()
-				output.QuietFlag = true
-			},
+			opts: output.Options{Quiet: true},
 			check: func(t *testing.T, out string, err error, _ *mockUserLister) {
 				t.Helper()
 				if err != nil {
@@ -239,10 +233,7 @@ func TestList(t *testing.T) {
 				resp:  &tracker.Response{TotalCount: 2},
 			},
 			args: []string{},
-			setup: func(t *testing.T) {
-				t.Helper()
-				output.JQFilter = ".items[0].login"
-			},
+			opts: output.Options{JQFilter: ".items[0].login"},
 			check: func(t *testing.T, out string, err error, _ *mockUserLister) {
 				t.Helper()
 				if err != nil {
@@ -258,25 +249,19 @@ func TestList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup(t)
-			}
-			out, err := setupListCmd(t, tt.mock, tt.args)
+			out, err := setupListCmd(t, tt.mock, tt.opts, tt.args)
 			tt.check(t, out, err, tt.mock)
 		})
 	}
 }
 
 func TestListInvalidCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockUserLister{
 		users: makeUsers(),
 		resp:  &tracker.Response{TotalCount: 2},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--cursor", "abc"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"--cursor", "abc"})
 	if err == nil {
 		t.Fatal("expected error for invalid cursor, got nil")
 	}

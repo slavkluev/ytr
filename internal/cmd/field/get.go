@@ -128,19 +128,21 @@ SEE ALSO
 }
 
 func runGet(cmd *cobra.Command, fieldKey, queueFlag string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "field get", FieldGetFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = FieldGetFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = FieldGetFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, FieldGetFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, FieldGetFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, FieldGetFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, FieldGetFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -166,32 +168,32 @@ func runGet(cmd *cobra.Command, fieldKey, queueFlag string) error {
 
 	w := cmd.OutOrStdout()
 
-	if output.IsJSON() {
+	if opts.IsJSON() {
 		detail := toFieldDetail(field)
 
-		if output.HasFieldSelection() {
-			filtered := output.FilterFields(detail, output.JSONFields)
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+		if opts.HasFieldSelection() {
+			filtered := output.FilterFields(detail, opts.JSONFields)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, detail, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, detail, opts.JQFilter)
 		}
-		return output.PrintJSON(w, detail)
+		return opts.PrintJSON(w, detail)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, api.DerefString(field.Key, ""))
 		return nil
 	}
 
-	return renderFieldCard(w, field)
+	return renderFieldCard(w, opts, field)
 }
 
-func renderFieldCard(w io.Writer, field *tracker.Field) error {
-	d := output.NewDetail(w)
+func renderFieldCard(w io.Writer, opts *output.Options, field *tracker.Field) error {
+	d := opts.NewDetail(w)
 
 	d.Field("ID", api.DerefFlexString(field.ID, "-"))
 	d.Field("Key", api.DerefString(field.Key, "-"))

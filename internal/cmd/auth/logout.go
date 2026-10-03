@@ -27,6 +27,8 @@ SEE ALSO
 }
 
 func runLogout(cmd *cobra.Command, args []string) error {
+	opts := output.FromContext(cmd.Context())
+
 	// Load existing config; treat missing file as success (nothing to log out of).
 	cfg, err := config.Load()
 	if err != nil {
@@ -46,9 +48,9 @@ func runLogout(cmd *cobra.Command, args []string) error {
 	cfgPath, _ := config.ConfigFilePath()
 
 	// No field selection or hints -- fixed-structure JSON.
-	jsonRequested := cmd.Flags().Changed("json") || output.IsJSON()
+	jsonRequested := cmd.Flags().Changed("json") || opts.IsJSON()
 	if jsonRequested {
-		return output.PrintJSON(cmd.OutOrStdout(), map[string]string{
+		return opts.PrintJSON(cmd.OutOrStdout(), map[string]string{
 			"status":      "logged_out",
 			"config_path": cfgPath,
 		})

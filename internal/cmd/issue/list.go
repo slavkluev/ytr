@@ -137,24 +137,26 @@ func runList(
 	cursor string,
 	all bool,
 ) error {
+	opts := output.FromContext(cmd.Context())
+
 	// Validate flag conflicts before any API work.
 	if err := validateSearchFlags(cmd); err != nil {
 		return err
 	}
 
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue list", IssueListFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = IssueListFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = IssueListFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, IssueListFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, IssueListFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, IssueListFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueListFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -206,7 +208,7 @@ func runList(
 		return err
 	}
 
-	return renderListOutput(cmd.OutOrStdout(), result)
+	return renderListOutput(cmd.OutOrStdout(), opts, result)
 }
 
 func validateSearchFlags(cmd *cobra.Command) error {
@@ -327,12 +329,12 @@ func fetchAllIssuePages(cmd *cobra.Command, searcher issueSearcher,
 	return &issueSearchResult{issues: allIssues, totalCount: totalCount}, nil
 }
 
-func renderListOutput(w io.Writer, result *issueSearchResult) error {
-	if output.IsJSON() {
-		return renderListJSON(w, result)
+func renderListOutput(w io.Writer, opts *output.Options, result *issueSearchResult) error {
+	if opts.IsJSON() {
+		return renderListJSON(w, opts, result)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		keys := make([]string, len(result.issues))
 		for i, issue := range result.issues {
 			keys[i] = api.DerefString(issue.Key, "")
@@ -341,20 +343,20 @@ func renderListOutput(w io.Writer, result *issueSearchResult) error {
 		return nil
 	}
 
-	return renderListTable(w, result.issues)
+	return renderListTable(w, opts, result.issues)
 }
 
-func renderListJSON(w io.Writer, result *issueSearchResult) error {
+func renderListJSON(w io.Writer, opts *output.Options, result *issueSearchResult) error {
 	items := make([]issueListItem, len(result.issues))
 	for i, issue := range result.issues {
 		items[i] = toListItem(issue)
 	}
 
 	var data any
-	if output.HasFieldSelection() {
+	if opts.HasFieldSelection() {
 		filtered := make([]map[string]any, len(items))
 		for i, item := range items {
-			filtered[i] = output.FilterFields(item, output.JSONFields)
+			filtered[i] = output.FilterFields(item, opts.JSONFields)
 		}
 		data = output.PaginatedResult{
 			Items: filtered,
@@ -371,28 +373,28 @@ func renderListJSON(w io.Writer, result *issueSearchResult) error {
 		}
 	}
 
-	if output.JQFilter != "" {
-		return output.ApplyJQ(w, data, output.JQFilter)
+	if opts.JQFilter != "" {
+		return output.ApplyJQ(w, data, opts.JQFilter)
 	}
-	return output.PrintJSON(w, data)
+	return opts.PrintJSON(w, data)
 }
 
-func renderListTable(w io.Writer, issues []*tracker.Issue) error {
+func renderListTable(w io.Writer, opts *output.Options, issues []*tracker.Issue) error {
 	if len(issues) == 0 {
 		_, err := fmt.Fprintln(w, "No issues found")
 		return err
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("KEY", "STATUS", "ASSIGNEE", "SUMMARY")
 
 	for _, issue := range issues {
 		key := api.DerefString(issue.Key, "-")
 		statusVal := issueStatusDisplay(issue)
 		assigneeVal := api.DerefUser(issue.Assignee, "-")
-		summary := output.FitColumn(api.DerefString(issue.Summary, "-"), tableReservedWidth, minColumnWidth)
+		summary := opts.FitColumn(api.DerefString(issue.Summary, "-"), tableReservedWidth, minColumnWidth)
 
-		if output.ColorsEnabled() {
+		if opts.Colors {
 			statusVal = colorizeStatus(issue, statusVal)
 		}
 

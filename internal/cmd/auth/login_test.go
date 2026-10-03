@@ -19,7 +19,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // mockUserValidator is a test double for the userValidator interface.
@@ -95,7 +94,6 @@ func withValidatorFactory(
 
 func TestLoginWithFlags(t *testing.T) {
 	dir := setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 
 	display := "Test User"
 	withMockValidator(t, &mockUserValidator{
@@ -147,7 +145,6 @@ func TestLoginWithFlags(t *testing.T) {
 
 func TestLoginWithFlags_InvalidToken(t *testing.T) {
 	setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 
 	withMockValidator(t, &mockUserValidator{
 		err: errors.New("API request failed: unauthorized"),
@@ -180,16 +177,15 @@ func TestLoginWithFlags_InvalidToken(t *testing.T) {
 
 func TestLoginWithFlags_JSONOutput(t *testing.T) {
 	setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 
 	display := "JSON User"
 	withMockValidator(t, &mockUserValidator{
 		user: &tracker.User{Display: &display},
 	})
 
-	// Auth commands detect JSON via output.IsJSON() or cmd.Flags().Changed("json").
+	// Auth commands detect JSON via opts.IsJSON() or cmd.Flags().Changed("json").
 	// Setting JSONFields makes IsJSON() return true.
-	output.JSONFields = []string{"dummy"}
+	opts := output.Options{JSONFields: []string{"dummy"}}
 
 	loginCmd := newLoginCmd()
 	buf := new(bytes.Buffer)
@@ -201,7 +197,7 @@ func TestLoginWithFlags_JSONOutput(t *testing.T) {
 		"--org-type", "cloud",
 	})
 
-	err := loginCmd.Execute()
+	err := loginCmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -230,7 +226,6 @@ func TestLoginWithFlags_JSONOutput(t *testing.T) {
 
 func TestLoginPipedStdin(t *testing.T) {
 	dir := setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 
 	display := "Piped User"
 	withMockDetector(t, &mockOrgTypeDetector{
@@ -424,7 +419,6 @@ func TestDefaultOrgTypeDetector_AllFail(t *testing.T) {
 
 func TestLogin_AutodetectTransportFailuresUseNetworkSuggestion(t *testing.T) {
 	setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 
 	withMockDetector(t, &mockOrgTypeDetector{
 		err: &orgTypeDetectionError{
@@ -478,7 +472,6 @@ func TestLogin_AutodetectTransportFailuresUseNetworkSuggestion(t *testing.T) {
 
 func TestLogin_AutodetectSharedUserErrorUsesNeutralSuggestion(t *testing.T) {
 	setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 
 	withMockDetector(t, &mockOrgTypeDetector{
 		err: &orgTypeDetectionError{
@@ -526,7 +519,6 @@ func TestLogin_AutodetectSharedUserErrorUsesNeutralSuggestion(t *testing.T) {
 
 func TestLogin_AutodetectSharedServerErrorSuggestsRetry(t *testing.T) {
 	setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 
 	withMockDetector(t, &mockOrgTypeDetector{
 		err: &orgTypeDetectionError{
@@ -574,7 +566,6 @@ func TestLogin_AutodetectSharedServerErrorSuggestsRetry(t *testing.T) {
 
 func TestLogin_AutodetectMixedSemanticCodesSuggestsOrgType(t *testing.T) {
 	setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 
 	withMockDetector(t, &mockOrgTypeDetector{
 		err: &orgTypeDetectionError{
@@ -619,7 +610,6 @@ func TestLogin_AutodetectMixedSemanticCodesSuggestsOrgType(t *testing.T) {
 
 func TestLogin_AutodetectSharedSemanticCodeReturnsAuthError(t *testing.T) {
 	setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 
 	withMockDetector(t, &mockOrgTypeDetector{
 		err: &orgTypeDetectionError{
@@ -673,7 +663,6 @@ func TestLogin_AutodetectSharedSemanticCodeReturnsAuthError(t *testing.T) {
 
 func TestLoginNoOrgID(t *testing.T) {
 	setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 
 	// Provide a token via pipe but no org-id
 	r, w, err := os.Pipe()
@@ -710,7 +699,6 @@ func TestLoginNoOrgID(t *testing.T) {
 
 func TestLogin_InvalidOrgType(t *testing.T) {
 	setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 
 	loginCmd := newLoginCmd()
 	buf := new(bytes.Buffer)

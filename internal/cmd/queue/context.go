@@ -266,22 +266,24 @@ func newContextCmd() *cobra.Command {
 }
 
 func runContext(cmd *cobra.Command, queueKey string) error {
-	if output.IsQuiet() {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.Quiet {
 		return errors.NewUserError(
 			"queue context does not support --quiet: its document is always JSON",
 			"Run without --quiet: ytr queue context "+queueKey,
 		)
 	}
 
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "queue context", QueueContextFields)
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, QueueContextFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, QueueContextFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, QueueContextFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, QueueContextFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -302,16 +304,16 @@ func runContext(cmd *cobra.Command, queueKey string) error {
 		return api.MapAPIError(err)
 	}
 
-	wanted := wantedParts()
+	wanted := wantedParts(opts)
 	results := fetchParts(cmd.Context(), client, queueKey, workflowIDs(q), wanted)
 
-	return renderContext(cmd.OutOrStdout(), buildContext(q, queueKey, results, wanted))
+	return renderContext(cmd.OutOrStdout(), opts, buildContext(q, queueKey, results, wanted))
 }
 
-func wantedParts() map[string]bool {
+func wantedParts(opts *output.Options) map[string]bool {
 	fields := QueueContextFields
-	if output.HasFieldSelection() {
-		fields = output.JSONFields
+	if opts.HasFieldSelection() {
+		fields = opts.JSONFields
 	}
 	wanted := make(map[string]bool, len(fields))
 	for _, f := range fields {
@@ -619,16 +621,16 @@ func toContextGlobalFields(fields []*tracker.Field) []contextGlobalField {
 
 // incomplete is always included, so a narrowed document still says which of its
 // parts are missing.
-func renderContext(w io.Writer, doc *queueContext) error {
+func renderContext(w io.Writer, opts *output.Options, doc *queueContext) error {
 	var data any = doc
-	if output.HasFieldSelection() {
-		filtered := output.FilterFields(doc, output.JSONFields)
+	if opts.HasFieldSelection() {
+		filtered := output.FilterFields(doc, opts.JSONFields)
 		filtered["incomplete"] = doc.Incomplete
 		data = filtered
 	}
 
-	if output.JQFilter != "" {
-		return output.ApplyJQ(w, data, output.JQFilter)
+	if opts.JQFilter != "" {
+		return output.ApplyJQ(w, data, opts.JQFilter)
 	}
-	return output.PrintJSON(w, data)
+	return opts.PrintJSON(w, data)
 }

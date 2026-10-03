@@ -50,7 +50,7 @@ func makeCreatedWorklog(id, comment string) *tracker.Worklog {
 	}
 }
 
-func setupCreateCmd(t *testing.T, mock *mockWorklogCreator, args []string) (string, error) {
+func setupCreateCmd(t *testing.T, mock *mockWorklogCreator, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origCreator := newWorklogCreator
@@ -70,19 +70,17 @@ func setupCreateCmd(t *testing.T, mock *mockWorklogCreator, args []string) (stri
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestCreateMinimalRequiredFlags(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{
 		worklog: makeCreatedWorklog("wl-1", ""),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{
+	out, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-123",
 		"--duration", "PT1H30M",
 		"--start", "2026-03-30T10:00:00Z",
@@ -113,14 +111,12 @@ func TestCreateMinimalRequiredFlags(t *testing.T) {
 }
 
 func TestCreateAllFlags(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{
 		worklog: makeCreatedWorklog("wl-2", "Code review"),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{
+	out, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-123",
 		"--duration", "PT2H",
 		"--comment", "Code review",
@@ -136,15 +132,12 @@ func TestCreateAllFlags(t *testing.T) {
 }
 
 func TestCreateJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = WorklogFields
-
 	mock := &mockWorklogCreator{
 		worklog: makeCreatedWorklog("wl-json", "Test"),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{
+	out, err := setupCreateCmd(t, mock, output.Options{JSONFields: WorklogFields}, []string{
 		"PROJ-1",
 		"--duration", "PT1H",
 		"--start", "2026-03-30T10:00:00Z",
@@ -167,15 +160,12 @@ func TestCreateJSON(t *testing.T) {
 }
 
 func TestCreateQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockWorklogCreator{
 		worklog: makeCreatedWorklog("wl-quiet", ""),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{
+	out, err := setupCreateCmd(t, mock, output.Options{Quiet: true}, []string{
 		"PROJ-1",
 		"--duration", "PT30M",
 		"--start", "2026-03-30T10:00:00Z",
@@ -191,11 +181,9 @@ func TestCreateQuiet(t *testing.T) {
 }
 
 func TestCreateInvalidDuration(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-1",
 		"--duration", "invalid",
 		"--start", "2026-03-30T10:00:00Z",
@@ -210,11 +198,9 @@ func TestCreateInvalidDuration(t *testing.T) {
 }
 
 func TestCreateInvalidTimestamp(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "--duration", "PT1H", "--start", "not-a-date",
 	})
 	if err == nil {
@@ -227,11 +213,9 @@ func TestCreateInvalidTimestamp(t *testing.T) {
 }
 
 func TestCreateMissingStart(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{}
 
-	_, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--duration", "PT1H"})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-1", "--duration", "PT1H"})
 	if err == nil {
 		t.Fatal("expected error for missing start, got nil")
 	}
@@ -242,14 +226,12 @@ func TestCreateMissingStart(t *testing.T) {
 }
 
 func TestCreateFromJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{
 		worklog: makeCreatedWorklog("wl-fj", "From JSON"),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{
+	out, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "--from-json", `{"start":"2026-03-30T10:00:00Z","duration":"PT1H","comment":"From JSON"}`,
 	})
 	if err != nil {
@@ -262,11 +244,9 @@ func TestCreateFromJSON(t *testing.T) {
 }
 
 func TestCreateFromJSONMissingStart(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "--from-json", `{"duration":"PT1H","comment":"From JSON"}`,
 	})
 	if err == nil {
@@ -279,11 +259,9 @@ func TestCreateFromJSONMissingStart(t *testing.T) {
 }
 
 func TestCreateFromJSONMissingDuration(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "--from-json", `{"start":"2026-03-30T10:00:00Z","comment":"From JSON"}`,
 	})
 	if err == nil {
@@ -296,11 +274,9 @@ func TestCreateFromJSONMissingDuration(t *testing.T) {
 }
 
 func TestCreateMutualExclusion(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "--from-json", `{"duration":"PT1H"}`, "--duration", "PT2H",
 	})
 	if err == nil {
@@ -313,11 +289,9 @@ func TestCreateMutualExclusion(t *testing.T) {
 }
 
 func TestCreateMissingDuration(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{}
 
-	_, err := setupCreateCmd(t, mock, []string{"PROJ-1"})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-1"})
 	if err == nil {
 		t.Fatal("expected error for missing --duration, got nil")
 	}
@@ -328,13 +302,11 @@ func TestCreateMissingDuration(t *testing.T) {
 }
 
 func TestCreateAPIError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{
 		err: errors.New("connection refused"),
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-1",
 		"--duration", "PT1H",
 		"--start", "2026-03-30T10:00:00Z",
@@ -349,14 +321,12 @@ func TestCreateAPIError(t *testing.T) {
 }
 
 func TestCreateRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{
 		worklog: makeCreatedWorklog("wl-cap", ""),
 		resp:    &tracker.Response{},
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-123",
 		"--duration", "PT1H30M",
 		"--start", "2026-03-30T10:00:00Z",
@@ -385,14 +355,12 @@ func TestCreateRequestCapture(t *testing.T) {
 }
 
 func TestCreateFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockWorklogCreator{
 		worklog: makeCreatedWorklog("wl-unknown", "From JSON"),
 		resp:    &tracker.Response{},
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "--from-json", `{"start":"2026-03-30T10:00:00Z","duration":"PT1H","bogus":1}`,
 	})
 	if err == nil {

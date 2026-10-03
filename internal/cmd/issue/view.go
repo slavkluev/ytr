@@ -105,19 +105,21 @@ SEE ALSO
 }
 
 func runView(cmd *cobra.Command, args []string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue view", IssueDetailFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = IssueDetailFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = IssueDetailFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, IssueDetailFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, IssueDetailFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, IssueDetailFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueDetailFields)
 	}
 
 	issueKey := args[0]
@@ -138,36 +140,36 @@ func runView(cmd *cobra.Command, args []string) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderDetailOutput(cmd.OutOrStdout(), issue)
+	return renderDetailOutput(cmd.OutOrStdout(), opts, issue)
 }
 
-func renderDetailOutput(w io.Writer, issue *tracker.Issue) error {
-	if output.IsJSON() {
+func renderDetailOutput(w io.Writer, opts *output.Options, issue *tracker.Issue) error {
+	if opts.IsJSON() {
 		detail := toIssueDetail(issue)
 
-		if output.HasFieldSelection() {
-			filtered := output.FilterFields(detail, output.JSONFields)
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+		if opts.HasFieldSelection() {
+			filtered := output.FilterFields(detail, opts.JSONFields)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, detail, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, detail, opts.JQFilter)
 		}
-		return output.PrintJSON(w, detail)
+		return opts.PrintJSON(w, detail)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, api.DerefString(issue.Key, ""))
 		return nil
 	}
 
-	return renderDetailTable(w, issue)
+	return renderDetailTable(w, opts, issue)
 }
 
-func renderDetailTable(w io.Writer, issue *tracker.Issue) error {
-	d := output.NewDetail(w)
+func renderDetailTable(w io.Writer, opts *output.Options, issue *tracker.Issue) error {
+	d := opts.NewDetail(w)
 
 	d.Field("Key", api.DerefString(issue.Key, "-"))
 	d.Field("Title", api.DerefString(issue.Summary, "-"))
@@ -190,13 +192,13 @@ func renderDetailTable(w io.Writer, issue *tracker.Issue) error {
 
 	created := "-"
 	if issue.CreatedAt != nil {
-		created = output.FormatTime(issue.CreatedAt.Time)
+		created = opts.FormatTime(issue.CreatedAt.Time)
 	}
 	d.Field("Created", created)
 
 	updated := "-"
 	if issue.UpdatedAt != nil {
-		updated = output.FormatTime(issue.UpdatedAt.Time)
+		updated = opts.FormatTime(issue.UpdatedAt.Time)
 	}
 	d.Field("Updated", updated)
 

@@ -48,7 +48,7 @@ func makeCreatedComment(id string, body string) *tracker.Comment {
 	}
 }
 
-func setupCreateCmd(t *testing.T, mock *mockCommentCreator, args []string) (string, error) {
+func setupCreateCmd(t *testing.T, mock *mockCommentCreator, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origCreator := newCommentCreator
@@ -68,19 +68,17 @@ func setupCreateCmd(t *testing.T, mock *mockCommentCreator, args []string) (stri
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestCreateWithBody(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockCommentCreator{
 		comment: makeCreatedComment("555", "Hello"),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"PROJ-123", "--body", "Hello"})
+	out, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-123", "--body", "Hello"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -104,15 +102,17 @@ func TestCreateWithBody(t *testing.T) {
 }
 
 func TestCreateJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = CommentFields
-
 	mock := &mockCommentCreator{
 		comment: makeCreatedComment("42", "JSON test"),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--body", "JSON test"})
+	out, err := setupCreateCmd(
+		t,
+		mock,
+		output.Options{JSONFields: CommentFields},
+		[]string{"PROJ-1", "--body", "JSON test"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -134,15 +134,12 @@ func TestCreateJSON(t *testing.T) {
 }
 
 func TestCreateQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockCommentCreator{
 		comment: makeCreatedComment("99", "Quiet test"),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--body", "Quiet test"})
+	out, err := setupCreateCmd(t, mock, output.Options{Quiet: true}, []string{"PROJ-1", "--body", "Quiet test"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -154,14 +151,12 @@ func TestCreateQuiet(t *testing.T) {
 }
 
 func TestCreateTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockCommentCreator{
 		comment: makeCreatedComment("777", "Table test"),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"PROJ-5", "--body", "Table test"})
+	out, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-5", "--body", "Table test"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -173,11 +168,9 @@ func TestCreateTable(t *testing.T) {
 }
 
 func TestCreateMissingBody(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockCommentCreator{}
 
-	_, err := setupCreateCmd(t, mock, []string{"PROJ-1"})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-1"})
 	if err == nil {
 		t.Fatal("expected error for missing --body flag, got nil")
 	}
@@ -188,11 +181,9 @@ func TestCreateMissingBody(t *testing.T) {
 }
 
 func TestCreateInvalidKey(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockCommentCreator{}
 
-	_, err := setupCreateCmd(t, mock, []string{"bad-key", "--body", "text"})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"bad-key", "--body", "text"})
 	if err == nil {
 		t.Fatal("expected error for invalid key, got nil")
 	}
@@ -203,12 +194,10 @@ func TestCreateInvalidKey(t *testing.T) {
 }
 
 func TestCreateControlChars(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockCommentCreator{}
 
 	// Body with null character (control char).
-	_, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--body", "hello\x00world"})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-1", "--body", "hello\x00world"})
 	if err == nil {
 		t.Fatal("expected error for control characters, got nil")
 	}
@@ -219,13 +208,11 @@ func TestCreateControlChars(t *testing.T) {
 }
 
 func TestCreateAPIError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockCommentCreator{
 		err: errors.New("connection refused"),
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--body", "test"})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-1", "--body", "test"})
 	if err == nil {
 		t.Fatal("expected error from API, got nil")
 	}

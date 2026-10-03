@@ -63,19 +63,21 @@ SEE ALSO
 }
 
 func runList(cmd *cobra.Command, issueKey string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "worklog list", WorklogFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = WorklogFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = WorklogFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, WorklogFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, WorklogFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, WorklogFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, WorklogFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -94,33 +96,33 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderListOutput(cmd.OutOrStdout(), worklogs)
+	return renderListOutput(cmd.OutOrStdout(), opts, worklogs)
 }
 
-func renderListOutput(w io.Writer, worklogs []*tracker.Worklog) error {
-	if output.IsJSON() {
+func renderListOutput(w io.Writer, opts *output.Options, worklogs []*tracker.Worklog) error {
+	if opts.IsJSON() {
 		items := make([]worklogItem, len(worklogs))
 		for i, wl := range worklogs {
 			items[i] = toWorklogItem(wl)
 		}
 
-		if output.HasFieldSelection() {
+		if opts.HasFieldSelection() {
 			filtered := make([]map[string]any, len(items))
 			for i, item := range items {
-				filtered[i] = output.FilterFields(item, output.JSONFields)
+				filtered[i] = output.FilterFields(item, opts.JSONFields)
 			}
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, items, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, items, opts.JQFilter)
 		}
-		return output.PrintJSON(w, items)
+		return opts.PrintJSON(w, items)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		ids := make([]string, len(worklogs))
 		for i, wl := range worklogs {
 			ids[i] = api.DerefFlexString(wl.ID, "")
@@ -134,7 +136,7 @@ func renderListOutput(w io.Writer, worklogs []*tracker.Worklog) error {
 		return err
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("ID", "AUTHOR", "DURATION", "START")
 
 	for _, wl := range worklogs {
@@ -143,7 +145,7 @@ func renderListOutput(w io.Writer, worklogs []*tracker.Worklog) error {
 		duration := formatDuration(wl.Duration)
 		start := "-"
 		if wl.Start != nil {
-			start = output.FormatTime(wl.Start.Time)
+			start = opts.FormatTime(wl.Start.Time)
 		}
 		tbl.AddRow(id, author, duration, start)
 	}

@@ -101,19 +101,21 @@ func runEdit(
 	checkedFlag bool,
 	assigneeFlag, fromJSON string,
 ) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "checklist edit", ChecklistFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = ChecklistFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = ChecklistFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, ChecklistFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, ChecklistFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, ChecklistFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, ChecklistFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -151,27 +153,27 @@ func runEdit(
 	// ID, report a best-effort confirmation from the request rather than failing
 	// with a misleading error (the item ID is known, so output still carries it).
 	if edited := extractEditedItem(issue, itemID); edited != nil {
-		return renderEditOutput(cmd.OutOrStdout(), toChecklistItem(edited), issueKey)
+		return renderEditOutput(cmd.OutOrStdout(), opts, toChecklistItem(edited), issueKey)
 	}
-	return renderEditOutput(cmd.OutOrStdout(), editedChecklistItem(itemID, req), issueKey)
+	return renderEditOutput(cmd.OutOrStdout(), opts, editedChecklistItem(itemID, req), issueKey)
 }
 
-func renderEditOutput(w io.Writer, item checklistItem, issueKey string) error {
-	if output.IsJSON() {
-		if output.HasFieldSelection() {
-			filtered := output.FilterFields(item, output.JSONFields)
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+func renderEditOutput(w io.Writer, opts *output.Options, item checklistItem, issueKey string) error {
+	if opts.IsJSON() {
+		if opts.HasFieldSelection() {
+			filtered := output.FilterFields(item, opts.JSONFields)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, item, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, item, opts.JQFilter)
 		}
-		return output.PrintJSON(w, item)
+		return opts.PrintJSON(w, item)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, item.ID)
 		return nil
 	}

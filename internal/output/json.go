@@ -10,12 +10,12 @@ import (
 // It is indented for a terminal and minified to a single line off a TTY,
 // where the reader is a program paying for every byte.
 // No ANSI codes or color are ever included, so the output stays machine-parseable.
-func PrintJSON(w io.Writer, data any) error {
+func (o *Options) PrintJSON(w io.Writer, data any) error {
 	var (
 		bytes []byte
 		err   error
 	)
-	if IsTTY() {
+	if o.TTY {
 		bytes, err = json.MarshalIndent(data, "", "  ")
 	} else {
 		bytes, err = json.Marshal(data)

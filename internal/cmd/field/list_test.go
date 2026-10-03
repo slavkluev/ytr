@@ -42,7 +42,7 @@ func (m *mockFieldLister) ListLocal(_ context.Context, queueKey string) ([]*trac
 	return m.fields, nil, nil
 }
 
-func setupListCmd(t *testing.T, mock *mockFieldLister, args []string) (string, error) {
+func setupListCmd(t *testing.T, mock *mockFieldLister, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origLister := newFieldLister
@@ -57,7 +57,7 @@ func setupListCmd(t *testing.T, mock *mockFieldLister, args []string) (string, e
 	cmd.PersistentFlags().String("org-id", "test-org", "")
 	cmd.PersistentFlags().String("org-type", "360", "")
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -66,7 +66,7 @@ func TestList(t *testing.T) {
 		name  string
 		mock  *mockFieldLister
 		args  []string
-		setup func()
+		opts  output.Options
 		check func(t *testing.T, mock *mockFieldLister, out string, err error)
 	}{
 		{
@@ -148,8 +148,8 @@ func TestList(t *testing.T) {
 					},
 				},
 			},
-			args:  nil,
-			setup: func() { output.JSONFields = FieldListFields },
+			args: nil,
+			opts: output.Options{JSONFields: FieldListFields},
 			check: func(t *testing.T, _ *mockFieldLister, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -184,8 +184,8 @@ func TestList(t *testing.T) {
 					{Key: testutil.StrPtr("description")},
 				},
 			},
-			args:  nil,
-			setup: func() { output.QuietFlag = true },
+			args: nil,
+			opts: output.Options{Quiet: true},
 			check: func(t *testing.T, _ *mockFieldLister, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -233,11 +233,7 @@ func TestList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-			out, err := setupListCmd(t, tt.mock, tt.args)
+			out, err := setupListCmd(t, tt.mock, tt.opts, tt.args)
 			tt.check(t, tt.mock, out, err)
 		})
 	}
@@ -273,10 +269,8 @@ func decodeListItems(t *testing.T, out string) []map[string]any {
 }
 
 func TestListTableShowsFullFieldID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockFieldLister{fields: []*tracker.Field{localSizeField()}}
-	out, err := setupListCmd(t, mock, []string{"--queue", "PROJ"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"--queue", "PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -289,11 +283,8 @@ func TestListTableShowsFullFieldID(t *testing.T) {
 }
 
 func TestListJSONIncludesFullFieldID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"id", "key"}
-
 	mock := &mockFieldLister{fields: []*tracker.Field{localSizeField()}}
-	out, err := setupListCmd(t, mock, []string{"--queue", "PROJ"})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: []string{"id", "key"}}, []string{"--queue", "PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -305,11 +296,13 @@ func TestListJSONIncludesFullFieldID(t *testing.T) {
 }
 
 func TestListJSONIncludesEnumOptions(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key", "options"}
-
 	mock := &mockFieldLister{fields: []*tracker.Field{localSizeField()}}
-	out, err := setupListCmd(t, mock, []string{"--queue", "PROJ"})
+	out, err := setupListCmd(
+		t,
+		mock,
+		output.Options{JSONFields: []string{"key", "options"}},
+		[]string{"--queue", "PROJ"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -325,16 +318,13 @@ func TestListJSONIncludesEnumOptions(t *testing.T) {
 }
 
 func TestListJSONOmitsOptionsWhenFieldHasNone(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key", "options"}
-
 	mock := &mockFieldLister{fields: []*tracker.Field{{
 		Key:      testutil.StrPtr("summary"),
 		Name:     testutil.StrPtr("Summary"),
 		Schema:   &tracker.FieldSchema{Type: testutil.StrPtr("string")},
 		Readonly: testutil.BoolPtr(true),
 	}}}
-	out, err := setupListCmd(t, mock, nil)
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: []string{"key", "options"}}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -346,9 +336,6 @@ func TestListJSONOmitsOptionsWhenFieldHasNone(t *testing.T) {
 }
 
 func TestListJSONIncludesArrayElementType(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key", "schema", "items"}
-
 	mock := &mockFieldLister{fields: []*tracker.Field{{
 		Key:  testutil.StrPtr("tags"),
 		Name: testutil.StrPtr("Tags"),
@@ -358,7 +345,7 @@ func TestListJSONIncludesArrayElementType(t *testing.T) {
 		},
 		Readonly: testutil.BoolPtr(false),
 	}}}
-	out, err := setupListCmd(t, mock, nil)
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: []string{"key", "schema", "items"}}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -434,11 +421,8 @@ func optionDecodeError(t *testing.T) error {
 }
 
 func TestListJSONKeepsNumericOptions(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key", "options"}
-
 	mock := &mockFieldLister{fields: []*tracker.Field{decodeFieldFixture(t, possibleSpamJSON)}}
-	out, err := setupListCmd(t, mock, nil)
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: []string{"key", "options"}}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -450,11 +434,13 @@ func TestListJSONKeepsNumericOptions(t *testing.T) {
 }
 
 func TestListJSONPerQueueOptions(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key", "options", "queueOptions", "defaultOptions"}
-
 	mock := &mockFieldLister{fields: []*tracker.Field{decodeFieldFixture(t, perQueueFieldJSON)}}
-	out, err := setupListCmd(t, mock, nil)
+	out, err := setupListCmd(
+		t,
+		mock,
+		output.Options{JSONFields: []string{"key", "options", "queueOptions", "defaultOptions"}},
+		nil,
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -476,11 +462,13 @@ func TestListJSONPerQueueOptions(t *testing.T) {
 }
 
 func TestListJSONOmitsOptionsWhenProviderHasNoValues(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key", "options", "queueOptions", "defaultOptions"}
-
 	mock := &mockFieldLister{fields: []*tracker.Field{decodeFieldFixture(t, teamFieldJSON)}}
-	out, err := setupListCmd(t, mock, nil)
+	out, err := setupListCmd(
+		t,
+		mock,
+		output.Options{JSONFields: []string{"key", "options", "queueOptions", "defaultOptions"}},
+		nil,
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -494,11 +482,9 @@ func TestListJSONOmitsOptionsWhenProviderHasNoValues(t *testing.T) {
 }
 
 func TestListPassesThroughOptionDecodeError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	decodeErr := optionDecodeError(t)
 	mock := &mockFieldLister{err: decodeErr}
-	_, err := setupListCmd(t, mock, nil)
+	_, err := setupListCmd(t, mock, output.Options{}, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

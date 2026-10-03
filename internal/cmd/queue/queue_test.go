@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
-
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // recordingTransport answers every request with an empty JSON body of the
@@ -52,7 +50,6 @@ func assertContextRequest(t *testing.T, body, want string, call func(queueContex
 }
 
 func TestTrackerContextClientRequests(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	ctx := t.Context()
 
 	assertContextRequest(t, `{}`, "GET v3/queues/APP?expand=issueTypesConfig", func(c queueContextClient) error {

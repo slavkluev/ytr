@@ -43,7 +43,7 @@ func makeIssueWithChecklist(items ...*tracker.ChecklistItem) *tracker.Issue {
 	}
 }
 
-func setupCreateCmd(t *testing.T, mock *mockChecklistCreator, args []string) (string, error) {
+func setupCreateCmd(t *testing.T, mock *mockChecklistCreator, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origCreator := newChecklistCreator
@@ -63,13 +63,11 @@ func setupCreateCmd(t *testing.T, mock *mockChecklistCreator, args []string) (st
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestCreateWithText(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistCreator{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -81,7 +79,7 @@ func TestCreateWithText(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"PROJ-123", "--text", "Review PR"})
+	out, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-123", "--text", "Review PR"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -97,8 +95,6 @@ func TestCreateWithText(t *testing.T) {
 }
 
 func TestCreateWithTextAndAssignee(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistCreator{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -111,7 +107,7 @@ func TestCreateWithTextAndAssignee(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--text", "Deploy", "--assignee", "12345"})
+	out, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-1", "--text", "Deploy", "--assignee", "12345"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -122,9 +118,6 @@ func TestCreateWithTextAndAssignee(t *testing.T) {
 }
 
 func TestCreateJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = ChecklistFields
-
 	mock := &mockChecklistCreator{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -136,7 +129,12 @@ func TestCreateJSON(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--text", "Review PR"})
+	out, err := setupCreateCmd(
+		t,
+		mock,
+		output.Options{JSONFields: ChecklistFields},
+		[]string{"PROJ-1", "--text", "Review PR"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -155,9 +153,6 @@ func TestCreateJSON(t *testing.T) {
 }
 
 func TestCreateQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockChecklistCreator{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -169,7 +164,7 @@ func TestCreateQuiet(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--text", "Test"})
+	out, err := setupCreateCmd(t, mock, output.Options{Quiet: true}, []string{"PROJ-1", "--text", "Test"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -181,8 +176,6 @@ func TestCreateQuiet(t *testing.T) {
 }
 
 func TestCreateFromJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistCreator{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -194,7 +187,7 @@ func TestCreateFromJSON(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{
+	out, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "--from-json", `{"text":"From JSON"}`,
 	})
 	if err != nil {
@@ -207,11 +200,9 @@ func TestCreateFromJSON(t *testing.T) {
 }
 
 func TestCreateMutualExclusion(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistCreator{}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "--text", "Hello", "--from-json", `{"text":"World"}`,
 	})
 	if err == nil {
@@ -224,11 +215,9 @@ func TestCreateMutualExclusion(t *testing.T) {
 }
 
 func TestCreateMissingText(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistCreator{}
 
-	_, err := setupCreateCmd(t, mock, []string{"PROJ-1"})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-1"})
 	if err == nil {
 		t.Fatal("expected error for missing --text, got nil")
 	}
@@ -239,13 +228,11 @@ func TestCreateMissingText(t *testing.T) {
 }
 
 func TestCreateAPIError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistCreator{
 		err: errors.New("connection refused"),
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--text", "test"})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-1", "--text", "test"})
 	if err == nil {
 		t.Fatal("expected error from API, got nil")
 	}
@@ -258,8 +245,6 @@ func TestCreateAPIError(t *testing.T) {
 // TestCreateMatchesByText verifies the created item is identified by its text,
 // not by assuming it is the last element. The API does not guarantee item order.
 func TestCreateMatchesByText(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// "Review PR" is NOT the last item; matching by text must still pick it.
 	mock := &mockChecklistCreator{
 		issue: makeIssueWithChecklist(
@@ -270,7 +255,7 @@ func TestCreateMatchesByText(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--text", "Review PR"})
+	out, err := setupCreateCmd(t, mock, output.Options{}, []string{"PROJ-1", "--text", "Review PR"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -285,9 +270,6 @@ func TestCreateMatchesByText(t *testing.T) {
 // make agents retry and create duplicates (create isn't idempotent); instead the
 // command reports a best-effort confirmation built from the request.
 func TestCreateEmptyChecklistItemsBestEffort(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = ChecklistFields
-
 	mock := &mockChecklistCreator{
 		issue: &tracker.Issue{
 			ChecklistItems: []*tracker.ChecklistItem{},
@@ -295,7 +277,12 @@ func TestCreateEmptyChecklistItemsBestEffort(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"PROJ-1", "--text", "test"})
+	out, err := setupCreateCmd(
+		t,
+		mock,
+		output.Options{JSONFields: ChecklistFields},
+		[]string{"PROJ-1", "--text", "test"},
+	)
 	if err != nil {
 		t.Fatalf("expected no error (mutation succeeded), got: %v", err)
 	}
@@ -310,8 +297,6 @@ func TestCreateEmptyChecklistItemsBestEffort(t *testing.T) {
 }
 
 func TestCreateRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistCreator{
 		issue: makeIssueWithChecklist(
 			&tracker.ChecklistItem{
@@ -323,7 +308,12 @@ func TestCreateRequestCapture(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{"PROJ-123", "--text", "Capture test", "--assignee", "user1"})
+	_, err := setupCreateCmd(
+		t,
+		mock,
+		output.Options{},
+		[]string{"PROJ-123", "--text", "Capture test", "--assignee", "user1"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -343,8 +333,6 @@ func TestCreateRequestCapture(t *testing.T) {
 }
 
 func TestCreateFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistCreator{
 		issue: makeIssueWithChecklist(&tracker.ChecklistItem{
 			ID:   testutil.FlexStringPtr("item-json"),
@@ -353,7 +341,7 @@ func TestCreateFromJSONRejectsUnknownFields(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"PROJ-1", "--from-json", `{"text":"From JSON","bogus":1}`,
 	})
 	if err == nil {

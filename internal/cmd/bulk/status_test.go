@@ -54,6 +54,7 @@ func makeBulkChange(id, status string, total, done, pct int) *tracker.BulkChange
 func setupStatusCmd(
 	t *testing.T,
 	mock *mockStatusGetter,
+	opts output.Options,
 	args []string,
 ) (string, error) {
 	t.Helper()
@@ -75,18 +76,16 @@ func setupStatusCmd(
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestStatusTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockStatusGetter{
 		bc: makeBulkChange("593cd211ef7e8a0000000001", "COMPLETED", 50, 50, 100),
 	}
 
-	out, err := setupStatusCmd(t, mock, []string{"593cd211ef7e8a0000000001"})
+	out, err := setupStatusCmd(t, mock, output.Options{}, []string{"593cd211ef7e8a0000000001"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -108,14 +107,11 @@ func TestStatusTable(t *testing.T) {
 }
 
 func TestStatusJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = BulkStatusFields
-
 	mock := &mockStatusGetter{
 		bc: makeBulkChange("op-json-1", "COMPLETED", 10, 10, 100),
 	}
 
-	out, err := setupStatusCmd(t, mock, []string{"op-json-1"})
+	out, err := setupStatusCmd(t, mock, output.Options{JSONFields: BulkStatusFields}, []string{"op-json-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -143,14 +139,11 @@ func TestStatusJSON(t *testing.T) {
 }
 
 func TestStatusQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockStatusGetter{
 		bc: makeBulkChange("op-quiet-1", "COMPLETED", 5, 5, 100),
 	}
 
-	out, err := setupStatusCmd(t, mock, []string{"op-quiet-1"})
+	out, err := setupStatusCmd(t, mock, output.Options{Quiet: true}, []string{"op-quiet-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -162,13 +155,11 @@ func TestStatusQuiet(t *testing.T) {
 }
 
 func TestStatusAPIError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockStatusGetter{
 		err: errors.New("connection refused"),
 	}
 
-	_, err := setupStatusCmd(t, mock, []string{"op-err-1"})
+	_, err := setupStatusCmd(t, mock, output.Options{}, []string{"op-err-1"})
 	if err == nil {
 		t.Fatal("expected error from API, got nil")
 	}
@@ -179,11 +170,9 @@ func TestStatusAPIError(t *testing.T) {
 }
 
 func TestStatusInvalidID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockStatusGetter{}
 
-	_, err := setupStatusCmd(t, mock, []string{""})
+	_, err := setupStatusCmd(t, mock, output.Options{}, []string{""})
 	if err == nil {
 		t.Fatal("expected error for empty ID, got nil")
 	}
@@ -210,9 +199,6 @@ func TestStatus_RegisteredAsSubcommand(t *testing.T) {
 }
 
 func TestStatusExposesCreatedByID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = BulkStatusFields
-
 	// Built inline rather than via makeBulkChange: only the author matters here,
 	// and a fourth caller passing the same status would pin that helper's
 	// status parameter to a constant.
@@ -228,7 +214,7 @@ func TestStatusExposesCreatedByID(t *testing.T) {
 		},
 	}
 
-	out, err := setupStatusCmd(t, mock, []string{"op-1"})
+	out, err := setupStatusCmd(t, mock, output.Options{JSONFields: BulkStatusFields}, []string{"op-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -249,15 +235,11 @@ func TestStatusExposesCreatedByID(t *testing.T) {
 // bulk status changes nothing, so a FAILED operation is an answer, not a
 // failure, and it arrives as one document on stdout.
 func TestStatusReportsAFailedOperationAtExitZero(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
-	output.JSONFields = BulkStatusFields
-
 	mock := &mockStatusGetter{
 		bc: makeBulkChange("op-failed-1", "FAILED", 10, 3, 30),
 	}
 
-	out, err := setupStatusCmd(t, mock, []string{"op-failed-1"})
+	out, err := setupStatusCmd(t, mock, output.Options{JSONFields: BulkStatusFields}, []string{"op-failed-1"})
 	if err != nil {
 		t.Fatalf("unexpected error for a FAILED operation: %v", err)
 	}

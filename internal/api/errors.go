@@ -96,33 +96,30 @@ func orFallback(value, fallback string) string {
 	return value
 }
 
+// The request carries the invocation's options in its context, since
+// MapAPIError is handed only the error.
 func debugAPIError(err error) {
-	if !output.DebugEnabled() {
-		return
-	}
-
 	var errResp *tracker.ErrorResponse
-	if !stderrors.As(err, &errResp) || errResp.Response == nil {
+	if !stderrors.As(err, &errResp) || errResp.Response == nil || errResp.Response.Request == nil {
 		return
 	}
 
-	method := "-"
-	path := "-"
-	if errResp.Response.Request != nil {
-		method = errResp.Response.Request.Method
-		path = requestPath(errResp.Response.Request.URL)
+	req := errResp.Response.Request
+	opts := output.FromContext(req.Context())
+	if !opts.Debug {
+		return
 	}
 
-	output.Debugf("api_error status=%d method=%s path=%s",
-		errResp.Response.StatusCode, method, path)
+	opts.Debugf("api_error status=%d method=%s path=%s",
+		errResp.Response.StatusCode, req.Method, requestPath(req.URL))
 
 	if len(errResp.ErrorMessages) > 0 {
-		output.Debugf("api_error_messages messages=%s",
+		opts.Debugf("api_error_messages messages=%s",
 			formatStringSlice(output.SanitizeDebugStrings(errResp.ErrorMessages)))
 	}
 
 	if len(errResp.Errors) > 0 {
-		output.Debugf("api_error_fields fields=%s",
+		opts.Debugf("api_error_fields fields=%s",
 			formatStringMap(output.SanitizeDebugMap(errResp.Errors)))
 	}
 }

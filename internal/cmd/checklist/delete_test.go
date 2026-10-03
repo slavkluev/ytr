@@ -12,7 +12,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // mockChecklistDeleter implements checklistDeleter for testing.
@@ -36,7 +35,7 @@ func (m *mockChecklistDeleter) DeleteChecklistItem(
 	return m.issue, m.resp, nil
 }
 
-func setupDeleteCmd(t *testing.T, mock *mockChecklistDeleter, args []string) (string, error) {
+func setupDeleteCmd(t *testing.T, mock *mockChecklistDeleter, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origDeleter := newChecklistDeleter
@@ -56,7 +55,7 @@ func setupDeleteCmd(t *testing.T, mock *mockChecklistDeleter, args []string) (st
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -65,7 +64,7 @@ func TestDelete(t *testing.T) {
 		name      string
 		mock      *mockChecklistDeleter
 		args      []string
-		setup     func()
+		opts      output.Options
 		wantOut   string
 		wantErr   string
 		jsonCheck func(t *testing.T, out string)
@@ -86,9 +85,7 @@ func TestDelete(t *testing.T) {
 				resp:  &tracker.Response{},
 			},
 			args: []string{"PROJ-123", "item-1"},
-			setup: func() {
-				output.JSONFields = []string{"id"}
-			},
+			opts: output.Options{JSONFields: []string{"id"}},
 			jsonCheck: func(t *testing.T, out string) {
 				t.Helper()
 				var result map[string]any
@@ -109,10 +106,8 @@ func TestDelete(t *testing.T) {
 				issue: &tracker.Issue{},
 				resp:  &tracker.Response{},
 			},
-			args: []string{"PROJ-123", "item-1"},
-			setup: func() {
-				output.QuietFlag = true
-			},
+			args:    []string{"PROJ-123", "item-1"},
+			opts:    output.Options{Quiet: true},
 			wantOut: "item-1",
 		},
 		{
@@ -121,10 +116,8 @@ func TestDelete(t *testing.T) {
 				issue: &tracker.Issue{},
 				resp:  &tracker.Response{},
 			},
-			args: []string{"PROJ-123", "item-1"},
-			setup: func() {
-				output.JQFilter = ".id"
-			},
+			args:    []string{"PROJ-123", "item-1"},
+			opts:    output.Options{JQFilter: ".id"},
 			wantOut: "item-1",
 		},
 		{
@@ -151,12 +144,7 @@ func TestDelete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-
-			out, err := setupDeleteCmd(t, tt.mock, tt.args)
+			out, err := setupDeleteCmd(t, tt.mock, tt.opts, tt.args)
 
 			if tt.wantErr != "" {
 				if err == nil {
@@ -187,14 +175,12 @@ func TestDelete(t *testing.T) {
 }
 
 func TestDeleteRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistDeleter{
 		issue: &tracker.Issue{},
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupDeleteCmd(t, mock, []string{"PROJ-123", "item-del"})
+	_, err := setupDeleteCmd(t, mock, output.Options{}, []string{"PROJ-123", "item-del"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -52,9 +52,7 @@ func (e *errorAfterFirstReadCloser) Close() error {
 
 func TestDebugTransportLogsRequestAndResponse(t *testing.T) {
 	var buf bytes.Buffer
-	output.DebugFlag = true
-	output.SetDebugWriter(&buf)
-	defer output.ResetFlags()
+	ctx := output.NewContext(t.Context(), &output.Options{Debug: true, DebugOut: &buf})
 
 	transport := newDebugTransport(roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
@@ -68,7 +66,7 @@ func TestDebugTransportLogsRequestAndResponse(t *testing.T) {
 		}, nil
 	}), "env")
 
-	req, err := http.NewRequest(http.MethodPost,
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		"https://api.tracker.yandex.net/v2/issues?perPage=50&signature=secret-value",
 		strings.NewReader(`{"queue":"PROJ","summary":"Bug","priority":"critical"}`))
 	if err != nil {
@@ -109,15 +107,13 @@ func TestDebugTransportLogsRequestAndResponse(t *testing.T) {
 
 func TestDebugTransportLogsTransportError(t *testing.T) {
 	var buf bytes.Buffer
-	output.DebugFlag = true
-	output.SetDebugWriter(&buf)
-	defer output.ResetFlags()
+	ctx := output.NewContext(t.Context(), &output.Options{Debug: true, DebugOut: &buf})
 
 	transport := newDebugTransport(roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("dial tcp: connection refused")
 	}), "config")
 
-	req, err := http.NewRequest(http.MethodGet,
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		"https://api.tracker.yandex.net/v2/issues/TEST-1", nil)
 	if err != nil {
 		t.Fatalf("http.NewRequest() returned error: %v", err)
@@ -141,15 +137,13 @@ func TestDebugTransportLogsTransportError(t *testing.T) {
 
 func TestDebugTransportLogsSanitizedTransportError(t *testing.T) {
 	var buf bytes.Buffer
-	output.DebugFlag = true
-	output.SetDebugWriter(&buf)
-	defer output.ResetFlags()
+	ctx := output.NewContext(t.Context(), &output.Options{Debug: true, DebugOut: &buf})
 
 	transport := newDebugTransport(roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("upstream rejected token abc123")
 	}), "flag")
 
-	req, err := http.NewRequest(http.MethodGet,
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		"https://api.tracker.yandex.net/v2/issues/TEST-2", nil)
 	if err != nil {
 		t.Fatalf("http.NewRequest() returned error: %v", err)
@@ -171,9 +165,7 @@ func TestDebugTransportLogsSanitizedTransportError(t *testing.T) {
 
 func TestDebugTransportSkipsBodyPreviewForClientErrors(t *testing.T) {
 	var buf bytes.Buffer
-	output.DebugFlag = true
-	output.SetDebugWriter(&buf)
-	defer output.ResetFlags()
+	ctx := output.NewContext(t.Context(), &output.Options{Debug: true, DebugOut: &buf})
 
 	body := &countingReadCloser{
 		reader: strings.NewReader(`{"errorMessages":["bad request"]}`),
@@ -190,7 +182,7 @@ func TestDebugTransportSkipsBodyPreviewForClientErrors(t *testing.T) {
 		}, nil
 	}), "env")
 
-	req, err := http.NewRequest(http.MethodGet,
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		"https://api.tracker.yandex.net/v2/issues/TEST-3", nil)
 	if err != nil {
 		t.Fatalf("http.NewRequest() returned error: %v", err)
@@ -252,9 +244,6 @@ func okTransport(calls *int) roundTripFunc {
 }
 
 func TestDebugTransportSendsThroughContextTransport(t *testing.T) {
-	output.ResetFlags()
-	defer output.ResetFlags()
-
 	calls := 0
 	transport := newDebugTransport(failingBase(t), "flag")
 
@@ -276,9 +265,6 @@ func TestDebugTransportSendsThroughContextTransport(t *testing.T) {
 }
 
 func TestDebugTransportUsesBaseWithoutContextTransport(t *testing.T) {
-	output.ResetFlags()
-	defer output.ResetFlags()
-
 	calls := 0
 	transport := newDebugTransport(okTransport(&calls), "flag")
 
@@ -301,14 +287,12 @@ func TestDebugTransportUsesBaseWithoutContextTransport(t *testing.T) {
 
 func TestDebugTransportLogsContextTransportExchange(t *testing.T) {
 	var buf bytes.Buffer
-	output.DebugFlag = true
-	output.SetDebugWriter(&buf)
-	defer output.ResetFlags()
+	ctx := output.NewContext(t.Context(), &output.Options{Debug: true, DebugOut: &buf})
 
 	calls := 0
 	transport := newDebugTransport(failingBase(t), "flag")
 
-	req, err := http.NewRequestWithContext(WithTransport(t.Context(), okTransport(&calls)),
+	req, err := http.NewRequestWithContext(WithTransport(ctx, okTransport(&calls)),
 		http.MethodGet, "https://api.tracker.yandex.net/v3/statuses", nil)
 	if err != nil {
 		t.Fatalf("http.NewRequest() returned error: %v", err)

@@ -275,6 +275,8 @@ SEE ALSO
 }
 
 func runLogin(cmd *cobra.Command, args []string) error {
+	opts := output.FromContext(cmd.Context())
+
 	tokenFlag, _ := cmd.Flags().GetString("token")
 	orgIDFlag, _ := cmd.Flags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Flags().GetString("org-type")
@@ -313,9 +315,9 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	// Config was just saved successfully, so ConfigFilePath cannot fail.
 	cfgPath, _ := config.ConfigFilePath()
 
-	jsonRequested := cmd.Flags().Changed("json") || output.IsJSON()
+	jsonRequested := cmd.Flags().Changed("json") || opts.IsJSON()
 	if jsonRequested {
-		return output.PrintJSON(cmd.OutOrStdout(), map[string]string{
+		return opts.PrintJSON(cmd.OutOrStdout(), map[string]string{
 			"status":      "authenticated",
 			"user":        username,
 			"org_id":      orgID,

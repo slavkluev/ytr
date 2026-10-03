@@ -6,7 +6,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 func TestTruncateDisplay_ASCII(t *testing.T) {
@@ -37,25 +36,23 @@ func TestTruncateDisplay_TooSmallForEllipsis(t *testing.T) {
 }
 
 func TestFitColumnOffTTYReturnsValueWhole(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	summary := strings.Repeat("long summary ", 40)
-	if got := output.FitColumn(summary, 51, 10); got != summary {
+	if got := opts.FitColumn(summary, 51, 10); got != summary {
 		t.Errorf("FitColumn off a TTY = %q, want the value untouched", got)
 	}
 }
 
 func TestFitColumnOnTTYTruncatesToTheRemainingWidth(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(true)
+	opts := output.Options{TTY: true, Colors: true}
 
 	summary := strings.Repeat("x", 200)
-	got := output.FitColumn(summary, 51, 10)
+	got := opts.FitColumn(summary, 51, 10)
 	if got == summary {
 		t.Fatalf("FitColumn on a TTY did not shorten a 200-cell value")
 	}
-	if want := output.TruncateDisplay(summary, output.TerminalWidth()-51); got != want {
+	if want := output.TruncateDisplay(summary, opts.TerminalWidth()-51); got != want {
 		t.Errorf("FitColumn = %q, want %q", got, want)
 	}
 	if !strings.HasSuffix(got, "...") {
@@ -63,12 +60,24 @@ func TestFitColumnOnTTYTruncatesToTheRemainingWidth(t *testing.T) {
 	}
 }
 
+func TestFitColumnOnTTYUsesTheTerminalWidth(t *testing.T) {
+	opts := output.Options{TTY: true, Width: 120}
+
+	if got := opts.TerminalWidth(); got != 120 {
+		t.Fatalf("TerminalWidth() = %d, want the 120 the options carry", got)
+	}
+
+	summary := strings.Repeat("x", 200)
+	if got, want := opts.FitColumn(summary, 51, 10), output.TruncateDisplay(summary, 120-51); got != want {
+		t.Errorf("FitColumn = %q (%d cells), want %q (%d cells)", got, len(got), want, len(want))
+	}
+}
+
 func TestFitColumnOnTTYKeepsTheMinimumWidth(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(true)
+	opts := output.Options{TTY: true, Colors: true}
 
 	// A reservation wider than the terminal must not collapse the column.
-	got := output.FitColumn(strings.Repeat("x", 50), 500, 10)
+	got := opts.FitColumn(strings.Repeat("x", 50), 500, 10)
 	if len(got) != 10 {
 		t.Errorf("FitColumn = %q, want 10 cells", got)
 	}

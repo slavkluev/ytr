@@ -52,19 +52,21 @@ SEE ALSO
 }
 
 func runList(cmd *cobra.Command) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "status list", StatusListFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = StatusListFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = StatusListFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, StatusListFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, StatusListFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, StatusListFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, StatusListFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -83,33 +85,33 @@ func runList(cmd *cobra.Command) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderOutput(cmd.OutOrStdout(), statuses)
+	return renderOutput(cmd.OutOrStdout(), opts, statuses)
 }
 
-func renderOutput(w io.Writer, statuses []*tracker.Status) error {
-	if output.IsJSON() {
+func renderOutput(w io.Writer, opts *output.Options, statuses []*tracker.Status) error {
+	if opts.IsJSON() {
 		items := make([]statusItem, len(statuses))
 		for i, s := range statuses {
 			items[i] = toStatusItem(s)
 		}
 
-		if output.HasFieldSelection() {
+		if opts.HasFieldSelection() {
 			filtered := make([]map[string]any, len(items))
 			for i, item := range items {
-				filtered[i] = output.FilterFields(item, output.JSONFields)
+				filtered[i] = output.FilterFields(item, opts.JSONFields)
 			}
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, items, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, items, opts.JQFilter)
 		}
-		return output.PrintJSON(w, items)
+		return opts.PrintJSON(w, items)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		keys := make([]string, len(statuses))
 		for i, s := range statuses {
 			keys[i] = api.DerefString(s.Key, "")
@@ -123,7 +125,7 @@ func renderOutput(w io.Writer, statuses []*tracker.Status) error {
 		return err
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("ID", "KEY", "NAME")
 
 	for _, s := range statuses {

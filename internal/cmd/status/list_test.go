@@ -29,7 +29,7 @@ func (m *mockStatusLister) List(_ context.Context) ([]*tracker.Status, *tracker.
 	return m.statuses, m.resp, nil
 }
 
-func setupListCmd(t *testing.T, mock *mockStatusLister, args []string) (string, error) {
+func setupListCmd(t *testing.T, mock *mockStatusLister, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origLister := newStatusLister
@@ -44,7 +44,7 @@ func setupListCmd(t *testing.T, mock *mockStatusLister, args []string) (string, 
 	cmd.PersistentFlags().String("org-id", "test-org", "")
 	cmd.PersistentFlags().String("org-type", "360", "")
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -53,7 +53,7 @@ func TestList(t *testing.T) {
 		name  string
 		mock  *mockStatusLister
 		args  []string
-		setup func()
+		opts  output.Options
 		check func(t *testing.T, out string, err error)
 	}{
 		{
@@ -86,8 +86,8 @@ func TestList(t *testing.T) {
 				},
 				resp: &tracker.Response{},
 			},
-			args:  nil,
-			setup: func() { output.JSONFields = StatusListFields },
+			args: nil,
+			opts: output.Options{JSONFields: StatusListFields},
 			check: func(t *testing.T, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -120,8 +120,8 @@ func TestList(t *testing.T) {
 				},
 				resp: &tracker.Response{},
 			},
-			args:  nil,
-			setup: func() { output.QuietFlag = true },
+			args: nil,
+			opts: output.Options{Quiet: true},
 			check: func(t *testing.T, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -174,8 +174,8 @@ func TestList(t *testing.T) {
 				},
 				resp: &tracker.Response{},
 			},
-			args:  nil,
-			setup: func() { output.JQFilter = ".[0].key" },
+			args: nil,
+			opts: output.Options{JQFilter: ".[0].key"},
 			check: func(t *testing.T, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -191,11 +191,7 @@ func TestList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-			out, err := setupListCmd(t, tt.mock, tt.args)
+			out, err := setupListCmd(t, tt.mock, tt.opts, tt.args)
 			tt.check(t, out, err)
 		})
 	}

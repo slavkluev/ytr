@@ -106,9 +106,7 @@ func TestMapAPIError_GenericError(t *testing.T) {
 
 func TestMapAPIError_DebugStructuredDetails(t *testing.T) {
 	var buf bytes.Buffer
-	output.DebugFlag = true
-	output.SetDebugWriter(&buf)
-	defer output.ResetFlags()
+	ctx := output.NewContext(t.Context(), &output.Options{Debug: true, DebugOut: &buf})
 
 	u, err := url.Parse("https://api.tracker.yandex.net/v2/issues")
 	if err != nil {
@@ -118,10 +116,10 @@ func TestMapAPIError_DebugStructuredDetails(t *testing.T) {
 	apiErr := &tracker.ErrorResponse{
 		Response: &http.Response{
 			StatusCode: http.StatusBadRequest,
-			Request: &http.Request{
+			Request: (&http.Request{
 				Method: http.MethodPost,
 				URL:    u,
-			},
+			}).WithContext(ctx),
 		},
 		ErrorMessages: []string{"Unknown field: token abc123"},
 		Errors: map[string]string{

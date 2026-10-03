@@ -53,7 +53,7 @@ func fullQueue() *tracker.Queue {
 	}
 }
 
-func setupViewCmd(t *testing.T, mock *mockQueueGetter, args []string) (string, error) {
+func setupViewCmd(t *testing.T, mock *mockQueueGetter, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origGetter := newGetter
@@ -73,19 +73,17 @@ func setupViewCmd(t *testing.T, mock *mockQueueGetter, args []string) (string, e
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestQueueViewTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockQueueGetter{
 		queue: fullQueue(),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"MYQUEUE"})
+	out, err := setupViewCmd(t, mock, output.Options{}, []string{"MYQUEUE"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -104,16 +102,12 @@ func TestQueueViewTable(t *testing.T) {
 }
 
 func TestQueueViewTableOnTTYUsesLabeledRows(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(true)
-	t.Setenv("NO_COLOR", "1")
-
 	mock := &mockQueueGetter{
 		queue: fullQueue(),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"MYQUEUE"})
+	out, err := setupViewCmd(t, mock, output.Options{TTY: true}, []string{"MYQUEUE"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -130,15 +124,12 @@ func TestQueueViewTableOnTTYUsesLabeledRows(t *testing.T) {
 }
 
 func TestQueueViewJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = QueueDetailFields
-
 	mock := &mockQueueGetter{
 		queue: fullQueue(),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"MYQUEUE"})
+	out, err := setupViewCmd(t, mock, output.Options{JSONFields: QueueDetailFields}, []string{"MYQUEUE"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -164,15 +155,12 @@ func TestQueueViewJSON(t *testing.T) {
 }
 
 func TestQueueViewQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockQueueGetter{
 		queue: fullQueue(),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"MYQUEUE"})
+	out, err := setupViewCmd(t, mock, output.Options{Quiet: true}, []string{"MYQUEUE"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -184,14 +172,12 @@ func TestQueueViewQuiet(t *testing.T) {
 }
 
 func TestQueueViewNotFound(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// Simulate a not-found error from the API.
 	mock := &mockQueueGetter{
 		err: errors.New("not found"),
 	}
 
-	_, err := setupViewCmd(t, mock, []string{"NOEXIST"})
+	_, err := setupViewCmd(t, mock, output.Options{}, []string{"NOEXIST"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -206,8 +192,6 @@ func TestQueueViewNotFound(t *testing.T) {
 }
 
 func TestQueueViewNilFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// Queue with nil Description, Lead, DefaultType, DefaultPriority should not panic.
 	queue := &tracker.Queue{
 		Key:  testutil.StrPtr("NIL-Q"),
@@ -220,7 +204,7 @@ func TestQueueViewNilFields(t *testing.T) {
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"NIL-Q"})
+	out, err := setupViewCmd(t, mock, output.Options{}, []string{"NIL-Q"})
 	if err != nil {
 		t.Fatalf("unexpected error (panic?): %v", err)
 	}
@@ -234,23 +218,18 @@ func TestQueueViewNilFields(t *testing.T) {
 }
 
 func TestQueueViewNoArgs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockQueueGetter{
 		queue: fullQueue(),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupViewCmd(t, mock, []string{})
+	_, err := setupViewCmd(t, mock, output.Options{}, []string{})
 	if err == nil {
 		t.Fatal("expected error for no args, got nil")
 	}
 }
 
 func TestQueueViewExposesLeadID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = QueueDetailFields
-
 	mock := &mockQueueGetter{
 		queue: &tracker.Queue{
 			Key:  testutil.StrPtr("PROJ"),
@@ -263,7 +242,7 @@ func TestQueueViewExposesLeadID(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupViewCmd(t, mock, []string{"PROJ"})
+	out, err := setupViewCmd(t, mock, output.Options{JSONFields: QueueDetailFields}, []string{"PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

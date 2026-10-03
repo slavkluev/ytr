@@ -80,7 +80,9 @@ type queueSearchResult struct {
 }
 
 func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "queue list", QueueListFields)
 	}
 
@@ -90,15 +92,15 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		return err
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = QueueListFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = QueueListFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, QueueListFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, QueueListFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, QueueListFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, QueueListFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -129,7 +131,7 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		return err
 	}
 
-	return renderListOutput(cmd.OutOrStdout(), result)
+	return renderListOutput(cmd.OutOrStdout(), opts, result)
 }
 
 func fetchQueues(cmd *cobra.Command, lister queueLister, limit, page int,
@@ -188,12 +190,12 @@ func fetchAllQueuePages(cmd *cobra.Command, lister queueLister,
 	return &queueSearchResult{queues: allQueues, totalCount: totalCount}, nil
 }
 
-func renderListOutput(w io.Writer, result *queueSearchResult) error {
-	if output.IsJSON() {
-		return renderListJSON(w, result)
+func renderListOutput(w io.Writer, opts *output.Options, result *queueSearchResult) error {
+	if opts.IsJSON() {
+		return renderListJSON(w, opts, result)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		keys := make([]string, len(result.queues))
 		for i, q := range result.queues {
 			keys[i] = api.DerefString(q.Key, "")
@@ -202,20 +204,20 @@ func renderListOutput(w io.Writer, result *queueSearchResult) error {
 		return nil
 	}
 
-	return renderListTable(w, result.queues)
+	return renderListTable(w, opts, result.queues)
 }
 
-func renderListJSON(w io.Writer, result *queueSearchResult) error {
+func renderListJSON(w io.Writer, opts *output.Options, result *queueSearchResult) error {
 	items := make([]queueItem, len(result.queues))
 	for i, q := range result.queues {
 		items[i] = toQueueItem(q)
 	}
 
 	var data any
-	if output.HasFieldSelection() {
+	if opts.HasFieldSelection() {
 		filtered := make([]map[string]any, len(items))
 		for i, item := range items {
-			filtered[i] = output.FilterFields(item, output.JSONFields)
+			filtered[i] = output.FilterFields(item, opts.JSONFields)
 		}
 		data = output.PaginatedResult{
 			Items: filtered,
@@ -232,19 +234,19 @@ func renderListJSON(w io.Writer, result *queueSearchResult) error {
 		}
 	}
 
-	if output.JQFilter != "" {
-		return output.ApplyJQ(w, data, output.JQFilter)
+	if opts.JQFilter != "" {
+		return output.ApplyJQ(w, data, opts.JQFilter)
 	}
-	return output.PrintJSON(w, data)
+	return opts.PrintJSON(w, data)
 }
 
-func renderListTable(w io.Writer, queues []*tracker.Queue) error {
+func renderListTable(w io.Writer, opts *output.Options, queues []*tracker.Queue) error {
 	if len(queues) == 0 {
 		_, err := fmt.Fprintln(w, "No queues found")
 		return err
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("KEY", "NAME", "LEAD")
 
 	for _, q := range queues {

@@ -8,7 +8,6 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/faketracker"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // cliResult is what one ytr invocation produced, plus every request Tracker
@@ -27,16 +26,13 @@ type cliResult struct {
 // command that writes config, such as auth login or logout, never touches theirs.
 func runCLI(t *testing.T, exchanges []faketracker.Exchange, args ...string) cliResult {
 	t.Helper()
-	testutil.ResetOutputFlags(t)
 	t.Setenv("YTR_CONFIG_DIR", t.TempDir())
-	output.SetTTY(false)
 
 	fake := faketracker.New(t, exchanges)
 	argv := slices.Concat([]string{"--token=test-token", "--org-id=test-org", "--org-type=360"}, args)
 
 	var out, errOut bytes.Buffer
-	output.SetDebugWriter(&errOut)
-	code := execute(api.WithTransport(t.Context(), fake), newRootCmd(), argv, &out, &errOut)
+	code := execute(api.WithTransport(t.Context(), fake), output.Options{}, argv, &out, &errOut)
 
 	return cliResult{Code: code, Stdout: out.String(), Stderr: errOut.String(), Requests: fake.Requests()}
 }

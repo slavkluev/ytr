@@ -40,8 +40,9 @@ const (
 // Every call returns an independent tree. pflag writes a parsed value into the
 // variable the flag was bound to and remembers that the flag was Changed, and
 // SetArgs sticks to the command, so a tree that has already run would carry that
-// state into the next run.
-func newRootCmd() *cobra.Command {
+// state into the next run. The output flags are bound into opts, which the run
+// must carry in its context for the commands to see them.
+func newRootCmd(opts *output.Options) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "ytr",
 		Short:         "Yandex Tracker CLI",
@@ -50,7 +51,7 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 	}
 
-	addPersistentFlags(rootCmd)
+	addPersistentFlags(rootCmd, opts)
 	addCommandGroups(rootCmd)
 
 	// Must precede SetHelpCommandGroupID, which only reaches a help command
@@ -81,15 +82,15 @@ func newRootCmd() *cobra.Command {
 	return rootCmd
 }
 
-func addPersistentFlags(rootCmd *cobra.Command) {
+func addPersistentFlags(rootCmd *cobra.Command, opts *output.Options) {
 	rootCmd.PersistentFlags().
-		StringSliceVar(&output.JSONFields, "json", nil, "Output JSON with selected fields (comma-separated)")
+		StringSliceVar(&opts.JSONFields, "json", nil, "Output JSON with selected fields (comma-separated)")
 	rootCmd.PersistentFlags().
-		StringVar(&output.JQFilter, "jq", "", "Filter JSON output with a jq expression (implies --json)")
+		StringVar(&opts.JQFilter, "jq", "", "Filter JSON output with a jq expression (implies --json)")
 	rootCmd.PersistentFlags().
-		BoolVar(&output.QuietFlag, "quiet", false, "Output minimal text, one item per line")
+		BoolVar(&opts.Quiet, "quiet", false, "Output minimal text, one item per line")
 	rootCmd.PersistentFlags().
-		BoolVar(&output.DebugFlag, "debug", false, "Emit sanitized debug diagnostics to stderr")
+		BoolVar(&opts.Debug, "debug", false, "Emit sanitized debug diagnostics to stderr")
 
 	rootCmd.PersistentFlags().String("token", "", "Authentication token (use with --org-id and --org-type)")
 	rootCmd.PersistentFlags().String("org-id", "", "Tracker organization ID (use with --token and --org-type)")
@@ -142,29 +143,41 @@ func registerSubcommands(rootCmd *cobra.Command) {
 // Execute runs the root command and returns the appropriate exit code.
 // The caller (main.go) must pass this to os.Exit.
 func Execute() int {
-	return execute(context.Background(), newRootCmd(), os.Args[1:], os.Stdout, os.Stderr)
+	return execute(context.Background(), output.Terminal(os.Stdout), os.Args[1:], os.Stdout, os.Stderr)
 }
 
 // The arguments reach the renderer as well as cobra, because a failed
 // invocation can hide the output mode it asked for: pflag stops at the first
 // flag it does not know, so a --json placed after the mistake never lands in
-// the globals IsJSON reads.
-func execute(ctx context.Context, root *cobra.Command, args []string, out, errOut io.Writer) int {
+// the options IsJSON reads.
+//
+// Debug diagnostics share errOut with the error document, so a caller reading
+// stderr sees them in the order they happened.
+func execute(ctx context.Context, opts output.Options, args []string, out, errOut io.Writer) int {
 	// SetArgs(nil) makes cobra fall back to os.Args[1:], which would turn a bare
 	// invocation into whatever the process was started with.
 	if args == nil {
 		args = []string{}
 	}
 
+	opts.DebugOut = errOut
+	root := newRootCmd(&opts)
 	root.SetArgs(args)
 	root.SetOut(out)
 	root.SetErr(errOut)
 
-	return output.HandleInvocationError(errOut, root.ExecuteContext(ctx), args)
+	err := root.ExecuteContext(output.NewContext(ctx, &opts))
+
+	return opts.HandleInvocationError(errOut, err, args)
 }
 
-// RootCmd returns a freshly built root command.
+// RootCmd returns a freshly built root command whose context carries the
+// options its flags are bound to, so a command run on it sees its output flags.
 // Each call returns an independent tree; see newRootCmd.
 func RootCmd() *cobra.Command {
-	return newRootCmd()
+	opts := &output.Options{}
+	root := newRootCmd(opts)
+	root.SetContext(output.NewContext(context.Background(), opts))
+
+	return root
 }

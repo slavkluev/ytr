@@ -95,6 +95,7 @@ func setupMoveCmd(
 	t *testing.T,
 	moverMock *mockBulkMover,
 	pollMock *mockPollGetter,
+	opts output.Options,
 	args []string,
 ) (string, error) {
 	t.Helper()
@@ -138,18 +139,17 @@ func setupMoveCmd(
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestMoveTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("move-op-1")
 	mover := &mockBulkMover{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupMoveCmd(t, mover, poll,
+		output.Options{},
 		[]string{"PROJ-1", "PROJ-2", "--queue", "TARGET"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -182,14 +182,12 @@ func TestMoveTable(t *testing.T) {
 }
 
 func TestMoveJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = BulkStatusFields
-
 	bc := makeCompletedBulkChange("move-json-1")
 	mover := &mockBulkMover{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupMoveCmd(t, mover, poll,
+		output.Options{JSONFields: BulkStatusFields},
 		[]string{"PROJ-1", "--queue", "TARGET"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -209,14 +207,12 @@ func TestMoveJSON(t *testing.T) {
 }
 
 func TestMoveQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	bc := makeCompletedBulkChange("move-quiet-1")
 	mover := &mockBulkMover{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupMoveCmd(t, mover, poll,
+		output.Options{Quiet: true},
 		[]string{"PROJ-1", "--queue", "TARGET"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -229,13 +225,12 @@ func TestMoveQuiet(t *testing.T) {
 }
 
 func TestMoveWithFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("move-fields-1")
 	mover := &mockBulkMover{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	_, err := setupMoveCmd(t, mover, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--queue", "TARGET", "--field", "priority=critical"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -256,13 +251,12 @@ func TestMoveWithFields(t *testing.T) {
 }
 
 func TestMoveFromJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("move-fj-1")
 	mover := &mockBulkMover{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	_, err := setupMoveCmd(t, mover, poll,
+		output.Options{},
 		[]string{"--from-json", `{"queue":"TARGET","issues":["PROJ-1"],"moveAllFields":true}`})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -287,12 +281,11 @@ func TestMoveFromJSON(t *testing.T) {
 }
 
 func TestMoveMutualExclusion(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mover := &mockBulkMover{}
 	poll := &mockPollGetter{}
 
 	_, err := setupMoveCmd(t, mover, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--queue", "TARGET", "--from-json", "{}"})
 	if err == nil {
 		t.Fatal("expected mutual exclusion error, got nil")
@@ -304,12 +297,10 @@ func TestMoveMutualExclusion(t *testing.T) {
 }
 
 func TestMoveMissingQueue(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mover := &mockBulkMover{}
 	poll := &mockPollGetter{}
 
-	_, err := setupMoveCmd(t, mover, poll, []string{"PROJ-1"})
+	_, err := setupMoveCmd(t, mover, poll, output.Options{}, []string{"PROJ-1"})
 	if err == nil {
 		t.Fatal("expected error for missing --queue, got nil")
 	}
@@ -320,12 +311,11 @@ func TestMoveMissingQueue(t *testing.T) {
 }
 
 func TestMoveAPIError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mover := &mockBulkMover{err: errors.New("connection refused")}
 	poll := &mockPollGetter{}
 
 	_, err := setupMoveCmd(t, mover, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--queue", "TARGET"})
 	if err == nil {
 		t.Fatal("expected error from API, got nil")
@@ -337,8 +327,6 @@ func TestMoveAPIError(t *testing.T) {
 }
 
 func TestMoveNoKeys(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// Override stdin to a TTY-like pipe that appears as non-pipe.
 	// Since readIssueKeys uses isatty, we override stdinFile to os.Stdout
 	// which is a TTY in test environments. Use a pipe instead to simulate.
@@ -352,7 +340,7 @@ func TestMoveNoKeys(t *testing.T) {
 	mover := &mockBulkMover{bc: makeCompletedBulkChange("x")}
 	poll := &mockPollGetter{bc: makeCompletedBulkChange("x")}
 
-	_, err := setupMoveCmd(t, mover, poll, []string{"--queue", "TARGET"})
+	_, err := setupMoveCmd(t, mover, poll, output.Options{}, []string{"--queue", "TARGET"})
 	if err == nil {
 		t.Fatal("expected error for no keys, got nil")
 	}
@@ -363,13 +351,12 @@ func TestMoveNoKeys(t *testing.T) {
 }
 
 func TestMoveFailedStatusExitsNonZero(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeFailedBulkChange("move-fail-1")
 	mover := &mockBulkMover{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupMoveCmd(t, mover, poll,
+		output.Options{},
 		[]string{"PROJ-1", "PROJ-2", "--queue", "TARGET"})
 	if err == nil {
 		t.Fatal("expected non-nil error for FAILED bulk operation, got nil")
@@ -402,9 +389,6 @@ func TestMoveFailedStatusExitsNonZero(t *testing.T) {
 // The operation fails partway, so the error must carry the counts the server
 // reported rather than any fixed pair.
 func TestMoveFailedQuietWritesNothing(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	bc := makeFailedBulkChange("move-fail-quiet-1")
 	bc.TotalIssues = testutil.IntPtr(3)
 	bc.TotalCompletedIssues = testutil.IntPtr(1)
@@ -412,6 +396,7 @@ func TestMoveFailedQuietWritesNothing(t *testing.T) {
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupMoveCmd(t, mover, poll,
+		output.Options{Quiet: true},
 		[]string{"PROJ-1", "PROJ-2", "PROJ-3", "--queue", "TARGET"})
 	if err == nil {
 		t.Fatal("expected non-nil error for FAILED bulk operation, got nil")
@@ -427,14 +412,13 @@ func TestMoveFailedQuietWritesNothing(t *testing.T) {
 // an agent can run as it stands, like the FAILED one: the change may still
 // land after ytr stops waiting, and bulk status is how to find out.
 func TestMoveTimeoutSuggestsRunnableCommand(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("move-timeout-1")
 	mover := &mockBulkMover{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	// The deadline passes during the wait before the first poll.
 	_, err := setupMoveCmd(t, mover, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--queue", "TARGET", "--timeout", "1ms"})
 	if err == nil {
 		t.Fatal("expected an error when the wait times out, got nil")
@@ -474,8 +458,6 @@ func assertBulkFailedDetail(t *testing.T, err error, operationID string, total, 
 }
 
 func TestMoveEmptyOperationID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// API returns a BulkChange with no ID — must fail loudly, not poll a
 	// collection endpoint with an empty operation ID.
 	bc := &tracker.BulkChange{Status: testutil.StrPtr("CREATED")}
@@ -483,6 +465,7 @@ func TestMoveEmptyOperationID(t *testing.T) {
 	poll := &mockPollGetter{bc: bc}
 
 	_, err := setupMoveCmd(t, mover, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--queue", "TARGET"})
 	if err == nil {
 		t.Fatal("expected error for empty operation ID, got nil")
@@ -509,13 +492,12 @@ func TestMove_RegisteredAsSubcommand(t *testing.T) {
 }
 
 func TestMoveFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("move-unknown-1")
 	mover := &mockBulkMover{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	_, err := setupMoveCmd(t, mover, poll,
+		output.Options{},
 		[]string{"--from-json", `{"queue":"TARGET","issues":["PROJ-1"],"bogus":1}`})
 	if err == nil {
 		t.Fatal("expected an error for an unknown field, got nil")

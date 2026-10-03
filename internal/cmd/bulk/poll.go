@@ -180,6 +180,7 @@ func pollUntilDone(
 
 func awaitBulkCompletion(
 	cmd *cobra.Command,
+	opts *output.Options,
 	getter bulkStatusGetter,
 	bc *tracker.BulkChange,
 	timeout time.Duration,
@@ -203,7 +204,7 @@ func awaitBulkCompletion(
 		return handlePollError(ctx, err, timeout, operationID)
 	}
 
-	return finalizeBulkResult(cmd, result, operationID)
+	return finalizeBulkResult(cmd.OutOrStdout(), opts, result, operationID)
 }
 
 // A failed operation renders nothing: a run that ends non-zero must leave
@@ -212,7 +213,7 @@ func awaitBulkCompletion(
 // in the error instead, and reach stderr with it. `bulk status` is a query and
 // calls renderBulkOutput directly, so it still reports a FAILED operation as a
 // document at exit 0.
-func finalizeBulkResult(cmd *cobra.Command, bc *tracker.BulkChange, operationID string) error {
+func finalizeBulkResult(w io.Writer, opts *output.Options, bc *tracker.BulkChange, operationID string) error {
 	if api.DerefString(bc.Status, "") == bulkStatusFail {
 		return ytrerrors.NewBulkFailedError(
 			operationID,
@@ -222,33 +223,31 @@ func finalizeBulkResult(cmd *cobra.Command, bc *tracker.BulkChange, operationID 
 		)
 	}
 
-	return renderBulkOutput(cmd, bc)
+	return renderBulkOutput(w, opts, bc)
 }
 
-func renderBulkOutput(cmd *cobra.Command, bc *tracker.BulkChange) error {
-	w := cmd.OutOrStdout()
-
-	if output.IsJSON() {
+func renderBulkOutput(w io.Writer, opts *output.Options, bc *tracker.BulkChange) error {
+	if opts.IsJSON() {
 		item := toBulkChangeDetail(bc)
-		if output.HasFieldSelection() {
-			filtered := output.FilterFields(item, output.JSONFields)
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+		if opts.HasFieldSelection() {
+			filtered := output.FilterFields(item, opts.JSONFields)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, item, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, item, opts.JQFilter)
 		}
-		return output.PrintJSON(w, item)
+		return opts.PrintJSON(w, item)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, api.DerefFlexString(bc.ID, ""))
 		return nil
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("ID", "STATUS", "TOTAL", "DONE", "PERCENT")
 	tbl.AddRow(
 		api.DerefFlexString(bc.ID, "-"),

@@ -33,7 +33,7 @@ func (m *mockComponentCreator) Create(
 	return m.component, &tracker.Response{}, nil
 }
 
-func setupCreateCmd(t *testing.T, mock *mockComponentCreator, args []string) (string, error) {
+func setupCreateCmd(t *testing.T, mock *mockComponentCreator, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origCreator := newComponentCreator
@@ -48,7 +48,7 @@ func setupCreateCmd(t *testing.T, mock *mockComponentCreator, args []string) (st
 	cmd.PersistentFlags().String("org-id", "test-org", "")
 	cmd.PersistentFlags().String("org-type", "360", "")
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -72,7 +72,7 @@ func TestCreate(t *testing.T) {
 		name      string
 		mock      *mockComponentCreator
 		args      []string
-		setup     func()
+		opts      output.Options
 		wantOut   string
 		wantErr   string
 		jsonCheck func(t *testing.T, out string)
@@ -125,10 +125,10 @@ func TestCreate(t *testing.T) {
 			wantErr: "--name and --queue are required",
 		},
 		{
-			name:  "json output",
-			mock:  &mockComponentCreator{component: makeCreatedComponent()},
-			args:  []string{"--name", "Backend", "--queue", "PROJ"},
-			setup: func() { output.JSONFields = ComponentListFields },
+			name: "json output",
+			mock: &mockComponentCreator{component: makeCreatedComponent()},
+			args: []string{"--name", "Backend", "--queue", "PROJ"},
+			opts: output.Options{JSONFields: ComponentListFields},
 			jsonCheck: func(t *testing.T, out string) {
 				t.Helper()
 				var item map[string]any
@@ -150,7 +150,7 @@ func TestCreate(t *testing.T) {
 			name:    "quiet output",
 			mock:    &mockComponentCreator{component: makeCreatedComponent()},
 			args:    []string{"--name", "Backend", "--queue", "PROJ"},
-			setup:   func() { output.QuietFlag = true },
+			opts:    output.Options{Quiet: true},
 			wantOut: "10",
 		},
 		{
@@ -163,12 +163,7 @@ func TestCreate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-
-			out, err := setupCreateCmd(t, tt.mock, tt.args)
+			out, err := setupCreateCmd(t, tt.mock, tt.opts, tt.args)
 
 			if tt.wantErr != "" {
 				if err == nil {
@@ -197,10 +192,8 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreateRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockComponentCreator{component: makeCreatedComponent()}
-	_, err := setupCreateCmd(t, mock, []string{"--name", "Backend", "--queue", "PROJ"})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"--name", "Backend", "--queue", "PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -227,10 +220,8 @@ func TestCreateRequestCapture(t *testing.T) {
 }
 
 func TestCreateAllFlags(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockComponentCreator{component: makeCreatedComponent()}
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"--name", "Backend", "--queue", "PROJ",
 		"--description", "Backend services",
 		"--lead", "12345",
@@ -255,10 +246,8 @@ func TestCreateAllFlags(t *testing.T) {
 }
 
 func TestCreateFromJSONRequest(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockComponentCreator{component: makeCreatedComponent()}
-	_, err := setupCreateCmd(t, mock, []string{"--from-json", `{"name":"Backend","queue":"PROJ"}`})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"--from-json", `{"name":"Backend","queue":"PROJ"}`})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -275,11 +264,9 @@ func TestCreateFromJSONRequest(t *testing.T) {
 }
 
 func TestCreateFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockComponentCreator{component: makeCreatedComponent()}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"--from-json", `{"name":"Backend","queue":"PROJ","bogus":1}`,
 	})
 	if err == nil {

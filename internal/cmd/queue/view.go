@@ -65,19 +65,21 @@ SEE ALSO
 }
 
 func runView(cmd *cobra.Command, args []string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "queue view", QueueDetailFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = QueueDetailFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = QueueDetailFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, QueueDetailFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, QueueDetailFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, QueueDetailFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, QueueDetailFields)
 	}
 
 	queueKey := args[0]
@@ -98,23 +100,23 @@ func runView(cmd *cobra.Command, args []string) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderDetailOutput(cmd.OutOrStdout(), q)
+	return renderDetailOutput(cmd.OutOrStdout(), opts, q)
 }
 
-func renderDetailOutput(w io.Writer, q *tracker.Queue) error {
-	if output.IsJSON() {
-		return renderDetailJSON(w, q)
+func renderDetailOutput(w io.Writer, opts *output.Options, q *tracker.Queue) error {
+	if opts.IsJSON() {
+		return renderDetailJSON(w, opts, q)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, api.DerefString(q.Key, ""))
 		return nil
 	}
 
-	return renderDetailTable(w, q)
+	return renderDetailTable(w, opts, q)
 }
 
-func renderDetailJSON(w io.Writer, q *tracker.Queue) error {
+func renderDetailJSON(w io.Writer, opts *output.Options, q *tracker.Queue) error {
 	detail := queueDetail{
 		Key:             api.DerefString(q.Key, ""),
 		Name:            api.DerefString(q.Name, ""),
@@ -129,21 +131,21 @@ func renderDetailJSON(w io.Writer, q *tracker.Queue) error {
 		detail.Description = *q.Description
 	}
 
-	if output.HasFieldSelection() {
-		filtered := output.FilterFields(detail, output.JSONFields)
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, filtered, output.JQFilter)
+	if opts.HasFieldSelection() {
+		filtered := output.FilterFields(detail, opts.JSONFields)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, filtered, opts.JQFilter)
 		}
-		return output.PrintJSON(w, filtered)
+		return opts.PrintJSON(w, filtered)
 	}
-	if output.JQFilter != "" {
-		return output.ApplyJQ(w, detail, output.JQFilter)
+	if opts.JQFilter != "" {
+		return output.ApplyJQ(w, detail, opts.JQFilter)
 	}
-	return output.PrintJSON(w, detail)
+	return opts.PrintJSON(w, detail)
 }
 
-func renderDetailTable(w io.Writer, q *tracker.Queue) error {
-	d := output.NewDetail(w)
+func renderDetailTable(w io.Writer, opts *output.Options, q *tracker.Queue) error {
+	d := opts.NewDetail(w)
 
 	d.Field("Key", api.DerefString(q.Key, "-"))
 	d.Field("Name", api.DerefString(q.Name, "-"))

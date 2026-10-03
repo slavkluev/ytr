@@ -64,7 +64,7 @@ func makeLinks() []*tracker.IssueLink {
 	}
 }
 
-func setupListCmd(t *testing.T, mock *mockLinkLister, args []string) (string, error) {
+func setupListCmd(t *testing.T, mock *mockLinkLister, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origLister := newLinkLister
@@ -84,7 +84,7 @@ func setupListCmd(t *testing.T, mock *mockLinkLister, args []string) (string, er
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -93,7 +93,7 @@ func TestList(t *testing.T) {
 		name      string
 		mock      *mockLinkLister
 		args      []string
-		setup     func()
+		opts      output.Options
 		wantOut   string
 		wantErr   string
 		jsonCheck func(t *testing.T, out string)
@@ -114,9 +114,7 @@ func TestList(t *testing.T) {
 			name: "json output",
 			mock: &mockLinkLister{links: makeLinks()},
 			args: []string{"PROJ-123"},
-			setup: func() {
-				output.JSONFields = LinkListFields
-			},
+			opts: output.Options{JSONFields: LinkListFields},
 			jsonCheck: func(t *testing.T, out string) {
 				t.Helper()
 				var items []map[string]any
@@ -145,21 +143,17 @@ func TestList(t *testing.T) {
 			},
 		},
 		{
-			name: "quiet output",
-			mock: &mockLinkLister{links: makeLinks()},
-			args: []string{"PROJ-123"},
-			setup: func() {
-				output.QuietFlag = true
-			},
+			name:    "quiet output",
+			mock:    &mockLinkLister{links: makeLinks()},
+			args:    []string{"PROJ-123"},
+			opts:    output.Options{Quiet: true},
 			wantOut: "101",
 		},
 		{
-			name: "jq filter",
-			mock: &mockLinkLister{links: makeLinks()},
-			args: []string{"PROJ-123"},
-			setup: func() {
-				output.JQFilter = ".[0].type"
-			},
+			name:    "jq filter",
+			mock:    &mockLinkLister{links: makeLinks()},
+			args:    []string{"PROJ-123"},
+			opts:    output.Options{JQFilter: ".[0].type"},
 			wantOut: "depends on",
 		},
 		{
@@ -184,12 +178,7 @@ func TestList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-
-			out, err := setupListCmd(t, tt.mock, tt.args)
+			out, err := setupListCmd(t, tt.mock, tt.opts, tt.args)
 
 			if tt.wantErr != "" {
 				if err == nil {
@@ -218,11 +207,9 @@ func TestList(t *testing.T) {
 }
 
 func TestListDirectionAware(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockLinkLister{links: makeLinks()}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -238,10 +225,8 @@ func TestListDirectionAware(t *testing.T) {
 }
 
 func TestListRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockLinkLister{links: []*tracker.IssueLink{}}
-	_, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

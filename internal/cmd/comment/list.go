@@ -75,19 +75,21 @@ SEE ALSO
 }
 
 func runList(cmd *cobra.Command, issueKey string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "comment list", CommentFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = CommentFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = CommentFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, CommentFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, CommentFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, CommentFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, CommentFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -106,7 +108,7 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		return err
 	}
 
-	return renderListOutput(cmd.OutOrStdout(), comments)
+	return renderListOutput(cmd.OutOrStdout(), opts, comments)
 }
 
 // fetchAllComments retrieves every comment on an issue by following the
@@ -148,30 +150,30 @@ func fetchAllComments(
 	return all, nil
 }
 
-func renderListOutput(w io.Writer, comments []*tracker.Comment) error {
-	if output.IsJSON() {
+func renderListOutput(w io.Writer, opts *output.Options, comments []*tracker.Comment) error {
+	if opts.IsJSON() {
 		items := make([]commentItem, len(comments))
 		for i, c := range comments {
 			items[i] = toCommentItem(c)
 		}
 
-		if output.HasFieldSelection() {
+		if opts.HasFieldSelection() {
 			filtered := make([]map[string]any, len(items))
 			for i, item := range items {
-				filtered[i] = output.FilterFields(item, output.JSONFields)
+				filtered[i] = output.FilterFields(item, opts.JSONFields)
 			}
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, items, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, items, opts.JQFilter)
 		}
-		return output.PrintJSON(w, items)
+		return opts.PrintJSON(w, items)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		ids := make([]string, len(comments))
 		for i, c := range comments {
 			ids[i] = api.DerefFlexString(c.ID, "")
@@ -185,7 +187,7 @@ func renderListOutput(w io.Writer, comments []*tracker.Comment) error {
 		return err
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("ID", "AUTHOR", "DATE", "BODY")
 
 	for _, c := range comments {
@@ -193,9 +195,9 @@ func renderListOutput(w io.Writer, comments []*tracker.Comment) error {
 		author := api.DerefUser(c.CreatedBy, "-")
 		date := "-"
 		if c.CreatedAt != nil {
-			date = output.FormatTime(c.CreatedAt.Time)
+			date = opts.FormatTime(c.CreatedAt.Time)
 		}
-		body := output.FitColumn(api.DerefString(c.Text, ""), commentTableReservedWidth, commentMinColumnWidth)
+		body := opts.FitColumn(api.DerefString(c.Text, ""), commentTableReservedWidth, commentMinColumnWidth)
 		tbl.AddRow(id, author, date, body)
 	}
 

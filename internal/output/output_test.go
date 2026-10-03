@@ -8,10 +8,11 @@ import (
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 func TestPrintJSON(t *testing.T) {
+	opts := output.Options{}
+
 	var buf bytes.Buffer
 	data := struct {
 		Name  string `json:"name"`
@@ -21,7 +22,7 @@ func TestPrintJSON(t *testing.T) {
 		Count: 42,
 	}
 
-	err := output.PrintJSON(&buf, data)
+	err := opts.PrintJSON(&buf, data)
 	if err != nil {
 		t.Fatalf("PrintJSON() returned error: %v", err)
 	}
@@ -46,10 +47,12 @@ func TestPrintJSON(t *testing.T) {
 }
 
 func TestPrintJSON_NoANSI(t *testing.T) {
+	opts := output.Options{}
+
 	var buf bytes.Buffer
 	data := map[string]string{"key": "value"}
 
-	err := output.PrintJSON(&buf, data)
+	err := opts.PrintJSON(&buf, data)
 	if err != nil {
 		t.Fatalf("PrintJSON() returned error: %v", err)
 	}
@@ -71,109 +74,54 @@ func TestPrintQuiet(t *testing.T) {
 	}
 }
 
-func TestMode(t *testing.T) {
-	tests := []struct {
-		name       string
-		jsonFields []string
-		quietFlag  bool
-		want       output.OutputMode
-	}{
-		{"default is table", nil, false, output.ModeTable},
-		{"json fields", []string{"key"}, false, output.ModeJSON},
-		{"quiet flag", nil, true, output.ModeQuiet},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			output.JSONFields = tt.jsonFields
-			output.QuietFlag = tt.quietFlag
-			defer output.ResetFlags()
-
-			if got := output.Mode(); got != tt.want {
-				t.Errorf("Mode() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestMode_JSONFields(t *testing.T) {
-	output.JSONFields = []string{"key", "status"}
-	defer output.ResetFlags()
-
-	if got := output.Mode(); got != output.ModeJSON {
-		t.Errorf("Mode() with JSONFields = %v, want ModeJSON", got)
-	}
-}
-
 func TestIsJSON_WithFields(t *testing.T) {
-	output.JSONFields = []string{"key"}
-	defer output.ResetFlags()
+	opts := output.Options{JSONFields: []string{"key"}}
 
-	if !output.IsJSON() {
+	if !opts.IsJSON() {
 		t.Error("IsJSON() = false, want true when JSONFields is non-empty")
 	}
 }
 
 func TestIsJSON_Empty(t *testing.T) {
-	output.JSONFields = nil
-	output.JQFilter = ""
-	defer output.ResetFlags()
+	opts := output.Options{}
 
-	if output.IsJSON() {
+	if opts.IsJSON() {
 		t.Error("IsJSON() = true, want false when JSONFields is nil and JQFilter is empty")
 	}
 }
 
 func TestIsJSON_JQOnly(t *testing.T) {
-	output.JSONFields = nil
-	output.JQFilter = ".key"
-	defer output.ResetFlags()
+	opts := output.Options{JQFilter: ".key"}
 
-	if !output.IsJSON() {
+	if !opts.IsJSON() {
 		t.Error("IsJSON() = false, want true when JQFilter is set")
 	}
 }
 
 func TestHasFieldSelection(t *testing.T) {
-	output.JSONFields = []string{"key"}
-	defer output.ResetFlags()
+	opts := output.Options{JSONFields: []string{"key"}}
 
-	if !output.HasFieldSelection() {
+	if !opts.HasFieldSelection() {
 		t.Error("HasFieldSelection() = false, want true when JSONFields is non-empty")
 	}
 
-	output.JSONFields = nil
-	if output.HasFieldSelection() {
+	opts.JSONFields = nil
+	if opts.HasFieldSelection() {
 		t.Error("HasFieldSelection() = true, want false when JSONFields is nil")
-	}
-}
-
-func TestIsQuiet(t *testing.T) {
-	output.QuietFlag = true
-	defer output.ResetFlags()
-
-	if !output.IsQuiet() {
-		t.Error("IsQuiet() = false, want true when QuietFlag is true")
-	}
-
-	output.QuietFlag = false
-	if output.IsQuiet() {
-		t.Error("IsQuiet() = true, want false when QuietFlag is false")
 	}
 }
 
 func TestDebugf(t *testing.T) {
 	var buf bytes.Buffer
-	output.SetDebugWriter(&buf)
-	defer output.ResetFlags()
+	opts := output.Options{DebugOut: &buf}
 
-	output.Debugf("hidden")
+	opts.Debugf("hidden")
 	if buf.Len() != 0 {
 		t.Fatalf("Debugf() wrote output while disabled: %q", buf.String())
 	}
 
-	output.DebugFlag = true
-	output.Debugf("request %s", "ok")
+	opts.Debug = true
+	opts.Debugf("request %s", "ok")
 
 	if got := buf.String(); got != "[debug] request ok\n" {
 		t.Errorf("Debugf() = %q, want %q", got, "[debug] request ok\n")
@@ -211,8 +159,10 @@ func TestSanitizeDebugString(t *testing.T) {
 }
 
 func TestHandleError_Nil(t *testing.T) {
+	opts := output.Options{}
+
 	var buf bytes.Buffer
-	code := output.HandleError(&buf, nil)
+	code := opts.HandleError(&buf, nil)
 
 	if code != 0 {
 		t.Errorf("HandleError(nil) = %d, want 0", code)
@@ -221,11 +171,10 @@ func TestHandleError_Nil(t *testing.T) {
 
 func TestHandleError_ExitError(t *testing.T) {
 	var buf bytes.Buffer
-	output.JSONFields = nil
-	defer output.ResetFlags()
+	opts := output.Options{}
 
 	err := ytrerrors.NewAuthError("auth failed", "login again")
-	code := output.HandleError(&buf, err)
+	code := opts.HandleError(&buf, err)
 
 	if code != 3 {
 		t.Errorf("HandleError(AuthError) = %d, want 3", code)
@@ -239,11 +188,10 @@ func TestHandleError_ExitError(t *testing.T) {
 
 func TestHandleError_ExitError_JSON(t *testing.T) {
 	var buf bytes.Buffer
-	output.JSONFields = []string{"key"}
-	defer output.ResetFlags()
+	opts := output.Options{JSONFields: []string{"key"}}
 
 	err := ytrerrors.NewNotFoundError("issue not found", "check the key")
-	code := output.HandleError(&buf, err)
+	code := opts.HandleError(&buf, err)
 
 	if code != 4 {
 		t.Errorf("HandleError(NotFoundError) = %d, want 4", code)
@@ -278,11 +226,9 @@ func TestWantsFieldHint(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			output.JSONFields = tc.jsonFields
-			output.JQFilter = tc.jqFilter
-			defer output.ResetFlags()
+			opts := output.Options{JSONFields: tc.jsonFields, JQFilter: tc.jqFilter}
 
-			if got := output.WantsFieldHint(tc.jsonFlagChanged); got != tc.want {
+			if got := opts.WantsFieldHint(tc.jsonFlagChanged); got != tc.want {
 				t.Errorf("WantsFieldHint(%v) = %v, want %v", tc.jsonFlagChanged, got, tc.want)
 			}
 		})
@@ -291,11 +237,10 @@ func TestWantsFieldHint(t *testing.T) {
 
 func TestHandleError_InvalidFieldError_JSON(t *testing.T) {
 	var buf bytes.Buffer
-	output.JSONFields = []string{"key"}
-	defer output.ResetFlags()
+	opts := output.Options{JSONFields: []string{"key"}}
 
 	err := ytrerrors.NewInvalidFieldError("bogus", []string{"key", "summary"})
-	code := output.HandleError(&buf, err)
+	code := opts.HandleError(&buf, err)
 
 	if code != 1 {
 		t.Errorf("HandleError(InvalidFieldError) = %d, want 1", code)
@@ -322,11 +267,10 @@ func TestHandleError_InvalidFieldError_JSON(t *testing.T) {
 
 func TestHandleError_InvalidFieldError_Human(t *testing.T) {
 	var buf bytes.Buffer
-	output.JSONFields = nil
-	defer output.ResetFlags()
+	opts := output.Options{}
 
 	err := ytrerrors.NewInvalidFieldError("bogus", []string{"key", "summary"})
-	code := output.HandleError(&buf, err)
+	code := opts.HandleError(&buf, err)
 
 	if code != 1 {
 		t.Errorf("HandleError(InvalidFieldError) = %d, want 1", code)
@@ -349,15 +293,12 @@ func TestHandleError_InvalidFieldError_Human(t *testing.T) {
 func TestHandleError_JSONErrorSharesStderrWithDebug(t *testing.T) {
 	var stderrBuf bytes.Buffer
 
-	output.JSONFields = []string{"key"}
-	output.DebugFlag = true
-	output.SetDebugWriter(&stderrBuf)
-	defer output.ResetFlags()
+	opts := output.Options{JSONFields: []string{"key"}, Debug: true, DebugOut: &stderrBuf}
 
-	output.Debugf("transport error")
+	opts.Debugf("transport error")
 
 	err := ytrerrors.NewNotFoundError("issue not found", "check the key")
-	code := output.HandleError(&stderrBuf, err)
+	code := opts.HandleError(&stderrBuf, err)
 
 	if code != 4 {
 		t.Errorf("HandleError(NotFoundError) = %d, want 4", code)
@@ -387,11 +328,10 @@ func TestHandleError_JSONErrorSharesStderrWithDebug(t *testing.T) {
 // a new type from being flattened to the generic user_error shape.
 func TestHandleError_BulkFailedError_JSON(t *testing.T) {
 	var buf bytes.Buffer
-	output.JSONFields = []string{"id"}
-	defer output.ResetFlags()
+	opts := output.Options{JSONFields: []string{"id"}}
 
 	err := ytrerrors.NewBulkFailedError("op-1", "Operation FAILED", 7, 3)
-	code := output.HandleError(&buf, err)
+	code := opts.HandleError(&buf, err)
 
 	if code != ytrerrors.ExitUserError {
 		t.Errorf("HandleError(BulkFailedError) = %d, want %d", code, ytrerrors.ExitUserError)
@@ -427,11 +367,10 @@ func TestHandleError_BulkFailedError_JSON(t *testing.T) {
 // to carry what the JSON document holds in its own fields.
 func TestHandleError_BulkFailedError_Human(t *testing.T) {
 	var buf bytes.Buffer
-	output.JSONFields = nil
-	defer output.ResetFlags()
+	opts := output.Options{}
 
 	err := ytrerrors.NewBulkFailedError("op-1", "Operation FAILED", 7, 3)
-	code := output.HandleError(&buf, err)
+	code := opts.HandleError(&buf, err)
 
 	if code != ytrerrors.ExitUserError {
 		t.Errorf("HandleError(BulkFailedError) = %d, want %d", code, ytrerrors.ExitUserError)
@@ -447,11 +386,10 @@ func TestHandleError_BulkFailedError_Human(t *testing.T) {
 
 func TestHandleError_GenericError(t *testing.T) {
 	var buf bytes.Buffer
-	output.JSONFields = nil
-	defer output.ResetFlags()
+	opts := output.Options{}
 
 	genericErr := bytes.ErrTooLarge
-	code := output.HandleError(&buf, genericErr)
+	code := opts.HandleError(&buf, genericErr)
 
 	if code != ytrerrors.ExitUserError {
 		t.Errorf("HandleError(generic) = %d, want %d", code, ytrerrors.ExitUserError)
@@ -460,11 +398,10 @@ func TestHandleError_GenericError(t *testing.T) {
 
 func TestHandleError_GenericError_JSON(t *testing.T) {
 	var buf bytes.Buffer
-	output.JSONFields = []string{"key"}
-	defer output.ResetFlags()
+	opts := output.Options{JSONFields: []string{"key"}}
 
 	genericErr := bytes.ErrTooLarge
-	code := output.HandleError(&buf, genericErr)
+	code := opts.HandleError(&buf, genericErr)
 
 	if code != ytrerrors.ExitUserError {
 		t.Errorf("HandleError(generic JSON) = %d, want %d", code, ytrerrors.ExitUserError)
@@ -484,12 +421,11 @@ func TestHandleError_GenericError_JSON(t *testing.T) {
 }
 
 func TestPrintJSONOffTTYIsOneLine(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	var buf bytes.Buffer
 	data := map[string]any{"key": "APP-1", "labels": []string{"a", "b"}}
-	if err := output.PrintJSON(&buf, data); err != nil {
+	if err := opts.PrintJSON(&buf, data); err != nil {
 		t.Fatalf("PrintJSON() returned error: %v", err)
 	}
 
@@ -503,12 +439,11 @@ func TestPrintJSONOffTTYIsOneLine(t *testing.T) {
 }
 
 func TestPrintJSONOnTTYKeepsTheIndent(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(true)
+	opts := output.Options{TTY: true, Colors: true}
 
 	var buf bytes.Buffer
 	data := map[string]any{"key": "APP-1"}
-	if err := output.PrintJSON(&buf, data); err != nil {
+	if err := opts.PrintJSON(&buf, data); err != nil {
 		t.Fatalf("PrintJSON() returned error: %v", err)
 	}
 
@@ -518,31 +453,27 @@ func TestPrintJSONOnTTYKeepsTheIndent(t *testing.T) {
 }
 
 func TestHandleErrorJSONStaysCompactInBothModes(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key"}
-
 	for _, isTTY := range []bool{false, true} {
-		output.SetTTY(isTTY)
+		opts := output.Options{JSONFields: []string{"key"}, TTY: isTTY, Colors: isTTY}
 
 		var buf bytes.Buffer
-		code := output.HandleError(&buf, ytrerrors.NewUserError("bad input", "try again"))
+		code := opts.HandleError(&buf, ytrerrors.NewUserError("bad input", "try again"))
 		if code != ytrerrors.ExitUserError {
 			t.Errorf("exit code = %d, want %d", code, ytrerrors.ExitUserError)
 		}
 		if got := buf.String(); strings.Count(got, "\n") != 1 {
-			t.Errorf("JSON error with IsTTY()=%v must be one line, got %q", isTTY, got)
+			t.Errorf("JSON error with the TTY option %v must be one line, got %q", isTTY, got)
 		}
 	}
 }
 
 func TestHandleInvocationErrorReadsJSONFromRawArgs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	// pflag stopped at --nosuchflag, so --json never reached JSONFields.
 	var buf bytes.Buffer
 	args := []string{"issue", "list", "--nosuchflag", "--json", "key"}
-	code := output.HandleInvocationError(&buf, ytrerrors.NewUserError("unknown flag: --nosuchflag", "try --help"), args)
+	code := opts.HandleInvocationError(&buf, ytrerrors.NewUserError("unknown flag: --nosuchflag", "try --help"), args)
 
 	if code != ytrerrors.ExitUserError {
 		t.Errorf("exit code = %d, want %d", code, ytrerrors.ExitUserError)
@@ -558,12 +489,11 @@ func TestHandleInvocationErrorReadsJSONFromRawArgs(t *testing.T) {
 }
 
 func TestHandleInvocationErrorKeepsTextWithoutJSONArgs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	var buf bytes.Buffer
 	args := []string{"issue", "list", "--nosuchflag"}
-	output.HandleInvocationError(&buf, ytrerrors.NewUserError("unknown flag: --nosuchflag", "try --help"), args)
+	opts.HandleInvocationError(&buf, ytrerrors.NewUserError("unknown flag: --nosuchflag", "try --help"), args)
 
 	if got, want := buf.String(), "Error: unknown flag: --nosuchflag\ntry --help\n"; got != want {
 		t.Errorf("output = %q, want %q", got, want)
@@ -571,10 +501,10 @@ func TestHandleInvocationErrorKeepsTextWithoutJSONArgs(t *testing.T) {
 }
 
 func TestHandleInvocationErrorIgnoresRawArgsOnSuccess(t *testing.T) {
-	testutil.ResetOutputFlags(t)
+	opts := output.Options{}
 
 	var buf bytes.Buffer
-	if code := output.HandleInvocationError(&buf, nil, []string{"--json", "key"}); code != ytrerrors.ExitSuccess {
+	if code := opts.HandleInvocationError(&buf, nil, []string{"--json", "key"}); code != ytrerrors.ExitSuccess {
 		t.Errorf("exit code = %d, want %d", code, ytrerrors.ExitSuccess)
 	}
 	if buf.Len() != 0 {
@@ -600,15 +530,36 @@ func TestHandleInvocationErrorRawArgForms(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		testutil.ResetOutputFlags(t)
-		output.SetTTY(false)
+		var opts output.Options
 
 		var buf bytes.Buffer
-		output.HandleInvocationError(&buf, ytrerrors.NewUserError("bad invocation", "try --help"), c.args)
+		opts.HandleInvocationError(&buf, ytrerrors.NewUserError("bad invocation", "try --help"), c.args)
 
 		gotJSON := strings.HasPrefix(buf.String(), "{")
 		if gotJSON != c.isJSON {
 			t.Errorf("%s: rendered JSON = %v, want %v (output %q)", c.name, gotJSON, c.isJSON, buf.String())
 		}
+	}
+}
+
+func TestFromContextWithoutOptionsTurnsEverythingOff(t *testing.T) {
+	opts := output.FromContext(t.Context())
+
+	if opts.TTY || opts.Colors || opts.IsJSON() || opts.Quiet || opts.Debug {
+		t.Errorf("FromContext(no options) = %+v, want off a TTY with no JSON, quiet, debug or colors", opts)
+	}
+}
+
+func TestFromContextReturnsTheCarriedOptions(t *testing.T) {
+	carried := &output.Options{JSONFields: []string{"key"}}
+
+	got := output.FromContext(output.NewContext(t.Context(), carried))
+	if got != carried {
+		t.Fatalf("FromContext() = %p, want the carried %p", got, carried)
+	}
+
+	got.JSONFields = []string{"summary"}
+	if carried.JSONFields[0] != "summary" {
+		t.Errorf("a change through FromContext did not reach the carried options: %v", carried.JSONFields)
 	}
 }

@@ -1,52 +1,61 @@
 package output
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 )
 
-// OutputMode represents the current output format.
-type OutputMode int
+// Options is what one invocation asked of its output and what the terminal it
+// writes to can show. Each invocation carries its own value in its context, so
+// nothing one run sets reaches the next.
+type Options struct {
+	// Bound to the root persistent flags.
+	JSONFields []string
+	JQFilter   string
+	Quiet      bool
+	Debug      bool
 
-const (
-	// ModeTable is the default human-readable table output for TTY.
-	ModeTable OutputMode = iota
+	TTY    bool
+	Colors bool
+	// Width is the terminal width in columns; 0 means the 80-column default.
+	Width    int
+	DebugOut io.Writer
+}
 
-	// ModeJSON outputs clean JSON with no ANSI codes.
-	ModeJSON
+type optionsKey struct{}
 
-	// ModeQuiet outputs only primary identifiers, one per line.
-	ModeQuiet
-)
+// NewContext returns a context that carries opts. It holds the pointer, so a
+// command that normalizes opts.JSONFields changes them for its own run only.
+func NewContext(ctx context.Context, opts *Options) context.Context {
+	return context.WithValue(ctx, optionsKey{}, opts)
+}
 
-// JSONFields holds the list of requested JSON field names.
-// Set by the --json global persistent flag (StringSlice).
-// When non-empty, output is rendered as JSON with only these fields.
-var JSONFields []string
+// FromContext returns the options ctx carries, or zero Options when it carries
+// none: off a TTY, no JSON, no debug, no colors.
+func FromContext(ctx context.Context) *Options {
+	if ctx != nil {
+		if opts, ok := ctx.Value(optionsKey{}).(*Options); ok && opts != nil {
+			return opts
+		}
+	}
 
-// JQFilter holds an optional jq expression to apply to JSON output.
-// Set by the --jq global persistent flag.
-// When set, implies JSON output mode.
-var JQFilter string
-
-// QuietFlag controls whether output is rendered in quiet mode.
-// Set by the --quiet global persistent flag.
-var QuietFlag bool
+	return &Options{}
+}
 
 // IsJSON returns true when JSON output mode is active.
 // JSON mode is active when field selection is specified or a jq filter is set.
-func IsJSON() bool {
-	return len(JSONFields) > 0 || JQFilter != ""
+func (o *Options) IsJSON() bool {
+	return len(o.JSONFields) > 0 || o.JQFilter != ""
 }
 
 // HasFieldSelection returns true when specific JSON fields have been requested.
-func HasFieldSelection() bool {
-	return len(JSONFields) > 0
+func (o *Options) HasFieldSelection() bool {
+	return len(o.JSONFields) > 0
 }
 
 // WantsFieldHint reports whether a field-selecting command should print its
@@ -59,35 +68,8 @@ func HasFieldSelection() bool {
 // `--json=` and "no --json at all" both leave JSONFields empty, so JSONFields
 // alone cannot distinguish them — the same reason the auth commands key off
 // Changed("json").
-func WantsFieldHint(jsonFlagChanged bool) bool {
-	return jsonFlagChanged && !HasFieldSelection() && JQFilter == ""
-}
-
-// IsQuiet returns true when quiet output mode is active.
-func IsQuiet() bool {
-	return QuietFlag
-}
-
-// ResetFlags resets all output flags to their zero values.
-func ResetFlags() {
-	JSONFields = nil
-	JQFilter = ""
-	QuietFlag = false
-	DebugFlag = false
-	ttyOverride = nil
-	SetDebugWriter(os.Stderr)
-}
-
-// Mode returns the current output mode based on flag state.
-// JSON takes precedence over Quiet.
-func Mode() OutputMode {
-	if IsJSON() {
-		return ModeJSON
-	}
-	if QuietFlag {
-		return ModeQuiet
-	}
-	return ModeTable
+func (o *Options) WantsFieldHint(jsonFlagChanged bool) bool {
+	return jsonFlagChanged && !o.HasFieldSelection() && o.JQFilter == ""
 }
 
 // HandleError formats and writes an error to the given writer,
@@ -95,8 +77,8 @@ func Mode() OutputMode {
 // If err is nil, returns ExitSuccess (0).
 // If err is an *ExitError, formats it as JSON or human-readable based on IsJSON().
 // For unknown errors, writes a generic message and returns ExitUserError.
-func HandleError(w io.Writer, err error) int {
-	return handleError(w, err, IsJSON())
+func (o *Options) HandleError(w io.Writer, err error) int {
+	return handleError(w, err, o.IsJSON(), o.Colors)
 }
 
 // HandleInvocationError renders err the way HandleError does, but reads the
@@ -107,8 +89,8 @@ func HandleError(w io.Writer, err error) int {
 // rawArgs is consulted only when err is non-nil, so a value that happens to
 // read like --json (a comment body, a query) can never turn a successful run
 // into JSON.
-func HandleInvocationError(w io.Writer, err error, rawArgs []string) int {
-	return handleError(w, err, IsJSON() || (err != nil && jsonRequestedIn(rawArgs)))
+func (o *Options) HandleInvocationError(w io.Writer, err error, rawArgs []string) int {
+	return handleError(w, err, o.IsJSON() || (err != nil && jsonRequestedIn(rawArgs)), o.Colors)
 }
 
 // jsonRequestedIn reports whether args ask for JSON output, by the rule IsJSON
@@ -161,7 +143,7 @@ type jsonErrorRenderer interface {
 
 // w is always the caller's error stream: the single document goes to stderr in
 // every mode, so stdout carries command output and nothing else.
-func handleError(w io.Writer, err error, asJSON bool) int {
+func handleError(w io.Writer, err error, asJSON, colors bool) int {
 	if err == nil {
 		return ytrerrors.ExitSuccess
 	}
@@ -180,7 +162,7 @@ func handleError(w io.Writer, err error, asJSON bool) int {
 	}
 
 	if !asJSON {
-		ytrerrors.PrintHuman(w, exitErr, ColorsEnabled())
+		ytrerrors.PrintHuman(w, exitErr, colors)
 		return exitErr.ExitCode
 	}
 

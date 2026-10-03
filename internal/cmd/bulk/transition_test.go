@@ -14,7 +14,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // mockBulkTransitioner implements bulkTransitioner for testing.
@@ -45,6 +44,7 @@ func setupTransitionCmd(
 	t *testing.T,
 	transitionerMock *mockBulkTransitioner,
 	pollMock *mockPollGetter,
+	opts output.Options,
 	args []string,
 ) (string, error) {
 	t.Helper()
@@ -88,18 +88,17 @@ func setupTransitionCmd(
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestTransitionTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("transition-op-1")
 	transitioner := &mockBulkTransitioner{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupTransitionCmd(t, transitioner, poll,
+		output.Options{},
 		[]string{"PROJ-1", "PROJ-2", "--transition", "close"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -132,14 +131,12 @@ func TestTransitionTable(t *testing.T) {
 }
 
 func TestTransitionJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = BulkStatusFields
-
 	bc := makeCompletedBulkChange("transition-json-1")
 	transitioner := &mockBulkTransitioner{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupTransitionCmd(t, transitioner, poll,
+		output.Options{JSONFields: BulkStatusFields},
 		[]string{"PROJ-1", "--transition", "close"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -159,14 +156,12 @@ func TestTransitionJSON(t *testing.T) {
 }
 
 func TestTransitionQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	bc := makeCompletedBulkChange("transition-quiet-1")
 	transitioner := &mockBulkTransitioner{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupTransitionCmd(t, transitioner, poll,
+		output.Options{Quiet: true},
 		[]string{"PROJ-1", "--transition", "close"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -179,13 +174,12 @@ func TestTransitionQuiet(t *testing.T) {
 }
 
 func TestTransitionWithFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("transition-fields-1")
 	transitioner := &mockBulkTransitioner{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	_, err := setupTransitionCmd(t, transitioner, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--transition", "close", "--field", "resolution=fixed"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -206,13 +200,12 @@ func TestTransitionWithFields(t *testing.T) {
 }
 
 func TestTransitionFromJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("transition-fj-1")
 	transitioner := &mockBulkTransitioner{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	_, err := setupTransitionCmd(t, transitioner, poll,
+		output.Options{},
 		[]string{"--from-json", `{"transition":"close","issues":["PROJ-1"]}`})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -233,12 +226,11 @@ func TestTransitionFromJSON(t *testing.T) {
 }
 
 func TestTransitionMutualExclusion(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	transitioner := &mockBulkTransitioner{}
 	poll := &mockPollGetter{}
 
 	_, err := setupTransitionCmd(t, transitioner, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--transition", "close", "--from-json", "{}"})
 	if err == nil {
 		t.Fatal("expected mutual exclusion error, got nil")
@@ -250,12 +242,10 @@ func TestTransitionMutualExclusion(t *testing.T) {
 }
 
 func TestTransitionMissingTransition(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	transitioner := &mockBulkTransitioner{}
 	poll := &mockPollGetter{}
 
-	_, err := setupTransitionCmd(t, transitioner, poll, []string{"PROJ-1"})
+	_, err := setupTransitionCmd(t, transitioner, poll, output.Options{}, []string{"PROJ-1"})
 	if err == nil {
 		t.Fatal("expected error for missing --transition, got nil")
 	}
@@ -266,12 +256,11 @@ func TestTransitionMissingTransition(t *testing.T) {
 }
 
 func TestTransitionAPIError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	transitioner := &mockBulkTransitioner{err: errors.New("connection refused")}
 	poll := &mockPollGetter{}
 
 	_, err := setupTransitionCmd(t, transitioner, poll,
+		output.Options{},
 		[]string{"PROJ-1", "--transition", "close"})
 	if err == nil {
 		t.Fatal("expected error from API, got nil")
@@ -299,13 +288,12 @@ func TestTransition_RegisteredAsSubcommand(t *testing.T) {
 }
 
 func TestTransitionFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	bc := makeCompletedBulkChange("transition-unknown-1")
 	transitioner := &mockBulkTransitioner{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	_, err := setupTransitionCmd(t, transitioner, poll,
+		output.Options{},
 		[]string{"--from-json", `{"transition":"close","issues":["PROJ-1"],"bogus":1}`})
 	if err == nil {
 		t.Fatal("expected an error for an unknown field, got nil")
@@ -320,14 +308,12 @@ func TestTransitionFromJSONRejectsUnknownFields(t *testing.T) {
 }
 
 func TestTransitionFailedStatusWritesNothingToStdout(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = BulkStatusFields
-
 	bc := makeFailedBulkChange("transition-fail-1")
 	transitioner := &mockBulkTransitioner{bc: bc}
 	poll := &mockPollGetter{bc: bc}
 
 	out, err := setupTransitionCmd(t, transitioner, poll,
+		output.Options{JSONFields: BulkStatusFields},
 		[]string{"PROJ-1", "PROJ-2", "--transition", "close"})
 	if err == nil {
 		t.Fatal("expected non-nil error for FAILED bulk operation, got nil")

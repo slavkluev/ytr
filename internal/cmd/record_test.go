@@ -19,7 +19,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/faketracker"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 const fixtureDir = "testdata/fixtures"
@@ -72,10 +71,8 @@ func recordFixture(
 	t *testing.T, base http.RoundTripper, path string, secrets []faketracker.Secret, args ...string,
 ) error {
 	t.Helper()
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
 
-	leaf, _, err := newRootCmd().Find(args)
+	leaf, _, err := newRootCmd(&output.Options{}).Find(args)
 	if err != nil || !isReadOnlyLeaf(leaf) {
 		return fmt.Errorf("refusing to record ytr %s: only AGENTS.md's read-only commands may reach the real Tracker",
 			strings.Join(args, " "))
@@ -84,8 +81,7 @@ func recordFixture(
 	rec := faketracker.NewRecorder(base)
 
 	var out, errOut bytes.Buffer
-	output.SetDebugWriter(&errOut)
-	code := execute(api.WithTransport(t.Context(), rec), newRootCmd(), args, &out, &errOut)
+	code := execute(api.WithTransport(t.Context(), rec), output.Options{}, args, &out, &errOut)
 	if code != 0 {
 		return fmt.Errorf("ytr %s exited %d, nothing recorded: %s", strings.Join(args, " "), code, errOut.String())
 	}
@@ -125,7 +121,7 @@ func TestRecordAllowsOnlyReadOnlyLeaves(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		leaf, _, err := newRootCmd().Find(c.args)
+		leaf, _, err := newRootCmd(&output.Options{}).Find(c.args)
 		if err != nil {
 			t.Fatalf("Find(%q): %v", c.args, err)
 		}

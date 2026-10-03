@@ -12,7 +12,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // mockComponentDeleter implements componentDeleter for testing.
@@ -29,7 +28,7 @@ func (m *mockComponentDeleter) Delete(_ context.Context, componentID string) (*t
 	return &tracker.Response{}, nil
 }
 
-func setupDeleteCmd(t *testing.T, mock *mockComponentDeleter, args []string) (string, error) {
+func setupDeleteCmd(t *testing.T, mock *mockComponentDeleter, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origDeleter := newComponentDeleter
@@ -44,7 +43,7 @@ func setupDeleteCmd(t *testing.T, mock *mockComponentDeleter, args []string) (st
 	cmd.PersistentFlags().String("org-id", "test-org", "")
 	cmd.PersistentFlags().String("org-type", "360", "")
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -53,7 +52,7 @@ func TestDelete(t *testing.T) {
 		name      string
 		mock      *mockComponentDeleter
 		args      []string
-		setup     func()
+		opts      output.Options
 		wantOut   string
 		wantErr   string
 		jsonCheck func(t *testing.T, out string)
@@ -65,10 +64,10 @@ func TestDelete(t *testing.T) {
 			wantOut: "Component 42 deleted\n",
 		},
 		{
-			name:  "json output",
-			mock:  &mockComponentDeleter{},
-			args:  []string{"42"},
-			setup: func() { output.JSONFields = []string{"id"} },
+			name: "json output",
+			mock: &mockComponentDeleter{},
+			args: []string{"42"},
+			opts: output.Options{JSONFields: []string{"id"}},
 			jsonCheck: func(t *testing.T, out string) {
 				t.Helper()
 				var result map[string]any
@@ -87,7 +86,7 @@ func TestDelete(t *testing.T) {
 			name:    "quiet output",
 			mock:    &mockComponentDeleter{},
 			args:    []string{"42"},
-			setup:   func() { output.QuietFlag = true },
+			opts:    output.Options{Quiet: true},
 			wantOut: "42",
 		},
 		{
@@ -106,12 +105,7 @@ func TestDelete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-
-			out, err := setupDeleteCmd(t, tt.mock, tt.args)
+			out, err := setupDeleteCmd(t, tt.mock, tt.opts, tt.args)
 
 			if tt.wantErr != "" {
 				if err == nil {
@@ -142,11 +136,9 @@ func TestDelete(t *testing.T) {
 }
 
 func TestDeleteRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockComponentDeleter{}
 
-	_, err := setupDeleteCmd(t, mock, []string{"42"})
+	_, err := setupDeleteCmd(t, mock, output.Options{}, []string{"42"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

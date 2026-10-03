@@ -47,19 +47,21 @@ SEE ALSO
 }
 
 func runGet(cmd *cobra.Command, userID string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "user get", UserDetailFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = UserDetailFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = UserDetailFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, UserDetailFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, UserDetailFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, UserDetailFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, UserDetailFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -78,5 +80,5 @@ func runGet(cmd *cobra.Command, userID string) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderDetailOutput(cmd.OutOrStdout(), user)
+	return renderDetailOutput(cmd.OutOrStdout(), opts, user)
 }

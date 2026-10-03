@@ -65,19 +65,21 @@ SEE ALSO
 }
 
 func runTransition(cmd *cobra.Command, issueKey, toFlag string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue transition", IssueTransitionFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = IssueTransitionFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = IssueTransitionFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, IssueTransitionFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, IssueTransitionFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, IssueTransitionFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueTransitionFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -108,7 +110,7 @@ func runTransition(cmd *cobra.Command, issueKey, toFlag string) error {
 	}
 
 	targetDisplay := api.DerefString(matched.To.Display, api.DerefString(matched.To.Key, toFlag))
-	return renderTransitionOutput(cmd.OutOrStdout(), issueKey, targetDisplay)
+	return renderTransitionOutput(cmd.OutOrStdout(), opts, issueKey, targetDisplay)
 }
 
 func matchTransition(transitions []*tracker.Transition, toFlag string) *tracker.Transition {
@@ -127,26 +129,26 @@ func matchTransition(transitions []*tracker.Transition, toFlag string) *tracker.
 	return nil
 }
 
-func renderTransitionOutput(w io.Writer, issueKey, targetDisplay string) error {
-	if output.IsJSON() {
+func renderTransitionOutput(w io.Writer, opts *output.Options, issueKey, targetDisplay string) error {
+	if opts.IsJSON() {
 		result := transitionResult{
 			Key:        issueKey,
 			Transition: targetDisplay,
 		}
-		if output.HasFieldSelection() {
-			filtered := output.FilterFields(result, output.JSONFields)
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+		if opts.HasFieldSelection() {
+			filtered := output.FilterFields(result, opts.JSONFields)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, result, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, result, opts.JQFilter)
 		}
-		return output.PrintJSON(w, result)
+		return opts.PrintJSON(w, result)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, issueKey)
 		return nil
 	}

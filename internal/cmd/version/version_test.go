@@ -11,10 +11,6 @@ import (
 )
 
 func TestVersionHuman(t *testing.T) {
-	// Ensure JSON mode is off
-	output.JSONFields = nil
-	defer output.ResetFlags()
-
 	cmd := version.NewCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
@@ -44,16 +40,12 @@ func TestVersionHuman(t *testing.T) {
 // TestVersionQuiet covers Info: `version --quiet` must print only the version
 // string (no commit/date/go/os-arch lines), so scripts can capture it cleanly.
 func TestVersionQuiet(t *testing.T) {
-	output.ResetFlags()
-	output.QuietFlag = true
-	defer output.ResetFlags()
-
 	cmd := version.NewCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetErr(buf)
 
-	if err := cmd.Execute(); err != nil {
+	if err := cmd.ExecuteContext(output.NewContext(t.Context(), &output.Options{Quiet: true})); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -72,15 +64,12 @@ func TestVersionQuiet(t *testing.T) {
 }
 
 func TestVersionJSON(t *testing.T) {
-	output.JSONFields = version.VersionFields
-	defer output.ResetFlags()
-
 	cmd := version.NewCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetErr(buf)
 
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &output.Options{JSONFields: version.VersionFields}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -114,11 +103,10 @@ func TestVersionJSON(t *testing.T) {
 // through to table output with exit 0. Detection relies on cmd.Flags().Changed("json"),
 // so the test wires a --json flag mirroring the root persistent flag.
 func TestVersionJSONEmptyShowsFieldHint(t *testing.T) {
-	output.ResetFlags()
-	defer output.ResetFlags()
+	opts := &output.Options{}
 
 	cmd := version.NewCmd()
-	cmd.PersistentFlags().StringSliceVar(&output.JSONFields, "json", nil, "")
+	cmd.PersistentFlags().StringSliceVar(&opts.JSONFields, "json", nil, "")
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 
@@ -127,7 +115,7 @@ func TestVersionJSONEmptyShowsFieldHint(t *testing.T) {
 	cmd.SetErr(buf)
 	cmd.SetArgs([]string{"--json="})
 
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), opts))
 	if err == nil {
 		t.Fatal("expected a field-hint error for `version --json=`, got nil")
 	}

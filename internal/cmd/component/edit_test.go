@@ -36,7 +36,7 @@ func (m *mockComponentEditor) Edit(
 	return m.component, &tracker.Response{}, nil
 }
 
-func setupEditCmd(t *testing.T, mock *mockComponentEditor, args []string) (string, error) {
+func setupEditCmd(t *testing.T, mock *mockComponentEditor, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origEditor := newComponentEditor
@@ -51,7 +51,7 @@ func setupEditCmd(t *testing.T, mock *mockComponentEditor, args []string) (strin
 	cmd.PersistentFlags().String("org-id", "test-org", "")
 	cmd.PersistentFlags().String("org-type", "360", "")
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -75,7 +75,7 @@ func TestEdit(t *testing.T) {
 		name      string
 		mock      *mockComponentEditor
 		args      []string
-		setup     func()
+		opts      output.Options
 		wantOut   string
 		wantErr   string
 		jsonCheck func(t *testing.T, out string)
@@ -170,10 +170,10 @@ func TestEdit(t *testing.T) {
 			wantErr: "invalid component ID",
 		},
 		{
-			name:  "json output",
-			mock:  &mockComponentEditor{component: makeEditedComponent()},
-			args:  []string{"42", "--name", "Updated Backend"},
-			setup: func() { output.JSONFields = ComponentListFields },
+			name: "json output",
+			mock: &mockComponentEditor{component: makeEditedComponent()},
+			args: []string{"42", "--name", "Updated Backend"},
+			opts: output.Options{JSONFields: ComponentListFields},
 			jsonCheck: func(t *testing.T, out string) {
 				t.Helper()
 				var item map[string]any
@@ -192,7 +192,7 @@ func TestEdit(t *testing.T) {
 			name:    "quiet output",
 			mock:    &mockComponentEditor{component: makeEditedComponent()},
 			args:    []string{"42", "--name", "Updated"},
-			setup:   func() { output.QuietFlag = true },
+			opts:    output.Options{Quiet: true},
 			wantOut: "42",
 		},
 		{
@@ -205,12 +205,7 @@ func TestEdit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-
-			out, err := setupEditCmd(t, tt.mock, tt.args)
+			out, err := setupEditCmd(t, tt.mock, tt.opts, tt.args)
 
 			if tt.wantErr != "" {
 				if err == nil {
@@ -243,11 +238,9 @@ func TestEdit(t *testing.T) {
 }
 
 func TestEditFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockComponentEditor{component: makeEditedComponent()}
 
-	_, err := setupEditCmd(t, mock, []string{
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{
 		"123", "--from-json", `{"name":"Backend","bogus":1}`,
 	})
 	if err == nil {

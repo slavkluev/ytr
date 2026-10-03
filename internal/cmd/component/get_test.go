@@ -33,7 +33,7 @@ func (m *mockComponentGetter) Get(
 	return m.component, nil, nil
 }
 
-func setupGetCmd(t *testing.T, mock *mockComponentGetter, args []string) (string, error) {
+func setupGetCmd(t *testing.T, mock *mockComponentGetter, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origGetter := newComponentGetter
@@ -48,7 +48,7 @@ func setupGetCmd(t *testing.T, mock *mockComponentGetter, args []string) (string
 	cmd.PersistentFlags().String("org-id", "test-org", "")
 	cmd.PersistentFlags().String("org-type", "360", "")
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -57,7 +57,7 @@ func TestGet(t *testing.T) {
 		name  string
 		mock  *mockComponentGetter
 		args  []string
-		setup func()
+		opts  output.Options
 		check func(t *testing.T, mock *mockComponentGetter, out string, err error)
 	}{
 		{
@@ -131,8 +131,8 @@ func TestGet(t *testing.T) {
 					AssignAuto:  testutil.BoolPtr(true),
 				},
 			},
-			args:  []string{"42"},
-			setup: func() { output.JSONFields = ComponentGetFields },
+			args: []string{"42"},
+			opts: output.Options{JSONFields: ComponentGetFields},
 			check: func(t *testing.T, _ *mockComponentGetter, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -166,8 +166,8 @@ func TestGet(t *testing.T) {
 					ID: testutil.FlexStringPtr("42"),
 				},
 			},
-			args:  []string{"42"},
-			setup: func() { output.QuietFlag = true },
+			args: []string{"42"},
+			opts: output.Options{Quiet: true},
 			check: func(t *testing.T, _ *mockComponentGetter, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -232,20 +232,13 @@ func TestGet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-			out, err := setupGetCmd(t, tt.mock, tt.args)
+			out, err := setupGetCmd(t, tt.mock, tt.opts, tt.args)
 			tt.check(t, tt.mock, out, err)
 		})
 	}
 }
 
 func TestGetExposesLeadID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = ComponentGetFields
-
 	mock := &mockComponentGetter{
 		component: &tracker.Component{
 			ID:   testutil.FlexStringPtr("42"),
@@ -258,7 +251,7 @@ func TestGetExposesLeadID(t *testing.T) {
 		},
 	}
 
-	out, err := setupGetCmd(t, mock, []string{"42"})
+	out, err := setupGetCmd(t, mock, output.Options{JSONFields: ComponentGetFields}, []string{"42"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

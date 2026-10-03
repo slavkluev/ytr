@@ -99,19 +99,21 @@ func validateUpdateFlags(cmd *cobra.Command, args []string) error {
 
 func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue update", IssueDetailFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = IssueDetailFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = IssueDetailFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, IssueDetailFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, IssueDetailFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, IssueDetailFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueDetailFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -135,7 +137,7 @@ func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
 		return api.MapAPIError(err)
 	}
 
-	return outputIssueResult(cmd, issue)
+	return outputIssueResult(cmd.OutOrStdout(), opts, issue)
 }
 
 func buildUpdateRequest(cmd *cobra.Command, summary, description, issueType,

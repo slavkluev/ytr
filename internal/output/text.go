@@ -25,9 +25,9 @@ func TruncateDisplay(s string, maxWidth int) string {
 // FitColumn shortens s to the room the last table column has left once the
 // fixed columns took reserved cells, never going below minWidth. Off a TTY
 // there is no width to fit, so the value is returned whole.
-func FitColumn(s string, reserved, minWidth int) string {
-	if !IsTTY() {
+func (o *Options) FitColumn(s string, reserved, minWidth int) string {
+	if !o.TTY {
 		return s
 	}
-	return TruncateDisplay(s, max(TerminalWidth()-reserved, minWidth))
+	return TruncateDisplay(s, max(o.TerminalWidth()-reserved, minWidth))
 }

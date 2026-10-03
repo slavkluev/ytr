@@ -40,7 +40,7 @@ func (m *mockCommentEditor) EditComment(
 	return m.comment, m.resp, nil
 }
 
-func setupEditCmd(t *testing.T, mock *mockCommentEditor, args []string) (string, error) {
+func setupEditCmd(t *testing.T, mock *mockCommentEditor, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origEditor := newCommentEditor
@@ -60,7 +60,7 @@ func setupEditCmd(t *testing.T, mock *mockCommentEditor, args []string) (string,
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -163,17 +163,16 @@ func TestEdit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-
 			// Configure output mode for specific test cases.
+			var opts output.Options
 			if tt.jsonCheck != nil {
-				output.JSONFields = CommentFields
+				opts.JSONFields = CommentFields
 			}
 			if tt.name == "quiet output" {
-				output.QuietFlag = true
+				opts.Quiet = true
 			}
 
-			out, err := setupEditCmd(t, tt.mock, tt.args)
+			out, err := setupEditCmd(t, tt.mock, opts, tt.args)
 
 			if tt.wantErr != "" {
 				if err == nil {
@@ -202,8 +201,6 @@ func TestEdit(t *testing.T) {
 }
 
 func TestEditRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	testComment := &tracker.Comment{
 		ID:        testutil.FlexStringPtr("42"),
 		Text:      testutil.StrPtr("updated"),
@@ -215,7 +212,7 @@ func TestEditRequestCapture(t *testing.T) {
 		resp:    &tracker.Response{},
 	}
 
-	_, err := setupEditCmd(t, mock, []string{"PROJ-123", "42", "--body", "new text"})
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-123", "42", "--body", "new text"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -232,8 +229,6 @@ func TestEditRequestCapture(t *testing.T) {
 }
 
 func TestEditFromJSONRequest(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	testComment := &tracker.Comment{
 		ID:        testutil.FlexStringPtr("42"),
 		Text:      testutil.StrPtr("from json"),
@@ -245,7 +240,7 @@ func TestEditFromJSONRequest(t *testing.T) {
 		resp:    &tracker.Response{},
 	}
 
-	_, err := setupEditCmd(t, mock, []string{"PROJ-1", "42", "--from-json", `{"text":"from json"}`})
+	_, err := setupEditCmd(t, mock, output.Options{}, []string{"PROJ-1", "42", "--from-json", `{"text":"from json"}`})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -256,14 +251,17 @@ func TestEditFromJSONRequest(t *testing.T) {
 }
 
 func TestEditFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockCommentEditor{
 		comment: &tracker.Comment{ID: testutil.FlexStringPtr("42")},
 		resp:    &tracker.Response{},
 	}
 
-	_, err := setupEditCmd(t, mock, []string{"PROJ-1", "42", "--from-json", `{"text":"hi","bogus":1}`})
+	_, err := setupEditCmd(
+		t,
+		mock,
+		output.Options{},
+		[]string{"PROJ-1", "42", "--from-json", `{"text":"hi","bogus":1}`},
+	)
 	if err == nil {
 		t.Fatal("expected an error for an unknown field, got nil")
 	}

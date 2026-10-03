@@ -47,7 +47,7 @@ func (m *mockFieldGetter) GetLocal(
 	return m.field, nil, nil
 }
 
-func setupGetCmd(t *testing.T, mock *mockFieldGetter, args []string) (string, error) {
+func setupGetCmd(t *testing.T, mock *mockFieldGetter, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origGetter := newFieldGetter
@@ -62,7 +62,7 @@ func setupGetCmd(t *testing.T, mock *mockFieldGetter, args []string) (string, er
 	cmd.PersistentFlags().String("org-id", "test-org", "")
 	cmd.PersistentFlags().String("org-type", "360", "")
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -71,7 +71,7 @@ func TestGet(t *testing.T) {
 		name  string
 		mock  *mockFieldGetter
 		args  []string
-		setup func()
+		opts  output.Options
 		check func(t *testing.T, mock *mockFieldGetter, out string, err error)
 	}{
 		{
@@ -154,8 +154,8 @@ func TestGet(t *testing.T) {
 					Description: testutil.StrPtr("Issue summary"),
 				},
 			},
-			args:  []string{"summary"},
-			setup: func() { output.JSONFields = FieldGetFields },
+			args: []string{"summary"},
+			opts: output.Options{JSONFields: FieldGetFields},
 			check: func(t *testing.T, _ *mockFieldGetter, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -189,8 +189,8 @@ func TestGet(t *testing.T) {
 					Key: testutil.StrPtr("summary"),
 				},
 			},
-			args:  []string{"summary"},
-			setup: func() { output.QuietFlag = true },
+			args: []string{"summary"},
+			opts: output.Options{Quiet: true},
 			check: func(t *testing.T, _ *mockFieldGetter, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -267,11 +267,7 @@ func TestGet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-			out, err := setupGetCmd(t, tt.mock, tt.args)
+			out, err := setupGetCmd(t, tt.mock, tt.opts, tt.args)
 			tt.check(t, tt.mock, out, err)
 		})
 	}
@@ -318,10 +314,8 @@ func decodeDetail(t *testing.T, out string) map[string]any {
 }
 
 func TestGetCardShowsFullFieldID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockFieldGetter{field: localSizeDetailField()}
-	out, err := setupGetCmd(t, mock, []string{"size", "--queue", "PROJ"})
+	out, err := setupGetCmd(t, mock, output.Options{}, []string{"size", "--queue", "PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -334,11 +328,13 @@ func TestGetCardShowsFullFieldID(t *testing.T) {
 }
 
 func TestGetJSONIncludesFullFieldID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"id", "key"}
-
 	mock := &mockFieldGetter{field: localSizeDetailField()}
-	out, err := setupGetCmd(t, mock, []string{"size", "--queue", "PROJ"})
+	out, err := setupGetCmd(
+		t,
+		mock,
+		output.Options{JSONFields: []string{"id", "key"}},
+		[]string{"size", "--queue", "PROJ"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -350,10 +346,8 @@ func TestGetJSONIncludesFullFieldID(t *testing.T) {
 }
 
 func TestGetCardSpellsOutArrayElementType(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockFieldGetter{field: tagsArrayField(true)}
-	out, err := setupGetCmd(t, mock, []string{"tags"})
+	out, err := setupGetCmd(t, mock, output.Options{}, []string{"tags"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -364,11 +358,8 @@ func TestGetCardSpellsOutArrayElementType(t *testing.T) {
 }
 
 func TestGetJSONIncludesArrayElementType(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key", "schema", "items"}
-
 	mock := &mockFieldGetter{field: tagsArrayField(false)}
-	out, err := setupGetCmd(t, mock, []string{"tags"})
+	out, err := setupGetCmd(t, mock, output.Options{JSONFields: []string{"key", "schema", "items"}}, []string{"tags"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -380,13 +371,15 @@ func TestGetJSONIncludesArrayElementType(t *testing.T) {
 }
 
 func TestGetJSONKeepsStringOptions(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key", "options"}
-
 	field := localSizeDetailField()
 	field.OptionsProvider = &tracker.OptionsProvider{Values: []any{"S", "M"}}
 	mock := &mockFieldGetter{field: field}
-	out, err := setupGetCmd(t, mock, []string{"size", "--queue", "PROJ"})
+	out, err := setupGetCmd(
+		t,
+		mock,
+		output.Options{JSONFields: []string{"key", "options"}},
+		[]string{"size", "--queue", "PROJ"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -398,11 +391,8 @@ func TestGetJSONKeepsStringOptions(t *testing.T) {
 }
 
 func TestGetJSONKeepsNumericOptions(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key", "options"}
-
 	mock := &mockFieldGetter{field: decodeFieldFixture(t, possibleSpamJSON)}
-	out, err := setupGetCmd(t, mock, []string{"possibleSpam"})
+	out, err := setupGetCmd(t, mock, output.Options{JSONFields: []string{"key", "options"}}, []string{"possibleSpam"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -414,10 +404,8 @@ func TestGetJSONKeepsNumericOptions(t *testing.T) {
 }
 
 func TestGetCardShowsNumericOptions(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockFieldGetter{field: decodeFieldFixture(t, possibleSpamJSON)}
-	out, err := setupGetCmd(t, mock, []string{"possibleSpam"})
+	out, err := setupGetCmd(t, mock, output.Options{}, []string{"possibleSpam"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -428,11 +416,13 @@ func TestGetCardShowsNumericOptions(t *testing.T) {
 }
 
 func TestGetJSONPerQueueOptions(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key", "options", "queueOptions", "defaultOptions"}
-
 	mock := &mockFieldGetter{field: decodeFieldFixture(t, perQueueFieldJSON)}
-	out, err := setupGetCmd(t, mock, []string{"stand"})
+	out, err := setupGetCmd(
+		t,
+		mock,
+		output.Options{JSONFields: []string{"key", "options", "queueOptions", "defaultOptions"}},
+		[]string{"stand"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -454,10 +444,8 @@ func TestGetJSONPerQueueOptions(t *testing.T) {
 }
 
 func TestGetCardShowsPerQueueOptions(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockFieldGetter{field: decodeFieldFixture(t, perQueueFieldJSON)}
-	out, err := setupGetCmd(t, mock, []string{"stand"})
+	out, err := setupGetCmd(t, mock, output.Options{}, []string{"stand"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -476,11 +464,13 @@ func TestGetCardShowsPerQueueOptions(t *testing.T) {
 }
 
 func TestGetJSONOmitsOptionsWhenProviderHasNoValues(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"key", "options", "queueOptions", "defaultOptions"}
-
 	mock := &mockFieldGetter{field: decodeFieldFixture(t, teamFieldJSON)}
-	out, err := setupGetCmd(t, mock, []string{"team"})
+	out, err := setupGetCmd(
+		t,
+		mock,
+		output.Options{JSONFields: []string{"key", "options", "queueOptions", "defaultOptions"}},
+		[]string{"team"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -494,10 +484,8 @@ func TestGetJSONOmitsOptionsWhenProviderHasNoValues(t *testing.T) {
 }
 
 func TestGetCardOmitsOptionsWhenProviderHasNoValues(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockFieldGetter{field: decodeFieldFixture(t, teamFieldJSON)}
-	out, err := setupGetCmd(t, mock, []string{"team"})
+	out, err := setupGetCmd(t, mock, output.Options{}, []string{"team"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -508,11 +496,9 @@ func TestGetCardOmitsOptionsWhenProviderHasNoValues(t *testing.T) {
 }
 
 func TestGetPassesThroughOptionDecodeError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	decodeErr := optionDecodeError(t)
 	mock := &mockFieldGetter{err: decodeErr}
-	_, err := setupGetCmd(t, mock, []string{"size"})
+	_, err := setupGetCmd(t, mock, output.Options{}, []string{"size"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -522,8 +508,6 @@ func TestGetPassesThroughOptionDecodeError(t *testing.T) {
 }
 
 func TestGetCardOrdersPerQueueOptionsByQueueKey(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	field := localSizeDetailField()
 	field.OptionsProvider = &tracker.OptionsProvider{
 		QueueValues: map[string][]any{
@@ -532,7 +516,7 @@ func TestGetCardOrdersPerQueueOptionsByQueueKey(t *testing.T) {
 		},
 	}
 	mock := &mockFieldGetter{field: field}
-	out, err := setupGetCmd(t, mock, []string{"size", "--queue", "PROJ"})
+	out, err := setupGetCmd(t, mock, output.Options{}, []string{"size", "--queue", "PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -47,7 +47,7 @@ func makeCreatedIssue(key, summary, status string) *tracker.Issue {
 	}
 }
 
-func setupCreateCmd(t *testing.T, mock *mockCreator, args []string) (string, error) {
+func setupCreateCmd(t *testing.T, mock *mockCreator, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origCreator := newCreator
@@ -67,18 +67,17 @@ func setupCreateCmd(t *testing.T, mock *mockCreator, args []string) (string, err
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestCreateWithRequiredFlags(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockCreator{
 		issue: makeCreatedIssue("PROJ-1", "test issue", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{"--queue", "PROJ", "--summary", "test issue"})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"--queue", "PROJ", "--summary", "test issue"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -97,13 +96,12 @@ func TestCreateWithRequiredFlags(t *testing.T) {
 }
 
 func TestCreateWithAllFlags(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockCreator{
 		issue: makeCreatedIssue("PROJ-1", "full issue", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"--queue", "PROJ",
 		"--summary", "full issue",
 		"--description", "a description",
@@ -135,14 +133,17 @@ func TestCreateWithAllFlags(t *testing.T) {
 }
 
 func TestCreateJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueDetailFields
 	mock := &mockCreator{
 		issue: makeCreatedIssue("PROJ-1", "test", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"--queue", "PROJ", "--summary", "test"})
+	out, err := setupCreateCmd(
+		t,
+		mock,
+		output.Options{JSONFields: IssueDetailFields},
+		[]string{"--queue", "PROJ", "--summary", "test"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -161,14 +162,12 @@ func TestCreateJSON(t *testing.T) {
 }
 
 func TestCreateQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
 	mock := &mockCreator{
 		issue: makeCreatedIssue("PROJ-42", "test", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"--queue", "PROJ", "--summary", "test"})
+	out, err := setupCreateCmd(t, mock, output.Options{Quiet: true}, []string{"--queue", "PROJ", "--summary", "test"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -180,13 +179,12 @@ func TestCreateQuiet(t *testing.T) {
 }
 
 func TestCreateFromJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockCreator{
 		issue: makeCreatedIssue("PROJ-5", "from json", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"--from-json", `{"queue":"PROJ","summary":"from json"}`,
 	})
 	if err != nil {
@@ -207,13 +205,12 @@ func TestCreateFromJSON(t *testing.T) {
 }
 
 func TestCreateFromJSONMutualExclusion(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockCreator{
 		issue: makeCreatedIssue("PROJ-1", "test", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"--from-json", `{"queue":"PROJ","summary":"test"}`,
 		"--summary", "extra",
 	})
@@ -231,14 +228,13 @@ func TestCreateFromJSONMutualExclusion(t *testing.T) {
 }
 
 func TestCreateMissingRequiredFlags(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockCreator{
 		issue: makeCreatedIssue("PROJ-1", "test", "Open"),
 		resp:  &tracker.Response{},
 	}
 
 	// Missing --summary.
-	_, err := setupCreateCmd(t, mock, []string{"--queue", "PROJ"})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"--queue", "PROJ"})
 	if err == nil {
 		t.Fatal("expected error for missing --summary, got nil")
 	}
@@ -247,7 +243,7 @@ func TestCreateMissingRequiredFlags(t *testing.T) {
 	}
 
 	// Missing --queue.
-	_, err = setupCreateCmd(t, mock, []string{"--summary", "test"})
+	_, err = setupCreateCmd(t, mock, output.Options{}, []string{"--summary", "test"})
 	if err == nil {
 		t.Fatal("expected error for missing --queue, got nil")
 	}
@@ -257,13 +253,12 @@ func TestCreateMissingRequiredFlags(t *testing.T) {
 }
 
 func TestCreateControlChars(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockCreator{
 		issue: makeCreatedIssue("PROJ-1", "test", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"--queue", "PROJ",
 		"--summary", "hello\x00world",
 	})
@@ -276,13 +271,12 @@ func TestCreateControlChars(t *testing.T) {
 }
 
 func TestCreateTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockCreator{
 		issue: makeCreatedIssue("PROJ-7", "table test", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupCreateCmd(t, mock, []string{"--queue", "PROJ", "--summary", "table test"})
+	out, err := setupCreateCmd(t, mock, output.Options{}, []string{"--queue", "PROJ", "--summary", "table test"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -295,7 +289,6 @@ func TestCreateTable(t *testing.T) {
 }
 
 func TestCreateFromJSONRejectsUnknownFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockCreator{
 		issue: makeCreatedIssue("PROJ-6", "local field", "Open"),
 		resp:  &tracker.Response{},
@@ -303,7 +296,7 @@ func TestCreateFromJSONRejectsUnknownFields(t *testing.T) {
 
 	// A local queue field is not part of IssueRequest: dropping it silently
 	// sends a body without it and the API answers 200.
-	_, err := setupCreateCmd(t, mock, []string{
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{
 		"--from-json", `{"queue":"PROJ","summary":"local field","size":["L"]}`,
 	})
 	if err == nil {
@@ -319,13 +312,12 @@ func TestCreateFromJSONRejectsUnknownFields(t *testing.T) {
 }
 
 func TestCreateFromJSONMalformedInput(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockCreator{
 		issue: makeCreatedIssue("PROJ-7", "test", "Open"),
 		resp:  &tracker.Response{},
 	}
 
-	_, err := setupCreateCmd(t, mock, []string{"--from-json", `{"queue":`})
+	_, err := setupCreateCmd(t, mock, output.Options{}, []string{"--from-json", `{"queue":`})
 	if err == nil {
 		t.Fatal("expected an error for malformed JSON, got nil")
 	}

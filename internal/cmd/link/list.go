@@ -88,19 +88,21 @@ SEE ALSO
 }
 
 func runList(cmd *cobra.Command, issueKey string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "link list", LinkListFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = LinkListFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = LinkListFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, LinkListFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, LinkListFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, LinkListFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, LinkListFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -119,33 +121,33 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderOutput(cmd.OutOrStdout(), links)
+	return renderOutput(cmd.OutOrStdout(), opts, links)
 }
 
-func renderOutput(w io.Writer, links []*tracker.IssueLink) error {
-	if output.IsJSON() {
+func renderOutput(w io.Writer, opts *output.Options, links []*tracker.IssueLink) error {
+	if opts.IsJSON() {
 		items := make([]linkItem, len(links))
 		for i, link := range links {
 			items[i] = toLinkItem(link)
 		}
 
-		if output.HasFieldSelection() {
+		if opts.HasFieldSelection() {
 			filtered := make([]map[string]any, len(items))
 			for i, item := range items {
-				filtered[i] = output.FilterFields(item, output.JSONFields)
+				filtered[i] = output.FilterFields(item, opts.JSONFields)
 			}
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, items, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, items, opts.JQFilter)
 		}
-		return output.PrintJSON(w, items)
+		return opts.PrintJSON(w, items)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		ids := make([]string, len(links))
 		for i, link := range links {
 			ids[i] = api.DerefFlexString(link.ID, "")
@@ -159,7 +161,7 @@ func renderOutput(w io.Writer, links []*tracker.IssueLink) error {
 		return err
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("ID", "TYPE", "ISSUE", "SUMMARY")
 
 	for _, link := range links {

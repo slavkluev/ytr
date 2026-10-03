@@ -12,7 +12,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // mockLinkDeleter implements linkDeleter for testing.
@@ -35,7 +34,7 @@ func (m *mockLinkDeleter) DeleteLink(
 	return m.resp, nil
 }
 
-func setupDeleteCmd(t *testing.T, mock *mockLinkDeleter, args []string) (string, error) {
+func setupDeleteCmd(t *testing.T, mock *mockLinkDeleter, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origDeleter := newLinkDeleter
@@ -55,7 +54,7 @@ func setupDeleteCmd(t *testing.T, mock *mockLinkDeleter, args []string) (string,
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -64,7 +63,7 @@ func TestDelete(t *testing.T) {
 		name      string
 		mock      *mockLinkDeleter
 		args      []string
-		setup     func()
+		opts      output.Options
 		wantOut   string
 		wantErr   string
 		jsonCheck func(t *testing.T, out string)
@@ -83,9 +82,7 @@ func TestDelete(t *testing.T) {
 				resp: &tracker.Response{},
 			},
 			args: []string{"PROJ-123", "456"},
-			setup: func() {
-				output.JSONFields = []string{"id"}
-			},
+			opts: output.Options{JSONFields: []string{"id"}},
 			jsonCheck: func(t *testing.T, out string) {
 				t.Helper()
 				var result map[string]any
@@ -106,10 +103,8 @@ func TestDelete(t *testing.T) {
 			mock: &mockLinkDeleter{
 				resp: &tracker.Response{},
 			},
-			args: []string{"PROJ-123", "456"},
-			setup: func() {
-				output.QuietFlag = true
-			},
+			args:    []string{"PROJ-123", "456"},
+			opts:    output.Options{Quiet: true},
 			wantOut: "456",
 		},
 		{
@@ -117,10 +112,8 @@ func TestDelete(t *testing.T) {
 			mock: &mockLinkDeleter{
 				resp: &tracker.Response{},
 			},
-			args: []string{"PROJ-123", "456"},
-			setup: func() {
-				output.JQFilter = ".id"
-			},
+			args:    []string{"PROJ-123", "456"},
+			opts:    output.Options{JQFilter: ".id"},
 			wantOut: "456",
 		},
 		{
@@ -147,12 +140,7 @@ func TestDelete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-
-			out, err := setupDeleteCmd(t, tt.mock, tt.args)
+			out, err := setupDeleteCmd(t, tt.mock, tt.opts, tt.args)
 
 			if tt.wantErr != "" {
 				if err == nil {
@@ -183,13 +171,11 @@ func TestDelete(t *testing.T) {
 }
 
 func TestDeleteRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockLinkDeleter{
 		resp: &tracker.Response{},
 	}
 
-	_, err := setupDeleteCmd(t, mock, []string{"PROJ-123", "456"})
+	_, err := setupDeleteCmd(t, mock, output.Options{}, []string{"PROJ-123", "456"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

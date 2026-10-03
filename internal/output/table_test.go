@@ -2,19 +2,18 @@ package output_test
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 func TestTableOffTTYJoinsColumnsWithTabs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	var buf bytes.Buffer
-	tbl := output.NewTable(&buf)
+	tbl := opts.NewTable(&buf)
 	tbl.AddHeader("KEY", "STATUS", "ASSIGNEE", "SUMMARY")
 	tbl.AddRow("APP-1", "Open", "john.doe", "Fix login")
 	tbl.AddRow("APP-2", "Closed", "jane.roe", "Ship it")
@@ -29,14 +28,10 @@ func TestTableOffTTYJoinsColumnsWithTabs(t *testing.T) {
 }
 
 func TestTableOffTTYHasNoANSI(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	t.Setenv("NO_COLOR", "")
-	t.Setenv("CLICOLOR_FORCE", "")
-	t.Setenv("CLICOLOR", "")
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	var buf bytes.Buffer
-	tbl := output.NewTable(&buf)
+	tbl := opts.NewTable(&buf)
 	tbl.AddHeader("KEY", "SUMMARY")
 	tbl.AddRow("APP-1", "Fix login")
 	tbl.Render()
@@ -47,11 +42,10 @@ func TestTableOffTTYHasNoANSI(t *testing.T) {
 }
 
 func TestTableOnTTYPadsColumns(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(true)
+	opts := output.Options{TTY: true, Colors: true}
 
 	var buf bytes.Buffer
-	tbl := output.NewTable(&buf)
+	tbl := opts.NewTable(&buf)
 	tbl.AddHeader("KEY", "SUMMARY")
 	tbl.AddRow("APP-1", "Fix login")
 	tbl.AddRow("APP-1234", "Ship it")
@@ -76,11 +70,10 @@ func TestTableOnTTYPadsColumns(t *testing.T) {
 }
 
 func TestTableOffTTYEscapesControlCharacters(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	var buf bytes.Buffer
-	tbl := output.NewTable(&buf)
+	tbl := opts.NewTable(&buf)
 	tbl.AddHeader("ID", "BODY")
 	tbl.AddRow("1", "first\nsecond\tthird\rfourth")
 	tbl.Render()
@@ -96,13 +89,12 @@ func TestTableOffTTYEscapesControlCharacters(t *testing.T) {
 }
 
 func TestTableOffTTYKeepsLongCellWhole(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	summary := strings.Repeat("long summary ", 40)
 
 	var buf bytes.Buffer
-	tbl := output.NewTable(&buf)
+	tbl := opts.NewTable(&buf)
 	tbl.AddHeader("KEY", "SUMMARY")
 	tbl.AddRow("APP-1", summary)
 	tbl.Render()
@@ -117,17 +109,21 @@ func TestTableOffTTYKeepsLongCellWhole(t *testing.T) {
 }
 
 func TestTableOffTTYKeepsForcedColor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	t.Setenv("NO_COLOR", "")
 	t.Setenv("CLICOLOR_FORCE", "1")
-	output.SetTTY(false)
+	stdout, err := os.CreateTemp(t.TempDir(), "stdout")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	opts := output.Terminal(stdout)
 
-	if !output.ColorsEnabled() {
+	if !opts.Colors {
 		t.Fatal("CLICOLOR_FORCE=1 must keep colors on off a TTY")
 	}
 
 	var buf bytes.Buffer
-	tbl := output.NewTable(&buf)
+	tbl := opts.NewTable(&buf)
 	tbl.AddHeader("KEY", "STATUS")
 	tbl.AddRow("APP-1", "\x1b[32mOpen\x1b[0m")
 	tbl.Render()
@@ -171,8 +167,7 @@ func unescapeCell(t *testing.T, cell string) string {
 }
 
 func TestTableOffTTYEscapingRoundTrips(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	values := []string{
 		"plain",
@@ -186,7 +181,7 @@ func TestTableOffTTYEscapingRoundTrips(t *testing.T) {
 
 	for _, value := range values {
 		var buf bytes.Buffer
-		tbl := output.NewTable(&buf)
+		tbl := opts.NewTable(&buf)
 		tbl.AddRow(value)
 		tbl.Render()
 
@@ -198,12 +193,11 @@ func TestTableOffTTYEscapingRoundTrips(t *testing.T) {
 }
 
 func TestTableOffTTYTellsRealNewlineFromItsEscape(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+	opts := output.Options{}
 
 	render := func(value string) string {
 		var buf bytes.Buffer
-		tbl := output.NewTable(&buf)
+		tbl := opts.NewTable(&buf)
 		tbl.AddRow(value)
 		tbl.Render()
 		return buf.String()

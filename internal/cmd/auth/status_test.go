@@ -13,7 +13,6 @@ import (
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // writeConfig writes a config file with the given token, org_id, and org_type.
@@ -33,7 +32,6 @@ func writeConfig(t *testing.T, dir, token, orgID, orgType string) {
 
 func TestStatus_Authenticated(t *testing.T) {
 	dir := setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 	writeConfig(t, dir, "valid-token", "org-123", "cloud")
 
 	display := "Status User"
@@ -69,7 +67,6 @@ func TestStatus_Authenticated(t *testing.T) {
 
 func TestStatus_Authenticated_JSON(t *testing.T) {
 	dir := setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 	writeConfig(t, dir, "valid-token", "org-123", "cloud")
 
 	display := "JSON Status User"
@@ -77,8 +74,8 @@ func TestStatus_Authenticated_JSON(t *testing.T) {
 		user: &tracker.User{Display: &display},
 	})
 
-	// Auth commands detect JSON via output.IsJSON() or cmd.Flags().Changed("json").
-	output.JSONFields = []string{"dummy"}
+	// Auth commands detect JSON via opts.IsJSON() or cmd.Flags().Changed("json").
+	opts := output.Options{JSONFields: []string{"dummy"}}
 
 	statusCmd := newStatusCmd()
 	buf := new(bytes.Buffer)
@@ -86,7 +83,7 @@ func TestStatus_Authenticated_JSON(t *testing.T) {
 	statusCmd.SetErr(buf)
 	statusCmd.SetArgs([]string{})
 
-	err := statusCmd.Execute()
+	err := statusCmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -115,7 +112,6 @@ func TestStatus_Authenticated_JSON(t *testing.T) {
 
 func TestStatus_NotAuthenticated(t *testing.T) {
 	setupConfigDir(t) // empty dir, no config
-	testutil.ResetOutputFlags(t)
 
 	// Clear env vars that might provide auth
 	t.Setenv("YTR_TOKEN", "")
@@ -144,7 +140,6 @@ func TestStatus_NotAuthenticated(t *testing.T) {
 
 func TestStatus_EnvVarSource(t *testing.T) {
 	setupConfigDir(t) // no config file
-	testutil.ResetOutputFlags(t)
 
 	t.Setenv("YTR_TOKEN", "env-token")
 	t.Setenv("YTR_ORG_ID", "env-org")
@@ -155,8 +150,8 @@ func TestStatus_EnvVarSource(t *testing.T) {
 		user: &tracker.User{Display: &display},
 	})
 
-	// Auth commands detect JSON via output.IsJSON() or cmd.Flags().Changed("json").
-	output.JSONFields = []string{"dummy"}
+	// Auth commands detect JSON via opts.IsJSON() or cmd.Flags().Changed("json").
+	opts := output.Options{JSONFields: []string{"dummy"}}
 
 	statusCmd := newStatusCmd()
 	buf := new(bytes.Buffer)
@@ -164,7 +159,7 @@ func TestStatus_EnvVarSource(t *testing.T) {
 	statusCmd.SetErr(buf)
 	statusCmd.SetArgs([]string{})
 
-	err := statusCmd.Execute()
+	err := statusCmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -184,7 +179,6 @@ func TestStatus_EnvVarSource(t *testing.T) {
 
 func TestStatus_ValidationFails(t *testing.T) {
 	dir := setupConfigDir(t)
-	testutil.ResetOutputFlags(t)
 	writeConfig(t, dir, "expired-token", "org-123", "360")
 
 	withMockValidator(t, &mockUserValidator{

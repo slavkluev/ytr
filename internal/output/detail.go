@@ -14,13 +14,15 @@ import (
 // The first write error is kept and every later write is skipped, so callers
 // report it once from Err instead of checking each row.
 type DetailPrinter struct {
-	w   io.Writer
-	err error
+	w      io.Writer
+	tty    bool
+	colors bool
+	err    error
 }
 
 // NewDetail creates a DetailPrinter writing to w.
-func NewDetail(w io.Writer) *DetailPrinter {
-	return &DetailPrinter{w: w}
+func (o *Options) NewDetail(w io.Writer) *DetailPrinter {
+	return &DetailPrinter{w: w, tty: o.TTY, colors: o.Colors}
 }
 
 // Field writes one labeled row. Off a TTY the value is escaped like a table
@@ -30,7 +32,7 @@ func (d *DetailPrinter) Field(label, value string) {
 	if d.err != nil {
 		return
 	}
-	if IsTTY() {
+	if d.tty {
 		_, d.err = fmt.Fprintf(d.w, "%s  %s\n", d.bold(label+":"), value)
 		return
 	}
@@ -64,7 +66,7 @@ func (d *DetailPrinter) Err() error {
 // bold emphasizes a label when colors are enabled, which off a TTY happens
 // only if the caller forced them.
 func (d *DetailPrinter) bold(label string) string {
-	if ColorsEnabled() {
+	if d.colors {
 		return text.Colors{text.Bold}.Sprint(label)
 	}
 	return label

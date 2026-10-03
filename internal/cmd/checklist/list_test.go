@@ -47,7 +47,7 @@ func makeChecklistItems(ids ...string) []*tracker.ChecklistItem {
 	return items
 }
 
-func setupListCmd(t *testing.T, mock *mockChecklistLister, args []string) (string, error) {
+func setupListCmd(t *testing.T, mock *mockChecklistLister, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origLister := newChecklistLister
@@ -67,13 +67,11 @@ func setupListCmd(t *testing.T, mock *mockChecklistLister, args []string) (strin
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestListTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistLister{
 		items: []*tracker.ChecklistItem{
 			{
@@ -91,7 +89,7 @@ func TestListTable(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -108,14 +106,12 @@ func TestListTable(t *testing.T) {
 }
 
 func TestListEmpty(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistLister{
 		items: []*tracker.ChecklistItem{},
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -126,9 +122,6 @@ func TestListEmpty(t *testing.T) {
 }
 
 func TestListJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = ChecklistFields
-
 	mock := &mockChecklistLister{
 		items: []*tracker.ChecklistItem{
 			{
@@ -141,7 +134,7 @@ func TestListJSON(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: ChecklistFields}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -171,15 +164,12 @@ func TestListJSON(t *testing.T) {
 }
 
 func TestListQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockChecklistLister{
 		items: makeChecklistItems("a1", "b2", "c3"),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{Quiet: true}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -194,15 +184,12 @@ func TestListQuiet(t *testing.T) {
 }
 
 func TestListJQFilter(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JQFilter = ".[].id"
-
 	mock := &mockChecklistLister{
 		items: makeChecklistItems("x1", "x2"),
 		resp:  &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{JQFilter: ".[].id"}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -214,11 +201,9 @@ func TestListJQFilter(t *testing.T) {
 }
 
 func TestListInvalidKey(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistLister{}
 
-	_, err := setupListCmd(t, mock, []string{"bad-key"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"bad-key"})
 	if err == nil {
 		t.Fatal("expected error for invalid key, got nil")
 	}
@@ -229,13 +214,11 @@ func TestListInvalidKey(t *testing.T) {
 }
 
 func TestListAPIError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChecklistLister{
 		err: errors.New("connection refused"),
 	}
 
-	_, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-1"})
 	if err == nil {
 		t.Fatal("expected error from API, got nil")
 	}
@@ -246,9 +229,6 @@ func TestListAPIError(t *testing.T) {
 }
 
 func TestListNamesakesKeepDistinctAssigneeIDs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = ChecklistFields
-
 	namesake := func(itemID, userID string) *tracker.ChecklistItem {
 		return &tracker.ChecklistItem{
 			ID:      testutil.FlexStringPtr(itemID),
@@ -269,7 +249,7 @@ func TestListNamesakesKeepDistinctAssigneeIDs(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: ChecklistFields}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

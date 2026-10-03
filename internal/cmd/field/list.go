@@ -108,19 +108,21 @@ SEE ALSO
 }
 
 func runList(cmd *cobra.Command, queueFlag string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "field list", FieldListFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = FieldListFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = FieldListFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, FieldListFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, FieldListFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, FieldListFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, FieldListFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -144,15 +146,15 @@ func runList(cmd *cobra.Command, queueFlag string) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderOutput(cmd.OutOrStdout(), fields)
+	return renderOutput(cmd.OutOrStdout(), opts, fields)
 }
 
-func renderOutput(w io.Writer, fields []*tracker.Field) error {
-	if output.IsJSON() {
-		return renderJSON(w, fields)
+func renderOutput(w io.Writer, opts *output.Options, fields []*tracker.Field) error {
+	if opts.IsJSON() {
+		return renderJSON(w, opts, fields)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		keys := make([]string, len(fields))
 		for i, f := range fields {
 			keys[i] = api.DerefString(f.Key, "")
@@ -161,38 +163,38 @@ func renderOutput(w io.Writer, fields []*tracker.Field) error {
 		return nil
 	}
 
-	return renderTable(w, fields)
+	return renderTable(w, opts, fields)
 }
 
-func renderJSON(w io.Writer, fields []*tracker.Field) error {
+func renderJSON(w io.Writer, opts *output.Options, fields []*tracker.Field) error {
 	items := make([]fieldItem, len(fields))
 	for i, f := range fields {
 		items[i] = toFieldItem(f)
 	}
 
-	if output.HasFieldSelection() {
+	if opts.HasFieldSelection() {
 		filtered := make([]map[string]any, len(items))
 		for i, item := range items {
-			filtered[i] = output.FilterFields(item, output.JSONFields)
+			filtered[i] = output.FilterFields(item, opts.JSONFields)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, filtered, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, filtered, opts.JQFilter)
 		}
-		return output.PrintJSON(w, filtered)
+		return opts.PrintJSON(w, filtered)
 	}
-	if output.JQFilter != "" {
-		return output.ApplyJQ(w, items, output.JQFilter)
+	if opts.JQFilter != "" {
+		return output.ApplyJQ(w, items, opts.JQFilter)
 	}
-	return output.PrintJSON(w, items)
+	return opts.PrintJSON(w, items)
 }
 
-func renderTable(w io.Writer, fields []*tracker.Field) error {
+func renderTable(w io.Writer, opts *output.Options, fields []*tracker.Field) error {
 	if len(fields) == 0 {
 		_, err := fmt.Fprintln(w, "No fields found")
 		return err
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("ID", "KEY", "NAME", "SCHEMA", "READONLY")
 
 	for _, f := range fields {

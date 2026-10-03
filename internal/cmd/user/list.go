@@ -88,7 +88,9 @@ type userSearchResult struct {
 }
 
 func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "user list", UserListFields)
 	}
 
@@ -98,15 +100,15 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		return err
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = UserListFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = UserListFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, UserListFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, UserListFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, UserListFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, UserListFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -137,7 +139,7 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		return err
 	}
 
-	return renderListOutput(cmd.OutOrStdout(), result)
+	return renderListOutput(cmd.OutOrStdout(), opts, result)
 }
 
 func fetchUsers(cmd *cobra.Command, lister userLister, limit, page int,
@@ -196,12 +198,12 @@ func fetchAllUserPages(cmd *cobra.Command, lister userLister,
 	return &userSearchResult{users: allUsers, totalCount: totalCount}, nil
 }
 
-func renderListOutput(w io.Writer, result *userSearchResult) error {
-	if output.IsJSON() {
-		return renderListJSON(w, result)
+func renderListOutput(w io.Writer, opts *output.Options, result *userSearchResult) error {
+	if opts.IsJSON() {
+		return renderListJSON(w, opts, result)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		uids := make([]string, len(result.users))
 		for i, u := range result.users {
 			uids[i] = strconv.Itoa(api.DerefInt(u.UID, 0))
@@ -210,20 +212,20 @@ func renderListOutput(w io.Writer, result *userSearchResult) error {
 		return nil
 	}
 
-	return renderListTable(w, result.users)
+	return renderListTable(w, opts, result.users)
 }
 
-func renderListJSON(w io.Writer, result *userSearchResult) error {
+func renderListJSON(w io.Writer, opts *output.Options, result *userSearchResult) error {
 	items := make([]userItem, len(result.users))
 	for i, u := range result.users {
 		items[i] = toUserItem(u)
 	}
 
 	var data any
-	if output.HasFieldSelection() {
+	if opts.HasFieldSelection() {
 		filtered := make([]map[string]any, len(items))
 		for i, item := range items {
-			filtered[i] = output.FilterFields(item, output.JSONFields)
+			filtered[i] = output.FilterFields(item, opts.JSONFields)
 		}
 		data = output.PaginatedResult{
 			Items: filtered,
@@ -240,19 +242,19 @@ func renderListJSON(w io.Writer, result *userSearchResult) error {
 		}
 	}
 
-	if output.JQFilter != "" {
-		return output.ApplyJQ(w, data, output.JQFilter)
+	if opts.JQFilter != "" {
+		return output.ApplyJQ(w, data, opts.JQFilter)
 	}
-	return output.PrintJSON(w, data)
+	return opts.PrintJSON(w, data)
 }
 
-func renderListTable(w io.Writer, users []*tracker.User) error {
+func renderListTable(w io.Writer, opts *output.Options, users []*tracker.User) error {
 	if len(users) == 0 {
 		_, printErr := fmt.Fprintln(w, "No users found")
 		return printErr
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("UID", "DISPLAY", "LOGIN", "EMAIL")
 
 	for _, u := range users {

@@ -43,7 +43,7 @@ func fullUser() *tracker.User {
 	}
 }
 
-func setupMyselfCmd(t *testing.T, mock *mockUserMyself, args []string) (string, error) {
+func setupMyselfCmd(t *testing.T, mock *mockUserMyself, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origMyself := newUserMyself
@@ -63,7 +63,7 @@ func setupMyselfCmd(t *testing.T, mock *mockUserMyself, args []string) (string, 
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -72,7 +72,7 @@ func TestMyself(t *testing.T) {
 		name  string
 		mock  *mockUserMyself
 		args  []string
-		setup func(t *testing.T)
+		opts  output.Options
 		check func(t *testing.T, out string, err error)
 	}{
 		{
@@ -99,10 +99,7 @@ func TestMyself(t *testing.T) {
 			name: "json output",
 			mock: &mockUserMyself{user: fullUser(), resp: &tracker.Response{}},
 			args: []string{},
-			setup: func(t *testing.T) {
-				t.Helper()
-				output.JSONFields = UserDetailFields
-			},
+			opts: output.Options{JSONFields: UserDetailFields},
 			check: func(t *testing.T, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -126,10 +123,7 @@ func TestMyself(t *testing.T) {
 			name: "quiet output",
 			mock: &mockUserMyself{user: fullUser(), resp: &tracker.Response{}},
 			args: []string{},
-			setup: func(t *testing.T) {
-				t.Helper()
-				output.QuietFlag = true
-			},
+			opts: output.Options{Quiet: true},
 			check: func(t *testing.T, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -156,10 +150,7 @@ func TestMyself(t *testing.T) {
 			name: "jq filter",
 			mock: &mockUserMyself{user: fullUser(), resp: &tracker.Response{}},
 			args: []string{},
-			setup: func(t *testing.T) {
-				t.Helper()
-				output.JQFilter = ".login"
-			},
+			opts: output.Options{JQFilter: ".login"},
 			check: func(t *testing.T, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -175,11 +166,7 @@ func TestMyself(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup(t)
-			}
-			out, err := setupMyselfCmd(t, tt.mock, tt.args)
+			out, err := setupMyselfCmd(t, tt.mock, tt.opts, tt.args)
 			tt.check(t, out, err)
 		})
 	}

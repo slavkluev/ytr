@@ -28,7 +28,7 @@ func (m *mockComponentLister) List(_ context.Context) ([]*tracker.Component, *tr
 	return m.components, nil, nil
 }
 
-func setupListCmd(t *testing.T, mock *mockComponentLister, args []string) (string, error) {
+func setupListCmd(t *testing.T, mock *mockComponentLister, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origLister := newComponentLister
@@ -43,7 +43,7 @@ func setupListCmd(t *testing.T, mock *mockComponentLister, args []string) (strin
 	cmd.PersistentFlags().String("org-id", "test-org", "")
 	cmd.PersistentFlags().String("org-type", "360", "")
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -52,7 +52,7 @@ func TestList(t *testing.T) {
 		name  string
 		mock  *mockComponentLister
 		args  []string
-		setup func()
+		opts  output.Options
 		check func(t *testing.T, out string, err error)
 	}{
 		{
@@ -116,8 +116,8 @@ func TestList(t *testing.T) {
 					},
 				},
 			},
-			args:  nil,
-			setup: func() { output.JSONFields = ComponentListFields },
+			args: nil,
+			opts: output.Options{JSONFields: ComponentListFields},
 			check: func(t *testing.T, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -159,8 +159,8 @@ func TestList(t *testing.T) {
 					{ID: testutil.FlexStringPtr("3")},
 				},
 			},
-			args:  nil,
-			setup: func() { output.QuietFlag = true },
+			args: nil,
+			opts: output.Options{Quiet: true},
 			check: func(t *testing.T, out string, err error) {
 				t.Helper()
 				if err != nil {
@@ -243,20 +243,13 @@ func TestList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-			if tt.setup != nil {
-				tt.setup()
-			}
-			out, err := setupListCmd(t, tt.mock, tt.args)
+			out, err := setupListCmd(t, tt.mock, tt.opts, tt.args)
 			tt.check(t, out, err)
 		})
 	}
 }
 
 func TestListNamesakesKeepDistinctLeadIDs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = ComponentListFields
-
 	namesake := func(componentID, userID string) *tracker.Component {
 		return &tracker.Component{
 			ID:   testutil.FlexStringPtr(componentID),
@@ -273,7 +266,7 @@ func TestListNamesakesKeepDistinctLeadIDs(t *testing.T) {
 		components: []*tracker.Component{namesake("1", "uid-a"), namesake("2", "uid-b")},
 	}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: ComponentListFields}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

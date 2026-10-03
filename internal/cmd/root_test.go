@@ -10,7 +10,6 @@ import (
 	"github.com/slavkluev/ytr/internal/cmd"
 	"github.com/slavkluev/ytr/internal/cmd/jsonfields"
 	"github.com/slavkluev/ytr/internal/cmd/queue"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 func TestCommandTree(t *testing.T) {
@@ -38,8 +37,6 @@ func TestCommandTree(t *testing.T) {
 }
 
 func TestMutuallyExclusiveFlags(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	root := cmd.RootCmd()
 	root.SetArgs([]string{"version", "--json", "key", "--quiet"})
 	buf := new(bytes.Buffer)
@@ -53,8 +50,6 @@ func TestMutuallyExclusiveFlags(t *testing.T) {
 }
 
 func TestMutuallyExclusiveJQAndQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	root := cmd.RootCmd()
 	root.SetArgs([]string{"version", "--jq", ".version", "--quiet"})
 	buf := new(bytes.Buffer)

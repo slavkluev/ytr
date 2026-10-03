@@ -91,19 +91,21 @@ func runUpdate(
 	fromJSON string,
 	timeout time.Duration,
 ) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "bulk update", BulkStatusFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = BulkStatusFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = BulkStatusFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, BulkStatusFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, BulkStatusFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, BulkStatusFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, BulkStatusFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -127,7 +129,7 @@ func runUpdate(
 		return api.MapAPIError(err)
 	}
 
-	return awaitBulkCompletion(cmd, newBulkStatusGetter(auth), bc, timeout)
+	return awaitBulkCompletion(cmd, opts, newBulkStatusGetter(auth), bc, timeout)
 }
 
 func buildUpdateRequest(

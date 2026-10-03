@@ -64,7 +64,7 @@ func makeQueues(keys ...string) []*tracker.Queue {
 	return queues
 }
 
-func setupListCmd(t *testing.T, mock *mockQueueLister, args []string) (string, error) {
+func setupListCmd(t *testing.T, mock *mockQueueLister, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origLister := newLister
@@ -84,19 +84,17 @@ func setupListCmd(t *testing.T, mock *mockQueueLister, args []string) (string, e
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestQueueListTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockQueueLister{
 		queues: makeQueues("PROJ", "TEST"),
 		resp:   &tracker.Response{TotalCount: 2},
 	}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -109,15 +107,12 @@ func TestQueueListTable(t *testing.T) {
 }
 
 func TestQueueListJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = QueueListFields
-
 	mock := &mockQueueLister{
 		queues: makeQueues("PROJ", "TEST"),
 		resp:   &tracker.Response{TotalCount: 2},
 	}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: QueueListFields}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -145,15 +140,12 @@ func TestQueueListJSON(t *testing.T) {
 }
 
 func TestQueueListQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockQueueLister{
 		queues: makeQueues("PROJ", "TEST"),
 		resp:   &tracker.Response{TotalCount: 2},
 	}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{Quiet: true}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -168,14 +160,12 @@ func TestQueueListQuiet(t *testing.T) {
 }
 
 func TestQueueListLimit(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockQueueLister{
 		queues: []*tracker.Queue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, _ = setupListCmd(t, mock, []string{"--limit", "10"})
+	_, _ = setupListCmd(t, mock, output.Options{}, []string{"--limit", "10"})
 
 	if len(mock.calls) == 0 {
 		t.Fatal("no list calls made")
@@ -186,14 +176,12 @@ func TestQueueListLimit(t *testing.T) {
 }
 
 func TestQueueListInvalidCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockQueueLister{
 		queues: []*tracker.Queue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--cursor", "abc"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"--cursor", "abc"})
 	if err == nil {
 		t.Fatal("expected error for invalid cursor, got nil")
 	}
@@ -206,9 +194,6 @@ func TestQueueListInvalidCursor(t *testing.T) {
 }
 
 func TestQueueListAll(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	// Page 1 returns 2 queues (full page), page 2 returns 1 queue (partial = done).
 	mock := &mockQueueLister{
 		multiPage: map[int][]*tracker.Queue{
@@ -218,7 +203,7 @@ func TestQueueListAll(t *testing.T) {
 		resp: &tracker.Response{TotalCount: 3},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"--all", "--limit", "2"})
+	out, err := setupListCmd(t, mock, output.Options{Quiet: true}, []string{"--all", "--limit", "2"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -233,14 +218,12 @@ func TestQueueListAll(t *testing.T) {
 }
 
 func TestQueueListEmpty_Table(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockQueueLister{
 		queues: []*tracker.Queue{},
 		resp:   &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -251,15 +234,12 @@ func TestQueueListEmpty_Table(t *testing.T) {
 }
 
 func TestQueueListEmpty_JSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = QueueListFields
-
 	mock := &mockQueueLister{
 		queues: []*tracker.Queue{},
 		resp:   &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: QueueListFields}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -287,8 +267,6 @@ func TestQueueListEmpty_JSON(t *testing.T) {
 }
 
 func TestQueueListNilFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// Queue with nil Lead should not panic.
 	queues := []*tracker.Queue{
 		{
@@ -302,7 +280,7 @@ func TestQueueListNilFields(t *testing.T) {
 		resp:   &tracker.Response{TotalCount: 1},
 	}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error (panic?): %v", err)
 	}
@@ -335,9 +313,6 @@ func TestQueueList_RegisteredAsSubcommand(t *testing.T) {
 }
 
 func TestQueueListNamesakesKeepDistinctLeadIDs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = QueueListFields
-
 	queues := makeQueues("PROJ", "TEST")
 	for i, uid := range []string{"uid-a", "uid-b"} {
 		queues[i].Lead = &tracker.User{
@@ -348,7 +323,7 @@ func TestQueueListNamesakesKeepDistinctLeadIDs(t *testing.T) {
 
 	mock := &mockQueueLister{queues: queues, resp: &tracker.Response{TotalCount: 2}}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: QueueListFields}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

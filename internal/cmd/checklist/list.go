@@ -58,19 +58,21 @@ SEE ALSO
 }
 
 func runList(cmd *cobra.Command, issueKey string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "checklist list", ChecklistFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = ChecklistFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = ChecklistFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, ChecklistFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, ChecklistFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, ChecklistFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, ChecklistFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -89,33 +91,33 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderListOutput(cmd.OutOrStdout(), items)
+	return renderListOutput(cmd.OutOrStdout(), opts, items)
 }
 
-func renderListOutput(w io.Writer, items []*tracker.ChecklistItem) error {
-	if output.IsJSON() {
+func renderListOutput(w io.Writer, opts *output.Options, items []*tracker.ChecklistItem) error {
+	if opts.IsJSON() {
 		result := make([]checklistItem, len(items))
 		for i, c := range items {
 			result[i] = toChecklistItem(c)
 		}
 
-		if output.HasFieldSelection() {
+		if opts.HasFieldSelection() {
 			filtered := make([]map[string]any, len(result))
 			for i, item := range result {
-				filtered[i] = output.FilterFields(item, output.JSONFields)
+				filtered[i] = output.FilterFields(item, opts.JSONFields)
 			}
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, result, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, result, opts.JQFilter)
 		}
-		return output.PrintJSON(w, result)
+		return opts.PrintJSON(w, result)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		ids := make([]string, len(items))
 		for i, c := range items {
 			ids[i] = api.DerefFlexString(c.ID, "")
@@ -129,7 +131,7 @@ func renderListOutput(w io.Writer, items []*tracker.ChecklistItem) error {
 		return err
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("ID", "TEXT", "CHECKED", "ASSIGNEE")
 
 	for _, c := range items {

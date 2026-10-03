@@ -40,8 +40,8 @@ func TimeAgo(t time.Time) string {
 // FormatTime renders a timestamp for human-facing table and detail output:
 // a relative duration on a TTY, and off a TTY the RFC3339 string the JSON
 // fields carry, keeping the offset the server sent.
-func FormatTime(t time.Time) string {
-	if !IsTTY() {
+func (o *Options) FormatTime(t time.Time) string {
+	if !o.TTY {
 		return t.Format(time.RFC3339)
 	}
 	return TimeAgo(t)

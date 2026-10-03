@@ -72,19 +72,21 @@ SEE ALSO
 }
 
 func runList(cmd *cobra.Command) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "component list", ComponentListFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = ComponentListFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = ComponentListFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, ComponentListFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, ComponentListFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, ComponentListFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, ComponentListFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -103,33 +105,33 @@ func runList(cmd *cobra.Command) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderListOutput(cmd.OutOrStdout(), components)
+	return renderListOutput(cmd.OutOrStdout(), opts, components)
 }
 
-func renderListOutput(w io.Writer, components []*tracker.Component) error {
-	if output.IsJSON() {
+func renderListOutput(w io.Writer, opts *output.Options, components []*tracker.Component) error {
+	if opts.IsJSON() {
 		items := make([]componentItem, len(components))
 		for i, c := range components {
 			items[i] = toComponentItem(c)
 		}
 
-		if output.HasFieldSelection() {
+		if opts.HasFieldSelection() {
 			filtered := make([]map[string]any, len(items))
 			for i, item := range items {
-				filtered[i] = output.FilterFields(item, output.JSONFields)
+				filtered[i] = output.FilterFields(item, opts.JSONFields)
 			}
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, items, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, items, opts.JQFilter)
 		}
-		return output.PrintJSON(w, items)
+		return opts.PrintJSON(w, items)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		ids := make([]string, len(components))
 		for i, c := range components {
 			ids[i] = api.DerefFlexString(c.ID, "")
@@ -143,7 +145,7 @@ func renderListOutput(w io.Writer, components []*tracker.Component) error {
 		return err
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("ID", "NAME", "QUEUE", "LEAD")
 
 	for _, c := range components {

@@ -69,7 +69,7 @@ func makeTransitions(specs ...struct{ key, display, id string }) []*tracker.Tran
 	return result
 }
 
-func setupTransitionCmd(t *testing.T, mock *mockTransitioner, args []string) (string, error) {
+func setupTransitionCmd(t *testing.T, mock *mockTransitioner, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origTransitioner := newTransitioner
@@ -89,7 +89,7 @@ func setupTransitionCmd(t *testing.T, mock *mockTransitioner, args []string) (st
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -103,15 +103,13 @@ func sampleTransitions() []*tracker.Transition {
 }
 
 func TestTransitionByKey(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockTransitioner{
 		transitions: sampleTransitions(),
 		getResp:     &tracker.Response{},
 		execResp:    &tracker.Response{},
 	}
 
-	_, err := setupTransitionCmd(t, mock, []string{"PROJ-123", "--to", "inProgress"})
+	_, err := setupTransitionCmd(t, mock, output.Options{}, []string{"PROJ-123", "--to", "inProgress"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -128,15 +126,13 @@ func TestTransitionByKey(t *testing.T) {
 }
 
 func TestTransitionByDisplayName(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockTransitioner{
 		transitions: sampleTransitions(),
 		getResp:     &tracker.Response{},
 		execResp:    &tracker.Response{},
 	}
 
-	_, err := setupTransitionCmd(t, mock, []string{"PROJ-123", "--to", "In Progress"})
+	_, err := setupTransitionCmd(t, mock, output.Options{}, []string{"PROJ-123", "--to", "In Progress"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -150,15 +146,13 @@ func TestTransitionByDisplayName(t *testing.T) {
 }
 
 func TestTransitionByDisplayNameCaseInsensitive(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockTransitioner{
 		transitions: sampleTransitions(),
 		getResp:     &tracker.Response{},
 		execResp:    &tracker.Response{},
 	}
 
-	_, err := setupTransitionCmd(t, mock, []string{"PROJ-123", "--to", "in progress"})
+	_, err := setupTransitionCmd(t, mock, output.Options{}, []string{"PROJ-123", "--to", "in progress"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -172,14 +166,12 @@ func TestTransitionByDisplayNameCaseInsensitive(t *testing.T) {
 }
 
 func TestTransitionInvalid(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockTransitioner{
 		transitions: sampleTransitions(),
 		getResp:     &tracker.Response{},
 	}
 
-	_, err := setupTransitionCmd(t, mock, []string{"PROJ-123", "--to", "nonexistent"})
+	_, err := setupTransitionCmd(t, mock, output.Options{}, []string{"PROJ-123", "--to", "nonexistent"})
 	if err == nil {
 		t.Fatal("expected error for invalid transition, got nil")
 	}
@@ -198,14 +190,12 @@ func TestTransitionInvalid(t *testing.T) {
 }
 
 func TestTransitionInvalidKey(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockTransitioner{
 		transitions: sampleTransitions(),
 		getResp:     &tracker.Response{},
 	}
 
-	_, err := setupTransitionCmd(t, mock, []string{"bad-key", "--to", "open"})
+	_, err := setupTransitionCmd(t, mock, output.Options{}, []string{"bad-key", "--to", "open"})
 	if err == nil {
 		t.Fatal("expected validation error for bad key, got nil")
 	}
@@ -220,16 +210,18 @@ func TestTransitionInvalidKey(t *testing.T) {
 }
 
 func TestTransitionJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueTransitionFields
-
 	mock := &mockTransitioner{
 		transitions: sampleTransitions(),
 		getResp:     &tracker.Response{},
 		execResp:    &tracker.Response{},
 	}
 
-	out, err := setupTransitionCmd(t, mock, []string{"PROJ-123", "--to", "inProgress"})
+	out, err := setupTransitionCmd(
+		t,
+		mock,
+		output.Options{JSONFields: IssueTransitionFields},
+		[]string{"PROJ-123", "--to", "inProgress"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -248,16 +240,13 @@ func TestTransitionJSON(t *testing.T) {
 }
 
 func TestTransitionQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockTransitioner{
 		transitions: sampleTransitions(),
 		getResp:     &tracker.Response{},
 		execResp:    &tracker.Response{},
 	}
 
-	out, err := setupTransitionCmd(t, mock, []string{"PROJ-123", "--to", "inProgress"})
+	out, err := setupTransitionCmd(t, mock, output.Options{Quiet: true}, []string{"PROJ-123", "--to", "inProgress"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -269,15 +258,13 @@ func TestTransitionQuiet(t *testing.T) {
 }
 
 func TestTransitionTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockTransitioner{
 		transitions: sampleTransitions(),
 		getResp:     &tracker.Response{},
 		execResp:    &tracker.Response{},
 	}
 
-	out, err := setupTransitionCmd(t, mock, []string{"PROJ-123", "--to", "inProgress"})
+	out, err := setupTransitionCmd(t, mock, output.Options{}, []string{"PROJ-123", "--to", "inProgress"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -289,28 +276,24 @@ func TestTransitionTable(t *testing.T) {
 }
 
 func TestTransitionGetError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockTransitioner{
 		getErr: errors.New("api error"),
 	}
 
-	_, err := setupTransitionCmd(t, mock, []string{"PROJ-123", "--to", "open"})
+	_, err := setupTransitionCmd(t, mock, output.Options{}, []string{"PROJ-123", "--to", "open"})
 	if err == nil {
 		t.Fatal("expected error from GetTransitions, got nil")
 	}
 }
 
 func TestTransitionExecError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockTransitioner{
 		transitions: sampleTransitions(),
 		getResp:     &tracker.Response{},
 		execErr:     errors.New("exec api error"),
 	}
 
-	_, err := setupTransitionCmd(t, mock, []string{"PROJ-123", "--to", "inProgress"})
+	_, err := setupTransitionCmd(t, mock, output.Options{}, []string{"PROJ-123", "--to", "inProgress"})
 	if err == nil {
 		t.Fatal("expected error from ExecuteTransition, got nil")
 	}

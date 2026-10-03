@@ -77,19 +77,21 @@ SEE ALSO
 }
 
 func runMyself(cmd *cobra.Command) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "user myself", UserDetailFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = UserDetailFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = UserDetailFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, UserDetailFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, UserDetailFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, UserDetailFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, UserDetailFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -108,32 +110,32 @@ func runMyself(cmd *cobra.Command) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderDetailOutput(cmd.OutOrStdout(), user)
+	return renderDetailOutput(cmd.OutOrStdout(), opts, user)
 }
 
-func renderDetailOutput(w io.Writer, user *tracker.User) error {
-	if output.IsJSON() {
+func renderDetailOutput(w io.Writer, opts *output.Options, user *tracker.User) error {
+	if opts.IsJSON() {
 		detail := toUserDetail(user)
 
-		if output.HasFieldSelection() {
-			filtered := output.FilterFields(detail, output.JSONFields)
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+		if opts.HasFieldSelection() {
+			filtered := output.FilterFields(detail, opts.JSONFields)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, detail, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, detail, opts.JQFilter)
 		}
-		return output.PrintJSON(w, detail)
+		return opts.PrintJSON(w, detail)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, strconv.Itoa(api.DerefInt(user.UID, 0)))
 		return nil
 	}
 
-	d := output.NewDetail(w)
+	d := opts.NewDetail(w)
 
 	d.Field("UID", strconv.Itoa(api.DerefInt(user.UID, 0)))
 	d.Field("Display", api.DerefString(user.Display, "-"))

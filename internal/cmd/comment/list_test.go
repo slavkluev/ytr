@@ -58,7 +58,7 @@ func makeComments(ids ...string) []*tracker.Comment {
 	return comments
 }
 
-func setupListCmd(t *testing.T, mock *mockCommentLister, args []string) (string, error) {
+func setupListCmd(t *testing.T, mock *mockCommentLister, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origLister := newCommentLister
@@ -78,19 +78,17 @@ func setupListCmd(t *testing.T, mock *mockCommentLister, args []string) (string,
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestListTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockCommentLister{
 		comments: makeComments("101", "202"),
 		resp:     &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -111,9 +109,6 @@ func TestListTable(t *testing.T) {
 }
 
 func TestListJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = CommentFields
-
 	ts := tracker.Timestamp{Time: time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC)}
 	mock := &mockCommentLister{
 		comments: []*tracker.Comment{
@@ -128,7 +123,7 @@ func TestListJSON(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: CommentFields}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -159,15 +154,12 @@ func TestListJSON(t *testing.T) {
 }
 
 func TestListQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockCommentLister{
 		comments: makeComments("10", "20", "30"),
 		resp:     &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{Quiet: true}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -182,14 +174,12 @@ func TestListQuiet(t *testing.T) {
 }
 
 func TestListEmpty(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockCommentLister{
 		comments: []*tracker.Comment{},
 		resp:     &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -200,11 +190,9 @@ func TestListEmpty(t *testing.T) {
 }
 
 func TestListInvalidKey(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockCommentLister{}
 
-	_, err := setupListCmd(t, mock, []string{"bad-key"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"bad-key"})
 	if err == nil {
 		t.Fatal("expected error for invalid key, got nil")
 	}
@@ -215,8 +203,6 @@ func TestListInvalidKey(t *testing.T) {
 }
 
 func TestListNilFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// Comment with nil fields should not panic.
 	mock := &mockCommentLister{
 		comments: []*tracker.Comment{
@@ -227,7 +213,7 @@ func TestListNilFields(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error (panic?): %v", err)
 	}
@@ -293,7 +279,6 @@ func (m *stuckCursorLister) ListComments(
 
 func runCommentListQuiet(t *testing.T, lister commentLister) (string, error) {
 	t.Helper()
-	output.QuietFlag = true
 
 	origLister := newCommentLister
 	newCommentLister = func(_ *config.ResolvedAuth) commentLister { return lister }
@@ -308,13 +293,11 @@ func runCommentListQuiet(t *testing.T, lister commentLister) (string, error) {
 	cmd.PersistentFlags().String("org-type", "360", "")
 	cmd.SetArgs([]string{"PROJ-1"})
 
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &output.Options{Quiet: true}))
 	return buf.String(), err
 }
 
 func TestCommentListFollowsCursorPastFirstPage(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	ids := make([]string, 120)
 	for i := range ids {
 		ids[i] = strconv.Itoa(i + 1)
@@ -346,8 +329,6 @@ func TestCommentListFollowsCursorPastFirstPage(t *testing.T) {
 }
 
 func TestCommentListStopsOnRepeatedCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	lister := &stuckCursorLister{}
 
 	if _, err := runCommentListQuiet(t, lister); err != nil {
@@ -393,9 +374,6 @@ func namesakeComment(commentID, userID string) *tracker.Comment {
 }
 
 func TestListNamesakesKeepDistinctAuthorIDs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = CommentFields
-
 	mock := &mockCommentLister{
 		comments: []*tracker.Comment{
 			namesakeComment("1", "uid-a"),
@@ -404,7 +382,7 @@ func TestListNamesakesKeepDistinctAuthorIDs(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: CommentFields}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -430,15 +408,12 @@ func TestListNamesakesKeepDistinctAuthorIDs(t *testing.T) {
 }
 
 func TestListAuthorIDFieldSelection(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"authorId"}
-
 	mock := &mockCommentLister{
 		comments: []*tracker.Comment{namesakeComment("42", "uid-alice")},
 		resp:     &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: []string{"authorId"}}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -459,15 +434,12 @@ func TestListAuthorIDFieldSelection(t *testing.T) {
 }
 
 func TestListNilAuthorYieldsEmptyAuthorID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = CommentFields
-
 	mock := &mockCommentLister{
 		comments: []*tracker.Comment{{ID: testutil.FlexStringPtr("7")}},
 		resp:     &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-1"})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: CommentFields}, []string{"PROJ-1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -488,9 +460,6 @@ func TestListNilAuthorYieldsEmptyAuthorID(t *testing.T) {
 }
 
 func TestListDateOffTTYIsRFC3339(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
-
 	created := tracker.Timestamp{
 		Time: time.Date(2026, 9, 19, 14, 22, 31, 0, time.FixedZone("MSK", 3*60*60)),
 	}
@@ -504,7 +473,7 @@ func TestListDateOffTTYIsRFC3339(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -516,16 +485,12 @@ func TestListDateOffTTYIsRFC3339(t *testing.T) {
 }
 
 func TestListDateOnTTYIsRelative(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(true)
-	t.Setenv("NO_COLOR", "1")
-
 	mock := &mockCommentLister{
 		comments: makeComments("101"),
 		resp:     &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupListCmd(t, mock, output.Options{TTY: true}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -536,9 +501,6 @@ func TestListDateOnTTYIsRelative(t *testing.T) {
 }
 
 func TestListBodyOffTTYIsOneEscapedLine(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
-
 	created := tracker.Timestamp{Time: time.Date(2026, 9, 19, 14, 22, 31, 0, time.UTC)}
 	mock := &mockCommentLister{
 		comments: []*tracker.Comment{{
@@ -550,7 +512,7 @@ func TestListBodyOffTTYIsOneEscapedLine(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -564,9 +526,6 @@ func TestListBodyOffTTYIsOneEscapedLine(t *testing.T) {
 }
 
 func TestListOnTTYTruncatesALongBody(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(true)
-
 	body := strings.Repeat("a long comment body ", 20)
 	created := tracker.Timestamp{Time: time.Now()}
 	mock := &mockCommentLister{
@@ -579,7 +538,7 @@ func TestListOnTTYTruncatesALongBody(t *testing.T) {
 		resp: &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupListCmd(t, mock, output.Options{TTY: true, Colors: true}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

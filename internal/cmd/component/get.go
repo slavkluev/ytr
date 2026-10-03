@@ -77,19 +77,21 @@ SEE ALSO
 }
 
 func runGet(cmd *cobra.Command, componentID string) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "component get", ComponentGetFields)
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = ComponentGetFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = ComponentGetFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, ComponentGetFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, ComponentGetFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, ComponentGetFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, ComponentGetFields)
 	}
 
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
@@ -110,32 +112,32 @@ func runGet(cmd *cobra.Command, componentID string) error {
 
 	w := cmd.OutOrStdout()
 
-	if output.IsJSON() {
+	if opts.IsJSON() {
 		detail := toComponentDetail(component)
 
-		if output.HasFieldSelection() {
-			filtered := output.FilterFields(detail, output.JSONFields)
-			if output.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, output.JQFilter)
+		if opts.HasFieldSelection() {
+			filtered := output.FilterFields(detail, opts.JSONFields)
+			if opts.JQFilter != "" {
+				return output.ApplyJQ(w, filtered, opts.JQFilter)
 			}
-			return output.PrintJSON(w, filtered)
+			return opts.PrintJSON(w, filtered)
 		}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, detail, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, detail, opts.JQFilter)
 		}
-		return output.PrintJSON(w, detail)
+		return opts.PrintJSON(w, detail)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, api.DerefFlexString(component.ID, ""))
 		return nil
 	}
 
-	return renderComponentCard(w, component)
+	return renderComponentCard(w, opts, component)
 }
 
-func renderComponentCard(w io.Writer, c *tracker.Component) error {
-	d := output.NewDetail(w)
+func renderComponentCard(w io.Writer, opts *output.Options, c *tracker.Component) error {
+	d := opts.NewDetail(w)
 
 	d.Field("ID", api.DerefFlexString(c.ID, ""))
 	d.Field("Name", api.DerefString(c.Name, "-"))

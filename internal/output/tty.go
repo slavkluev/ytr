@@ -11,51 +11,52 @@ import (
 
 const defaultTerminalWidth = 80
 
-var ttyOverride *bool
+// Terminal returns the options a run writing to f starts from: whether f is a
+// terminal, its width, and whether colors are on by the environment's rules.
+// The flag fields are left zero for the root command to fill.
+func Terminal(f *os.File) Options {
+	fd := f.Fd()
+	tty := isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 
-// SetTTY forces IsTTY to report isTTY until ResetFlags clears it.
-func SetTTY(isTTY bool) {
-	ttyOverride = &isTTY
-}
-
-// IsTTY returns true if stdout is a terminal.
-// It checks both standard terminals and Cygwin/MSYS2 terminals for Windows compatibility.
-func IsTTY() bool {
-	if ttyOverride != nil {
-		return *ttyOverride
+	width, _, err := term.GetSize(int(fd)) //nolint:gosec // fd conversion is safe for terminal operations
+	if err != nil {
+		width = 0
 	}
-	fd := os.Stdout.Fd()
-	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
+
+	return Options{
+		TTY:    tty,
+		Colors: colorsEnabled(os.LookupEnv, tty),
+		Width:  width,
+	}
 }
 
-// TerminalWidth returns the current terminal width in columns.
-// Returns 80 as the default when not connected to a terminal or on error.
-func TerminalWidth() int {
-	width, _, err := term.GetSize(int(os.Stdout.Fd())) //nolint:gosec // fd conversion is safe for terminal operations
-	if err != nil || width <= 0 {
+// TerminalWidth returns the width a table may fill, falling back to 80 columns
+// when the width is unknown.
+func (o *Options) TerminalWidth() int {
+	if o.Width <= 0 {
 		return defaultTerminalWidth
 	}
-	return width
+	return o.Width
 }
 
-// ColorsEnabled checks whether color output should be enabled.
+// colorsEnabled checks whether color output should be enabled.
 // Precedence (highest to lowest):
 //  1. NO_COLOR set and non-empty -> colors OFF (https://no-color.org/)
 //  2. CLICOLOR_FORCE set and != "0" -> colors ON (even if not TTY)
 //  3. CLICOLOR set -> colors ON only if value != "0" and is TTY
 //  4. Default: colors ON if TTY, OFF if not
-func ColorsEnabled() bool {
-	if noColor, ok := os.LookupEnv("NO_COLOR"); ok && noColor != "" {
+func colorsEnabled(lookup func(string) (string, bool), tty bool) bool {
+	if noColor, ok := lookup("NO_COLOR"); ok && noColor != "" {
 		return false
 	}
 
-	if force, ok := os.LookupEnv("CLICOLOR_FORCE"); ok && force != "" && force != "0" {
+	if force, ok := lookup("CLICOLOR_FORCE"); ok && force != "" && force != "0" {
 		return true
 	}
 
-	if cliColor, ok := os.LookupEnv("CLICOLOR"); ok {
-		return cliColor != "0" && IsTTY()
+	if cliColor, ok := lookup("CLICOLOR"); ok {
+		return cliColor != "0" && tty
 	}
 
-	return IsTTY()
+	return tty
 }

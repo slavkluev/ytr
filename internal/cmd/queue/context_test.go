@@ -18,7 +18,6 @@ import (
 	"github.com/slavkluev/ytr/internal/config"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // Fixtures follow the reference examples and the recorded read-only responses
@@ -324,15 +323,16 @@ func runContextCmd(t *testing.T, mock *mockContextClient, args ...string) (strin
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 
-	cmd.PersistentFlags().StringSliceVar(&output.JSONFields, "json", nil, "")
-	cmd.PersistentFlags().StringVar(&output.JQFilter, "jq", "", "")
-	cmd.PersistentFlags().BoolVar(&output.QuietFlag, "quiet", false, "")
+	opts := &output.Options{}
+	cmd.PersistentFlags().StringSliceVar(&opts.JSONFields, "json", nil, "")
+	cmd.PersistentFlags().StringVar(&opts.JQFilter, "jq", "", "")
+	cmd.PersistentFlags().BoolVar(&opts.Quiet, "quiet", false, "")
 	cmd.PersistentFlags().String("token", "", "")
 	cmd.PersistentFlags().String("org-id", "", "")
 	cmd.PersistentFlags().String("org-type", "", "")
 
 	cmd.SetArgs(append(args, "--token", "test-token", "--org-id", "test-org", "--org-type", "360"))
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), opts))
 	return stdout.String(), stderr.String(), err
 }
 
@@ -400,7 +400,6 @@ func assertCalls(t *testing.T, mock *mockContextClient, want ...string) {
 }
 
 func TestQueueContextFull(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 
 	stdout, _, err := runContextCmd(t, mock, "APP")
@@ -427,7 +426,6 @@ func TestQueueContextFull(t *testing.T) {
 }
 
 func TestQueueContextRequiredFieldsATS(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := &mockContextClient{
 		queue: decodeFixture[*tracker.Queue](t, `{
 		  "self": "https://api.tracker.yandex.net/v3/queues/OPS", "id": "7", "key": "OPS", "name": "OPS",
@@ -474,7 +472,6 @@ func TestQueueContextRequiredFieldsATS(t *testing.T) {
 }
 
 func TestQueueContextQueueFieldsEmpty(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 	mock.queueFields = decodeFixture[[]*tracker.Field](t, `[]`)
 
@@ -492,7 +489,6 @@ func TestQueueContextQueueFieldsEmpty(t *testing.T) {
 }
 
 func TestQueueContextQueueFieldsForbidden(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	const reason = "У вас недостаточно прав в очереди RESTRICTED."
 	mock := newAPPMock(t)
 	mock.queue = decodeFixture[*tracker.Queue](t, `{
@@ -528,7 +524,6 @@ func TestQueueContextQueueFieldsForbidden(t *testing.T) {
 }
 
 func TestQueueContextWorkflowFails(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 	mock.queue = decodeFixture[*tracker.Queue](t, twoWorkflowQueueJSON)
 	mock.workflowErrs = map[string]error{"W100": newAPIError(http.StatusNotFound, "Workflow W100 not found")}
@@ -554,7 +549,6 @@ func TestQueueContextWorkflowFails(t *testing.T) {
 }
 
 func TestQueueContextStatusesOnly(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 
 	stdout, _, err := runContextCmd(t, mock, "APP", "--json", "statuses")
@@ -570,7 +564,6 @@ func TestQueueContextStatusesOnly(t *testing.T) {
 }
 
 func TestQueueContextWorkflowFailsUnderSelection(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 	mock.queue = decodeFixture[*tracker.Queue](t, twoWorkflowQueueJSON)
 	mock.workflowErrs = map[string]error{"W100": newAPIError(http.StatusNotFound, "Workflow W100 not found")}
@@ -588,7 +581,6 @@ func TestQueueContextWorkflowFailsUnderSelection(t *testing.T) {
 }
 
 func TestQueueContextStatusesAcrossWorkflows(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 	mock.queue = decodeFixture[*tracker.Queue](t, twoWorkflowQueueJSON)
 	mock.workflows = map[string]*tracker.Workflow{
@@ -616,7 +608,6 @@ func TestQueueContextStatusesAcrossWorkflows(t *testing.T) {
 }
 
 func TestQueueContextTerminalStep(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 
 	stdout, _, err := runContextCmd(t, mock, "APP", "--json", "workflows")
@@ -638,7 +629,6 @@ func TestQueueContextTerminalStep(t *testing.T) {
 }
 
 func TestQueueContextOptionTypes(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 	mock.localFields = decodeFixture[[]*tracker.Field](t, `[
 	  {"self": "https://api.tracker.yandex.net/v3/queues/APP/localFields/flag", "id": "5d0e4f1a2b3c4d5e6f708192--flag",
@@ -675,7 +665,6 @@ func TestQueueContextOptionTypes(t *testing.T) {
 }
 
 func TestQueueContextOptionsByQueueID(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 	// Tracker accepts the queue id in place of its key, and the queue it
 	// returns carries the key that the per-queue option lists use.
@@ -703,7 +692,6 @@ func TestQueueContextOptionsByQueueID(t *testing.T) {
 }
 
 func TestQueueContextSeveralPartsFail(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 	mock.componentsErr = newAPIError(http.StatusForbidden, "components denied")
 	mock.localFieldsErr = newAPIError(http.StatusNotFound, "local fields not found")
@@ -731,7 +719,6 @@ func TestQueueContextSeveralPartsFail(t *testing.T) {
 }
 
 func TestQueueContextSelectionIgnoresCase(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 
 	stdout, _, err := runContextCmd(t, mock, "APP", "--json", "IssueTypes,COMPONENTS")
@@ -751,7 +738,6 @@ func TestQueueContextSelectionIgnoresCase(t *testing.T) {
 }
 
 func TestQueueContextSelection(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 
 	stdout, _, err := runContextCmd(t, mock, "APP", "--json", "issueTypes,components")
@@ -771,7 +757,6 @@ func TestQueueContextSelection(t *testing.T) {
 }
 
 func TestQueueContextJQ(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 
 	stdout, _, err := runContextCmd(t, mock, "APP", "--jq", ".localFields[].id")
@@ -785,7 +770,6 @@ func TestQueueContextJQ(t *testing.T) {
 }
 
 func TestQueueContextQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 
 	stdout, _, err := runContextCmd(t, mock, "APP", "--quiet")
@@ -798,7 +782,6 @@ func TestQueueContextQuiet(t *testing.T) {
 }
 
 func TestQueueContextUnknownQueue(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 	mock.queueErr = newAPIError(http.StatusNotFound, "Очередь не существует.")
 
@@ -815,7 +798,6 @@ func TestQueueContextUnknownQueue(t *testing.T) {
 }
 
 func TestQueueContextEmptyArg(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 
 	stdout, _, err := runContextCmd(t, mock, "")
@@ -828,7 +810,6 @@ func TestQueueContextEmptyArg(t *testing.T) {
 }
 
 func TestQueueContextInvalidField(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 
 	_, _, err := runContextCmd(t, mock, "APP", "--json", "foo")
@@ -845,7 +826,6 @@ func TestQueueContextInvalidField(t *testing.T) {
 }
 
 func TestQueueContextFieldHint(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	mock := newAPPMock(t)
 
 	stdout, stderr, err := runContextCmd(t, mock, "APP", "--json=")
@@ -869,7 +849,6 @@ func TestQueueContextFieldHint(t *testing.T) {
 // fields slice, the document's json tags, the JSON FIELDS help block and the
 // completion registry.
 func TestQueueContextFieldListsAgree(t *testing.T) {
-	testutil.ResetOutputFlags(t)
 	cmd := newContextCmd()
 
 	docType := reflect.TypeFor[queueContext]()

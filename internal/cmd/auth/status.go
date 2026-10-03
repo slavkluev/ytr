@@ -33,6 +33,8 @@ SEE ALSO
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
+	opts := output.FromContext(cmd.Context())
+
 	tokenFlag := ""
 	orgIDFlag := ""
 	orgTypeFlag := ""
@@ -56,9 +58,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	username := api.DerefUser(user, "unknown")
 
 	// No field selection or hints -- fixed-structure JSON.
-	jsonRequested := cmd.Flags().Changed("json") || output.IsJSON()
+	jsonRequested := cmd.Flags().Changed("json") || opts.IsJSON()
 	if jsonRequested {
-		return output.PrintJSON(cmd.OutOrStdout(), map[string]string{
+		return opts.PrintJSON(cmd.OutOrStdout(), map[string]string{
 			"status":       "authenticated",
 			"user":         username,
 			"org_id":       auth.OrgID,

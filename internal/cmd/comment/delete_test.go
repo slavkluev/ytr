@@ -12,7 +12,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/testutil"
 )
 
 // mockCommentDeleter implements commentDeleter for testing.
@@ -36,7 +35,7 @@ func (m *mockCommentDeleter) DeleteComment(
 	return m.resp, nil
 }
 
-func setupDeleteCmd(t *testing.T, mock *mockCommentDeleter, args []string) (string, error) {
+func setupDeleteCmd(t *testing.T, mock *mockCommentDeleter, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origDeleter := newCommentDeleter
@@ -56,7 +55,7 @@ func setupDeleteCmd(t *testing.T, mock *mockCommentDeleter, args []string) (stri
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
@@ -137,20 +136,19 @@ func TestDelete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetOutputFlags(t)
-
 			// Configure output mode for specific test cases.
+			var opts output.Options
 			if tt.jsonCheck != nil {
-				output.JSONFields = []string{"id"}
+				opts.JSONFields = []string{"id"}
 			}
 			if tt.name == "quiet output" {
-				output.QuietFlag = true
+				opts.Quiet = true
 			}
 			if tt.name == "jq filter" {
-				output.JQFilter = ".id"
+				opts.JQFilter = ".id"
 			}
 
-			out, err := setupDeleteCmd(t, tt.mock, tt.args)
+			out, err := setupDeleteCmd(t, tt.mock, opts, tt.args)
 
 			if tt.wantErr != "" {
 				if err == nil {
@@ -181,13 +179,11 @@ func TestDelete(t *testing.T) {
 }
 
 func TestDeleteRequestCapture(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockCommentDeleter{
 		resp: &tracker.Response{},
 	}
 
-	_, err := setupDeleteCmd(t, mock, []string{"PROJ-123", "42"})
+	_, err := setupDeleteCmd(t, mock, output.Options{}, []string{"PROJ-123", "42"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

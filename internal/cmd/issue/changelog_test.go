@@ -86,7 +86,7 @@ func sampleChangelog() []*tracker.Changelog {
 	}
 }
 
-func setupChangelogCmd(t *testing.T, mock *mockChangelogGetter, args []string) (string, error) {
+func setupChangelogCmd(t *testing.T, mock *mockChangelogGetter, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origGetter := newChangelogGetter
@@ -106,19 +106,17 @@ func setupChangelogCmd(t *testing.T, mock *mockChangelogGetter, args []string) (
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestChangelogTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChangelogGetter{
 		entries: sampleChangelog(),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupChangelogCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupChangelogCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -139,15 +137,12 @@ func TestChangelogTable(t *testing.T) {
 }
 
 func TestChangelogJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueChangelogFields
-
 	mock := &mockChangelogGetter{
 		entries: sampleChangelog(),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupChangelogCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupChangelogCmd(t, mock, output.Options{JSONFields: IssueChangelogFields}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -218,15 +213,12 @@ func TestChangelogJSON(t *testing.T) {
 }
 
 func TestChangelogQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockChangelogGetter{
 		entries: sampleChangelog(),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupChangelogCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupChangelogCmd(t, mock, output.Options{Quiet: true}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -249,14 +241,12 @@ func TestChangelogQuiet(t *testing.T) {
 }
 
 func TestChangelogFieldFilter(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChangelogGetter{
 		entries: sampleChangelog(),
 		resp:    &tracker.Response{},
 	}
 
-	_, err := setupChangelogCmd(t, mock, []string{"PROJ-123", "--field", "status"})
+	_, err := setupChangelogCmd(t, mock, output.Options{}, []string{"PROJ-123", "--field", "status"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -410,8 +400,6 @@ func TestFetchAllChangelog_NullLastEntryNoPanic(t *testing.T) {
 }
 
 func TestChangelogFieldFilterPreservesCase(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// Tracker field IDs are case-sensitive and commonly camelCase
 	// (storyPoints, checklistItems, dueDate). The filter must be passed
 	// through verbatim — lowercasing it (the old behavior) made the API
@@ -421,7 +409,7 @@ func TestChangelogFieldFilterPreservesCase(t *testing.T) {
 		resp:    &tracker.Response{},
 	}
 
-	_, err := setupChangelogCmd(t, mock, []string{"PROJ-123", "--field", "storyPoints"})
+	_, err := setupChangelogCmd(t, mock, output.Options{}, []string{"PROJ-123", "--field", "storyPoints"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -432,14 +420,12 @@ func TestChangelogFieldFilterPreservesCase(t *testing.T) {
 }
 
 func TestChangelogTypeFilter(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChangelogGetter{
 		entries: sampleChangelog(),
 		resp:    &tracker.Response{},
 	}
 
-	_, err := setupChangelogCmd(t, mock, []string{"PROJ-123", "--type", "IssueWorkflow"})
+	_, err := setupChangelogCmd(t, mock, output.Options{}, []string{"PROJ-123", "--type", "IssueWorkflow"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -451,14 +437,12 @@ func TestChangelogTypeFilter(t *testing.T) {
 }
 
 func TestChangelogEmpty(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChangelogGetter{
 		entries: []*tracker.Changelog{},
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupChangelogCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupChangelogCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -469,15 +453,12 @@ func TestChangelogEmpty(t *testing.T) {
 }
 
 func TestChangelogEmptyJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueChangelogFields
-
 	mock := &mockChangelogGetter{
 		entries: []*tracker.Changelog{},
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupChangelogCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupChangelogCmd(t, mock, output.Options{JSONFields: IssueChangelogFields}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -503,14 +484,12 @@ func TestChangelogEmptyJSON(t *testing.T) {
 }
 
 func TestChangelogNoArgs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChangelogGetter{
 		entries: sampleChangelog(),
 		resp:    &tracker.Response{},
 	}
 
-	_, err := setupChangelogCmd(t, mock, []string{})
+	_, err := setupChangelogCmd(t, mock, output.Options{}, []string{})
 	if err == nil {
 		t.Fatal("expected error for no args, got nil")
 	}
@@ -538,8 +517,6 @@ func (m *paginatingChangelogMock) GetChangelog(
 }
 
 func TestChangelogCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	id1 := tracker.FlexString("page1-last")
 
 	mock := &paginatingChangelogMock{
@@ -587,8 +564,6 @@ func TestChangelogCursor(t *testing.T) {
 }
 
 func TestChangelogAll(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	id1 := tracker.FlexString("cursor-1")
 	id2 := tracker.FlexString("cursor-2")
 
@@ -816,14 +791,12 @@ func sampleChangelogAllTypes() []*tracker.Changelog {
 }
 
 func TestChangelogTableAllTypes(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockChangelogGetter{
 		entries: sampleChangelogAllTypes(),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupChangelogCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupChangelogCmd(t, mock, output.Options{}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -843,15 +816,12 @@ func TestChangelogTableAllTypes(t *testing.T) {
 }
 
 func TestChangelogJSONAllTypes(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueChangelogFields
-
 	mock := &mockChangelogGetter{
 		entries: sampleChangelogAllTypes(),
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupChangelogCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupChangelogCmd(t, mock, output.Options{JSONFields: IssueChangelogFields}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1150,9 +1120,6 @@ func TestNormalizeChangeValue(t *testing.T) {
 }
 
 func TestChangelogNamesakesKeepDistinctAuthorIDs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueChangelogFields
-
 	entry := func(entryID, userID string) *tracker.Changelog {
 		return &tracker.Changelog{
 			ID:        testutil.FlexStringPtr(entryID),
@@ -1170,7 +1137,7 @@ func TestChangelogNamesakesKeepDistinctAuthorIDs(t *testing.T) {
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupChangelogCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupChangelogCmd(t, mock, output.Options{JSONFields: IssueChangelogFields}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1197,9 +1164,6 @@ func TestChangelogNamesakesKeepDistinctAuthorIDs(t *testing.T) {
 }
 
 func TestChangelogFieldSelectionOmitsEmptySections(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = []string{"date", "links"}
-
 	ts := makeTimestamp(time.Date(2026, 3, 15, 10, 30, 0, 0, time.UTC))
 	dirOut := "outward"
 	linked := &tracker.Changelog{
@@ -1226,7 +1190,7 @@ func TestChangelogFieldSelectionOmitsEmptySections(t *testing.T) {
 		resp:    &tracker.Response{},
 	}
 
-	out, err := setupChangelogCmd(t, mock, []string{"PROJ-123"})
+	out, err := setupChangelogCmd(t, mock, output.Options{JSONFields: []string{"date", "links"}}, []string{"PROJ-123"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -22,8 +22,3 @@ func TestBoolPtr(t *testing.T) {
 		t.Errorf("BoolPtr(true) = %v, want pointer to true", p)
 	}
 }
-
-func TestResetOutputFlags(t *testing.T) {
-	// Should not panic when called.
-	ResetOutputFlags(t)
-}

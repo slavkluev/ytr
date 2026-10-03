@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 
 	"github.com/slavkluev/ytr/internal/config"
@@ -72,7 +73,7 @@ func makeIssues(keys ...string) []*tracker.Issue {
 	return issues
 }
 
-func setupListCmd(t *testing.T, mock *mockSearcher, args []string) (string, error) {
+func setupListCmd(t *testing.T, mock *mockSearcher, opts output.Options, args []string) (string, error) {
 	t.Helper()
 
 	origSearcher := newSearcher
@@ -93,19 +94,17 @@ func setupListCmd(t *testing.T, mock *mockSearcher, args []string) (string, erro
 	cmd.PersistentFlags().String("org-type", "360", "")
 
 	cmd.SetArgs(args)
-	err := cmd.Execute()
+	err := cmd.ExecuteContext(output.NewContext(t.Context(), &opts))
 	return buf.String(), err
 }
 
 func TestListTable(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockSearcher{
 		issues: makeIssues("PROJ-1", "PROJ-2"),
 		resp:   &tracker.Response{TotalCount: 2},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"--filter", "queue=PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -118,15 +117,12 @@ func TestListTable(t *testing.T) {
 }
 
 func TestListJSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueListFields
-
 	mock := &mockSearcher{
 		issues: makeIssues("PROJ-1", "PROJ-2"),
 		resp:   &tracker.Response{TotalCount: 2},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: IssueListFields}, []string{"--filter", "queue=PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -149,15 +145,12 @@ func TestListJSON(t *testing.T) {
 }
 
 func TestListQuiet(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockSearcher{
 		issues: makeIssues("PROJ-1", "PROJ-2"),
 		resp:   &tracker.Response{TotalCount: 2},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+	out, err := setupListCmd(t, mock, output.Options{Quiet: true}, []string{"--filter", "queue=PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -172,14 +165,12 @@ func TestListQuiet(t *testing.T) {
 }
 
 func TestListLimit(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, _ = setupListCmd(t, mock, []string{"--limit", "10"})
+	_, _ = setupListCmd(t, mock, output.Options{}, []string{"--limit", "10"})
 
 	if len(mock.calls) == 0 {
 		t.Fatal("no search calls made")
@@ -190,14 +181,12 @@ func TestListLimit(t *testing.T) {
 }
 
 func TestListLimitMax(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, _ = setupListCmd(t, mock, []string{"--limit", "2000"})
+	_, _ = setupListCmd(t, mock, output.Options{}, []string{"--limit", "2000"})
 
 	if len(mock.calls) == 0 {
 		t.Fatal("no search calls made")
@@ -208,14 +197,12 @@ func TestListLimitMax(t *testing.T) {
 }
 
 func TestListLimitDefault(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, _ = setupListCmd(t, mock, []string{})
+	_, _ = setupListCmd(t, mock, output.Options{}, []string{})
 
 	if len(mock.calls) == 0 {
 		t.Fatal("no search calls made")
@@ -226,14 +213,12 @@ func TestListLimitDefault(t *testing.T) {
 }
 
 func TestListCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, _ = setupListCmd(t, mock, []string{"--cursor", "3"})
+	_, _ = setupListCmd(t, mock, output.Options{}, []string{"--cursor", "3"})
 
 	if len(mock.calls) == 0 {
 		t.Fatal("no search calls made")
@@ -244,14 +229,12 @@ func TestListCursor(t *testing.T) {
 }
 
 func TestListInvalidCursor(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--cursor", "abc"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"--cursor", "abc"})
 	if err == nil {
 		t.Fatal("expected error for invalid cursor, got nil")
 	}
@@ -264,9 +247,6 @@ func TestListInvalidCursor(t *testing.T) {
 }
 
 func TestListAll(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	// Page 1 returns 2 issues (full page), page 2 returns 1 issue (partial = done).
 	mock := &mockSearcher{
 		multiPage: map[int][]*tracker.Issue{
@@ -276,7 +256,7 @@ func TestListAll(t *testing.T) {
 		resp: &tracker.Response{TotalCount: 3},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"--all", "--limit", "2"})
+	out, err := setupListCmd(t, mock, output.Options{Quiet: true}, []string{"--all", "--limit", "2"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -291,14 +271,12 @@ func TestListAll(t *testing.T) {
 }
 
 func TestListEmpty_Table(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -309,15 +287,12 @@ func TestListEmpty_Table(t *testing.T) {
 }
 
 func TestListEmpty_JSON(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueListFields
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: IssueListFields}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -345,8 +320,6 @@ func TestListEmpty_JSON(t *testing.T) {
 }
 
 func TestListNilFields(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	// Issue with nil Assignee and nil Status should not panic.
 	issues := []*tracker.Issue{
 		{
@@ -360,7 +333,7 @@ func TestListNilFields(t *testing.T) {
 		resp:   &tracker.Response{TotalCount: 1},
 	}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error (panic?): %v", err)
 	}
@@ -393,15 +366,12 @@ func TestList_RegisteredAsSubcommand(t *testing.T) {
 }
 
 func TestListQuery_SetsQueryField(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--query", "Queue: PROJ AND Status: open"})
+	_, err := setupListCmd(t, mock, output.Options{Quiet: true}, []string{"--query", "Queue: PROJ AND Status: open"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -422,15 +392,12 @@ func TestListQuery_SetsQueryField(t *testing.T) {
 }
 
 func TestListFilter_SetsFilterEntry(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--filter", "priority=critical"})
+	_, err := setupListCmd(t, mock, output.Options{Quiet: true}, []string{"--filter", "priority=critical"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -445,15 +412,17 @@ func TestListFilter_SetsFilterEntry(t *testing.T) {
 }
 
 func TestListFilter_DuplicateKeysAccumulateIntoSlice(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--filter", "status=open", "--filter", "status=closed"})
+	_, err := setupListCmd(
+		t,
+		mock,
+		output.Options{Quiet: true},
+		[]string{"--filter", "status=open", "--filter", "status=closed"},
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -472,14 +441,12 @@ func TestListFilter_DuplicateKeysAccumulateIntoSlice(t *testing.T) {
 }
 
 func TestListFilter_InvalidFormat_ReturnsUserError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--filter", "noequalssign"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"--filter", "noequalssign"})
 	if err == nil {
 		t.Fatal("expected error for invalid filter format, got nil")
 	}
@@ -492,14 +459,17 @@ func TestListFilter_InvalidFormat_ReturnsUserError(t *testing.T) {
 }
 
 func TestListQuery_ConflictWithFilter_ReturnsUserError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--query", "Queue: PROJ", "--filter", "priority=critical"})
+	_, err := setupListCmd(
+		t,
+		mock,
+		output.Options{},
+		[]string{"--query", "Queue: PROJ", "--filter", "priority=critical"},
+	)
 	if err == nil {
 		t.Fatal("expected error for --query + --filter conflict, got nil")
 	}
@@ -512,14 +482,12 @@ func TestListQuery_ConflictWithFilter_ReturnsUserError(t *testing.T) {
 }
 
 func TestListOrderBy_ConflictWithQuery_ReturnsUserError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--query", "Queue: PROJ", "--order-by", "updated"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"--query", "Queue: PROJ", "--order-by", "updated"})
 	if err == nil {
 		t.Fatal("expected error for --order-by + --query conflict, got nil")
 	}
@@ -532,15 +500,12 @@ func TestListOrderBy_ConflictWithQuery_ReturnsUserError(t *testing.T) {
 }
 
 func TestListOrderBy_SetsOrderDescending(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--order-by", "updated"})
+	_, err := setupListCmd(t, mock, output.Options{Quiet: true}, []string{"--order-by", "updated"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -558,15 +523,12 @@ func TestListOrderBy_SetsOrderDescending(t *testing.T) {
 }
 
 func TestListOrderBy_WithOrderAsc_SetsOrderAscending(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.QuietFlag = true
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--order-by", "created", "--order-asc"})
+	_, err := setupListCmd(t, mock, output.Options{Quiet: true}, []string{"--order-by", "created", "--order-asc"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -584,14 +546,12 @@ func TestListOrderBy_WithOrderAsc_SetsOrderAscending(t *testing.T) {
 }
 
 func TestListOrderAsc_WithoutOrderBy_ReturnsUserError(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	mock := &mockSearcher{
 		issues: []*tracker.Issue{},
 		resp:   &tracker.Response{},
 	}
 
-	_, err := setupListCmd(t, mock, []string{"--order-asc"})
+	_, err := setupListCmd(t, mock, output.Options{}, []string{"--order-asc"})
 	if err == nil {
 		t.Fatal("expected error for --order-asc without --order-by, got nil")
 	}
@@ -604,9 +564,6 @@ func TestListOrderAsc_WithoutOrderBy_ReturnsUserError(t *testing.T) {
 }
 
 func TestListNamesakesKeepDistinctAssigneeIDs(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.JSONFields = IssueListFields
-
 	issues := makeIssues("PROJ-1", "PROJ-2")
 	for i, uid := range []string{"uid-a", "uid-b"} {
 		issues[i].Assignee = &tracker.User{
@@ -617,7 +574,7 @@ func TestListNamesakesKeepDistinctAssigneeIDs(t *testing.T) {
 
 	mock := &mockSearcher{issues: issues, resp: &tracker.Response{TotalCount: 2}}
 
-	out, err := setupListCmd(t, mock, []string{})
+	out, err := setupListCmd(t, mock, output.Options{JSONFields: IssueListFields}, []string{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -644,15 +601,12 @@ func TestListNamesakesKeepDistinctAssigneeIDs(t *testing.T) {
 }
 
 func TestListTableOffTTYIsTabSeparated(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
-
 	mock := &mockSearcher{
 		issues: makeIssues("PROJ-1", "PROJ-2"),
 		resp:   &tracker.Response{TotalCount: 2},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"--filter", "queue=PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -669,16 +623,12 @@ func TestListTableOffTTYIsTabSeparated(t *testing.T) {
 }
 
 func TestListTableOnTTYStaysPadded(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(true)
-	t.Setenv("NO_COLOR", "1")
-
 	mock := &mockSearcher{
 		issues: makeIssues("PROJ-1"),
 		resp:   &tracker.Response{TotalCount: 1},
 	}
 
-	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+	out, err := setupListCmd(t, mock, output.Options{TTY: true}, []string{"--filter", "queue=PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -691,16 +641,36 @@ func TestListTableOnTTYStaysPadded(t *testing.T) {
 	}
 }
 
-func TestListOffTTYKeepsALongSummaryWhole(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(false)
+func TestListTableOnTTYWithColorsColorsTheStatus(t *testing.T) {
+	// go-pretty decides once, at init, whether to emit ANSI codes, from
+	// NO_COLOR and TERM; a developer's NO_COLOR=1 would strip the codes this
+	// test looks for.
+	if text.Bold.Sprint("x") == "x" {
+		text.EnableColors()
+		t.Cleanup(text.DisableColors)
+	}
 
+	issues := makeIssues("PROJ-1")
+	issues[0].Status = &tracker.Status{Key: testutil.StrPtr("closed"), Display: testutil.StrPtr("Closed")}
+	mock := &mockSearcher{issues: issues, resp: &tracker.Response{TotalCount: 1}}
+
+	out, err := setupListCmd(t, mock, output.Options{TTY: true, Colors: true}, []string{"--filter", "queue=PROJ"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if want := text.FgGreen.Sprint("Closed"); !strings.Contains(out, want) {
+		t.Errorf("TTY list with colors = %q, want the status as %q", out, want)
+	}
+}
+
+func TestListOffTTYKeepsALongSummaryWhole(t *testing.T) {
 	summary := strings.Repeat("a long summary ", 20)
 	issues := makeIssues("PROJ-1")
 	issues[0].Summary = testutil.StrPtr(summary)
 
 	mock := &mockSearcher{issues: issues, resp: &tracker.Response{TotalCount: 1}}
-	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+	out, err := setupListCmd(t, mock, output.Options{}, []string{"--filter", "queue=PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -714,16 +684,12 @@ func TestListOffTTYKeepsALongSummaryWhole(t *testing.T) {
 }
 
 func TestListOnTTYTruncatesALongSummary(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-	output.SetTTY(true)
-	t.Setenv("NO_COLOR", "1")
-
 	summary := strings.Repeat("a long summary ", 20)
 	issues := makeIssues("PROJ-1")
 	issues[0].Summary = testutil.StrPtr(summary)
 
 	mock := &mockSearcher{issues: issues, resp: &tracker.Response{TotalCount: 1}}
-	out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+	out, err := setupListCmd(t, mock, output.Options{TTY: true}, []string{"--filter", "queue=PROJ"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -737,18 +703,16 @@ func TestListOnTTYTruncatesALongSummary(t *testing.T) {
 }
 
 func TestListEmptyLineIsTheSameInBothModes(t *testing.T) {
-	testutil.ResetOutputFlags(t)
-
 	for _, isTTY := range []bool{false, true} {
-		output.SetTTY(isTTY)
+		opts := output.Options{TTY: isTTY, Colors: isTTY}
 
 		mock := &mockSearcher{issues: nil, resp: &tracker.Response{}}
-		out, err := setupListCmd(t, mock, []string{"--filter", "queue=PROJ"})
+		out, err := setupListCmd(t, mock, opts, []string{"--filter", "queue=PROJ"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if out != "No issues found\n" {
-			t.Errorf("empty list with IsTTY()=%v = %q, want %q", isTTY, out, "No issues found\n")
+			t.Errorf("empty list with the TTY option %v = %q, want %q", isTTY, out, "No issues found\n")
 		}
 	}
 }

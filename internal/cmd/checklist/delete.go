@@ -44,6 +44,8 @@ SEE ALSO
 }
 
 func runDelete(cmd *cobra.Command, issueKey, itemID string) error {
+	opts := output.FromContext(cmd.Context())
+
 	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
@@ -62,15 +64,15 @@ func runDelete(cmd *cobra.Command, issueKey, itemID string) error {
 
 	w := cmd.OutOrStdout()
 
-	if output.IsJSON() {
+	if opts.IsJSON() {
 		result := map[string]any{"id": itemID, "deleted": true}
-		if output.JQFilter != "" {
-			return output.ApplyJQ(w, result, output.JQFilter)
+		if opts.JQFilter != "" {
+			return output.ApplyJQ(w, result, opts.JQFilter)
 		}
-		return output.PrintJSON(w, result)
+		return opts.PrintJSON(w, result)
 	}
 
-	if output.IsQuiet() {
+	if opts.Quiet {
 		output.PrintQuiet(w, itemID)
 		return nil
 	}

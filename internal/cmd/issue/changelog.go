@@ -170,7 +170,9 @@ func runChangelog(
 	cursor string,
 	all bool,
 ) error {
-	if output.WantsFieldHint(cmd.Flags().Changed("json")) {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue changelog", IssueChangelogFields)
 	}
 
@@ -180,15 +182,15 @@ func runChangelog(
 		return err
 	}
 
-	if output.JQFilter != "" && !output.HasFieldSelection() {
-		output.JSONFields = IssueChangelogFields
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = IssueChangelogFields
 	}
 
-	if output.HasFieldSelection() {
-		if err := output.ValidateFields(output.JSONFields, IssueChangelogFields); err != nil {
+	if opts.HasFieldSelection() {
+		if err := output.ValidateFields(opts.JSONFields, IssueChangelogFields); err != nil {
 			return err
 		}
-		output.JSONFields = output.NormalizeFields(output.JSONFields, IssueChangelogFields)
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueChangelogFields)
 	}
 
 	issueKey := args[0]
@@ -218,13 +220,13 @@ func runChangelog(
 		return err
 	}
 
-	if output.IsJSON() {
+	if opts.IsJSON() {
 		normalized := normalizeChangelog(entries)
-		return renderChangelogJSON(cmd.OutOrStdout(), normalized, hasMore, nextCursor)
+		return renderChangelogJSON(cmd.OutOrStdout(), opts, normalized, hasMore, nextCursor)
 	}
 
 	items := flattenChangelog(entries)
-	return renderChangelogNonJSON(cmd.OutOrStdout(), items)
+	return renderChangelogNonJSON(cmd.OutOrStdout(), opts, items)
 }
 
 func fetchChangelogPage(
@@ -561,12 +563,18 @@ func formatDurationISO(d *tracker.Duration) string {
 	return s
 }
 
-func renderChangelogJSON(w io.Writer, entries []changelogEntry, hasMore bool, nextCursor string) error {
+func renderChangelogJSON(
+	w io.Writer,
+	opts *output.Options,
+	entries []changelogEntry,
+	hasMore bool,
+	nextCursor string,
+) error {
 	var data any
-	if output.HasFieldSelection() {
+	if opts.HasFieldSelection() {
 		filtered := make([]map[string]any, 0, len(entries))
 		for _, entry := range entries {
-			filtered = append(filtered, output.FilterFields(entry, output.JSONFields))
+			filtered = append(filtered, output.FilterFields(entry, opts.JSONFields))
 		}
 		data = output.PaginatedResult{
 			Items: filtered,
@@ -585,10 +593,10 @@ func renderChangelogJSON(w io.Writer, entries []changelogEntry, hasMore bool, ne
 		}
 	}
 
-	if output.JQFilter != "" {
-		return output.ApplyJQ(w, data, output.JQFilter)
+	if opts.JQFilter != "" {
+		return output.ApplyJQ(w, data, opts.JQFilter)
 	}
-	return output.PrintJSON(w, data)
+	return opts.PrintJSON(w, data)
 }
 
 func flattenChangelog(entries []*tracker.Changelog) []changelogItem {
@@ -809,15 +817,15 @@ func formatRelatedResolutionString(rr *tracker.RelatedResolution) string {
 	return resolution
 }
 
-func renderChangelogNonJSON(w io.Writer, items []changelogItem) error {
-	if output.IsQuiet() {
+func renderChangelogNonJSON(w io.Writer, opts *output.Options, items []changelogItem) error {
+	if opts.Quiet {
 		for _, item := range items {
 			output.PrintQuiet(w, fmt.Sprintf("%s: %s -> %s", item.Field, item.From, item.To))
 		}
 		return nil
 	}
 
-	return renderChangelogTable(w, items)
+	return renderChangelogTable(w, opts, items)
 }
 
 // Prefers ID (machine-readable, matches --field filter values) over Display.
@@ -914,13 +922,13 @@ func fetchAllChangelog(
 	return all, nil
 }
 
-func renderChangelogTable(w io.Writer, items []changelogItem) error {
+func renderChangelogTable(w io.Writer, opts *output.Options, items []changelogItem) error {
 	if len(items) == 0 {
 		_, err := fmt.Fprintln(w, "No changes found")
 		return err
 	}
 
-	tbl := output.NewTable(w)
+	tbl := opts.NewTable(w)
 	tbl.AddHeader("DATE", "AUTHOR", "FIELD", "FROM", "TO")
 
 	for _, item := range items {
