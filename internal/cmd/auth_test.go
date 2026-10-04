@@ -67,6 +67,8 @@ func assertJSONNamesTheConfig(want string) func(*testing.T, cliResult) {
 }
 
 func TestAuthLogin(t *testing.T) {
+	t.Parallel()
+
 	login := func(extra ...string) []string { return slices.Concat([]string{"auth", "login"}, extra) }
 	flags := []string{"--token", "test-token", "--org-id", "test-org"}
 
@@ -172,6 +174,8 @@ func TestAuthLogin(t *testing.T) {
 }
 
 func TestAuthStatus(t *testing.T) {
+	t.Parallel()
+
 	const cloudConfig = "token: valid-token\norg_id: org-123\norg_type: cloud\n"
 	status := []string{"auth", "status"}
 	jq := []string{"auth", "status", "--jq", "."}
@@ -217,6 +221,8 @@ func TestAuthStatus(t *testing.T) {
 }
 
 func TestAuthLogout(t *testing.T) {
+	t.Parallel()
+
 	const signedIn = "token: some-token\norg_id: some-org\norg_type: \"360\"\n"
 	logout := []string{"auth", "logout"}
 

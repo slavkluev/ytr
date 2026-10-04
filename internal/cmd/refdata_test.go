@@ -46,6 +46,8 @@ type refdataRow struct {
 }
 
 func TestRefdataList(t *testing.T) {
+	t.Parallel()
+
 	leaves := []refdataLeaf{
 		{"status", "List workflow statuses", "/v3/statuses", "status-list.json", "No statuses found", 106, 3},
 		{"priority", "List priorities", "/v3/priorities", "priority-list.json", "No priorities found", 7, 1},
@@ -68,6 +70,8 @@ func TestRefdataList(t *testing.T) {
 			argv := slices.Concat(row.prefix, []string{leaf.noun}, row.args)
 
 			t.Run(leaf.noun+"/"+row.name, func(t *testing.T) {
+				t.Parallel()
+
 				var exchanges []faketracker.Exchange
 				if row.exchanges != nil {
 					exchanges = row.exchanges(t, leaf)

@@ -219,6 +219,8 @@ func surfaceUpdate(committed []byte, to skillVersion, after []string, update boo
 // SKILL.md's version, so a commit that changes a command, flag or --json field
 // also bumps the version agents read, by as much as the change breaks.
 func TestSurfaceSnapshot(t *testing.T) {
+	t.Parallel()
+
 	to, err := skillMetadataVersion(readSkill(t))
 	if err != nil {
 		t.Fatal(err)
@@ -245,6 +247,8 @@ func TestSurfaceSnapshot(t *testing.T) {
 }
 
 func TestSurfaceUpdate(t *testing.T) {
+	t.Parallel()
+
 	v := func(major, minor int) skillVersion { return skillVersion{major: major, minor: minor} }
 	before := []string{"command ytr issue list", "field ytr issue list key", "flag ytr issue list --limit int"}
 	added := slices.Concat(before, []string{"flag ytr issue list --all bool"})
@@ -375,6 +379,8 @@ func TestSurfaceUpdate(t *testing.T) {
 
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
+			t.Parallel()
+
 			write, err := surfaceUpdate(row.committed, row.to, row.after, row.update)
 
 			gotErr := ""
@@ -392,6 +398,8 @@ func TestSurfaceUpdate(t *testing.T) {
 }
 
 func TestSurfaceBumpRule(t *testing.T) {
+	t.Parallel()
+
 	v := func(major, minor int) skillVersion { return skillVersion{major: major, minor: minor} }
 	before := []string{"command ytr issue list", "flag ytr issue list --limit int"}
 	added := slices.Concat(before, []string{"flag ytr issue list --all bool"})
@@ -422,6 +430,8 @@ func TestSurfaceBumpRule(t *testing.T) {
 
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
+			t.Parallel()
+
 			err := checkBump(before, row.after, row.from, row.to)
 
 			switch {

@@ -18,6 +18,8 @@ const (
 )
 
 func TestCommentCreate(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/comments"
 	created := trackerPOST(path, commentAnswer)
 	create := func(extra ...string) []string {
@@ -68,6 +70,8 @@ func TestCommentCreate(t *testing.T) {
 }
 
 func TestCommentEdit(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/comments/555"
 	edited := trackerPATCH(path, commentAnswer)
 	edit := func(extra ...string) []string {
@@ -141,6 +145,8 @@ func TestCommentEdit(t *testing.T) {
 }
 
 func TestCommentDelete(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/comments/555"
 	args := []string{"comment", "delete", "PROJ-1", "555"}
 

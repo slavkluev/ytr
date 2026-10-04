@@ -13,6 +13,8 @@ import (
 )
 
 func TestUnknownSubcommandUnderGroup(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"issue", "lst"})
 
 	want := "Error: unknown command \"lst\" for \"ytr issue\"\nDid you mean: ytr issue list\n"
@@ -28,6 +30,8 @@ func TestUnknownSubcommandUnderGroup(t *testing.T) {
 }
 
 func TestUnknownSubcommandUnderGroupJSON(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"issue", "lst", "--json", "key"})
 
 	want := `{"code":"user_error","message":"unknown command \"lst\" for \"ytr issue\"",` +
@@ -41,6 +45,8 @@ func TestUnknownSubcommandUnderGroupJSON(t *testing.T) {
 }
 
 func TestBareGroupNamesItsSubcommands(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"issue"})
 
 	want := "Error: \"ytr issue\" needs a subcommand: changelog, create, list, transition, update, view\n" +
@@ -57,6 +63,8 @@ func TestBareGroupNamesItsSubcommands(t *testing.T) {
 }
 
 func TestBareRootNamesItsSubcommands(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, nil)
 
 	// Pinned in full, not by Contains: the list has to be the one `ytr --help`
@@ -79,6 +87,8 @@ func TestBareRootNamesItsSubcommands(t *testing.T) {
 // help text from drifting apart; cobra's help template uses the same
 // "available, or named help" rule.
 func TestBareRootListsEverythingHelpAdvertises(t *testing.T) {
+	t.Parallel()
+
 	failure := runProbe(t, nil)
 	help := runProbe(t, []string{"--help"})
 
@@ -96,6 +106,8 @@ func TestBareRootListsEverythingHelpAdvertises(t *testing.T) {
 }
 
 func TestUnknownFlagBeforeJSONStillRendersJSON(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"issue", "list", "--nosuchflag", "--json", "key"})
 
 	doc := decodeOneJSONError(t, "ytr issue list --nosuchflag --json key", got.Stderr)
@@ -111,6 +123,8 @@ func TestUnknownFlagBeforeJSONStillRendersJSON(t *testing.T) {
 }
 
 func TestUnknownFlagNamesTheClosestFlag(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"issue", "list", "--limitt", "5", "--json", "key"})
 
 	doc := decodeOneJSONError(t, "ytr issue list --limitt 5 --json key", got.Stderr)
@@ -120,6 +134,8 @@ func TestUnknownFlagNamesTheClosestFlag(t *testing.T) {
 }
 
 func TestRootLevelTypoKeepsDidYouMean(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"isue", "list", "--json", "key"})
 
 	doc := decodeOneJSONError(t, "ytr isue list --json key", got.Stderr)
@@ -133,6 +149,8 @@ func TestRootLevelTypoKeepsDidYouMean(t *testing.T) {
 }
 
 func TestUnknownHelpTopicFails(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"help", "isue"})
 
 	if got.Code != ytrerrors.ExitUserError {
@@ -148,6 +166,8 @@ func TestUnknownHelpTopicFails(t *testing.T) {
 }
 
 func TestUnknownHelpSubtopicFails(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"help", "issue", "lst"})
 
 	if got.Code != ytrerrors.ExitUserError {
@@ -159,6 +179,8 @@ func TestUnknownHelpSubtopicFails(t *testing.T) {
 }
 
 func TestExplicitHelpStaysExitZero(t *testing.T) {
+	t.Parallel()
+
 	for _, argv := range [][]string{
 		{"issue", "lst", "--help"},
 		{"help", "issue"},
@@ -185,6 +207,8 @@ func TestExplicitHelpStaysExitZero(t *testing.T) {
 }
 
 func TestHelpTopicMatchesTheHelpFlag(t *testing.T) {
+	t.Parallel()
+
 	viaTopic := runProbe(t, []string{"help", "issue"})
 	viaFlag := runProbe(t, []string{"issue", "--help"})
 
@@ -197,6 +221,8 @@ func TestHelpTopicMatchesTheHelpFlag(t *testing.T) {
 // exit 0, stderr empty, and stdout holding exactly one JSON document -- one
 // line off a terminal, so a reader can take the whole stream as the answer.
 func TestSuccessPathIsUnchanged(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"version", "--json", "version,commit"})
 
 	if got.Code != ytrerrors.ExitSuccess {
@@ -223,6 +249,8 @@ func TestSuccessPathIsUnchanged(t *testing.T) {
 // a jq stream with an implicit -r, one line per result and strings unquoted,
 // and nothing else shares the stream with it.
 func TestJQStreamIsTheOnlyThingOnStdout(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"version", "--jq", ".version, .os"})
 
 	if got.Code != ytrerrors.ExitSuccess {
@@ -247,6 +275,8 @@ func TestJQStreamIsTheOnlyThingOnStdout(t *testing.T) {
 // fails. Nothing may reach stdout: a reader has no way to tell a truncated
 // stream from a complete one.
 func TestJQFailureLeavesStdoutEmpty(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"version", "--jq", ".version, (.os | .nosuchkey)"})
 
 	if got.Code != ytrerrors.ExitUserError {
@@ -261,6 +291,8 @@ func TestJQFailureLeavesStdoutEmpty(t *testing.T) {
 }
 
 func TestEditDistanceIgnoresCase(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		a, b string
 		want int
@@ -282,6 +314,8 @@ func TestEditDistanceIgnoresCase(t *testing.T) {
 }
 
 func TestUnknownShorthandFlagSuggestion(t *testing.T) {
+	t.Parallel()
+
 	// A one-letter typo only names a flag when it is a prefix of that flag's
 	// name. The edit-distance rule is off for it, because every short flag name
 	// is within distance two of any single letter.
@@ -305,6 +339,8 @@ func TestUnknownShorthandFlagSuggestion(t *testing.T) {
 }
 
 func TestUnknownFlagPrefixSuggestsTheFullName(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"issue", "list", "--al", "--json", "key"})
 
 	doc := decodeOneJSONError(t, "ytr issue list --al --json key", got.Stderr)
@@ -408,6 +444,8 @@ func streamContents(t *testing.T, f *os.File) string {
 }
 
 func TestSuggestionKeepsTheRemainingArguments(t *testing.T) {
+	t.Parallel()
+
 	// Dropping PROJ-1 would suggest a command that fails with
 	// "accepts 1 arg(s), received 0" when run as printed.
 	got := runProbe(t, []string{"issue", "vew", "PROJ-1", "--json", "key"})
@@ -419,6 +457,8 @@ func TestSuggestionKeepsTheRemainingArguments(t *testing.T) {
 }
 
 func TestMistypedHelpCommandIsSuggested(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"hel", "--json", "key"})
 
 	doc := decodeOneJSONError(t, "ytr hel --json key", got.Stderr)
@@ -428,6 +468,8 @@ func TestMistypedHelpCommandIsSuggested(t *testing.T) {
 }
 
 func TestHelpTopicCompletionOffersSubcommands(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"__complete", "help", ""})
 
 	for _, want := range []string{"issue\t", "queue\t", "help\t"} {
@@ -438,6 +480,8 @@ func TestHelpTopicCompletionOffersSubcommands(t *testing.T) {
 }
 
 func TestHelpTopicCompletionOffersNothingForAnUnknownTopic(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"__complete", "help", "nosuch", ""})
 
 	// Only cobra's trailing directive line is expected.
@@ -447,6 +491,8 @@ func TestHelpTopicCompletionOffersNothingForAnUnknownTopic(t *testing.T) {
 }
 
 func TestJSONCompletionOffersTheFieldsSetOnACommandOutsideTheRunner(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"__complete", "issue", "changelog", "--json", ""})
 
 	offered, _, _ := strings.Cut(got.Stdout, "\n:")
@@ -456,6 +502,8 @@ func TestJSONCompletionOffersTheFieldsSetOnACommandOutsideTheRunner(t *testing.T
 }
 
 func TestDispatchOnlyCommandsDoNotAdvertiseTheirBareForm(t *testing.T) {
+	t.Parallel()
+
 	// The contract gives every group a RunE so cobra stops answering a bare
 	// group with help and exit 0. Cobra prints a `ytr issue [flags]` usage line
 	// for anything it considers runnable, and running that line exits 1.
@@ -475,6 +523,8 @@ func TestDispatchOnlyCommandsDoNotAdvertiseTheirBareForm(t *testing.T) {
 }
 
 func TestLeafCommandsStillAdvertiseTheirFlags(t *testing.T) {
+	t.Parallel()
+
 	got := runProbe(t, []string{"issue", "list", "--help"})
 
 	if !strings.Contains(got.Stdout, "\n  ytr issue list [flags]\n") {

@@ -16,6 +16,8 @@ func checklistAnswer(method, path, items string) faketracker.Exchange {
 }
 
 func TestChecklistCreate(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/checklistItems"
 	created := checklistAnswer(http.MethodPost, path, `
 		{"id": "item-old", "text": "Old task", "checked": true},
@@ -100,6 +102,8 @@ func TestChecklistCreate(t *testing.T) {
 }
 
 func TestChecklistEdit(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/checklistItems/item-2"
 	edited := checklistAnswer(http.MethodPatch, path, `
 		{"id": "item-1", "text": "Old task", "checked": false},
@@ -191,6 +195,8 @@ func TestChecklistEdit(t *testing.T) {
 }
 
 func TestChecklistDelete(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/checklistItems/item-1"
 	deleted := checklistAnswer(http.MethodDelete, path, `{"id": "item-2", "text": "Kept"}`)
 	args := []string{"checklist", "delete", "PROJ-1", "item-1"}

@@ -12,6 +12,8 @@ import (
 )
 
 func TestOutputOptionsDoNotLeakIntoTheNextRun(t *testing.T) {
+	t.Parallel()
+
 	exchanges := faketracker.Load(t, filepath.Join(fixtureDir, "status-list.json"))
 
 	first := runCLI(t, exchanges, "status", "list", "--json", "id")
@@ -29,6 +31,8 @@ func TestOutputOptionsDoNotLeakIntoTheNextRun(t *testing.T) {
 }
 
 func TestQuietPrintsOneStatusKeyPerLine(t *testing.T) {
+	t.Parallel()
+
 	exchanges := faketracker.Load(t, filepath.Join(fixtureDir, "status-list.json"))
 
 	res := runCLI(t, exchanges, "status", "list", "--quiet")
@@ -51,6 +55,8 @@ func TestQuietPrintsOneStatusKeyPerLine(t *testing.T) {
 }
 
 func TestDebugLinesPrecedeTheOneErrorDocument(t *testing.T) {
+	t.Parallel()
+
 	res := runCLI(t, []faketracker.Exchange{{
 		Method: http.MethodGet,
 		Path:   "/v3/statuses",

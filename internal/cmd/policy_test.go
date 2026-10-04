@@ -89,12 +89,14 @@ var policies = []policy{
 // apply is settled outside the subtests, so a -run pattern that picks one
 // command does not leave the others' properties uncounted.
 func TestEveryCommand(t *testing.T) {
+	t.Parallel()
+
 	applied := make(map[string]int, len(policies))
 
-	walkCommands(newRootCmd(&output.Options{}), func(cmd *cobra.Command) {
+	for _, cmd := range allCommands(newRootCmd(&output.Options{})) {
 		target, ok := newPolicyTarget(t, cmd)
 		if !ok {
-			return
+			continue
 		}
 
 		var checks []policy
@@ -106,11 +108,17 @@ func TestEveryCommand(t *testing.T) {
 		}
 
 		t.Run(target.label(), func(t *testing.T) {
+			t.Parallel()
+
 			for _, p := range checks {
-				t.Run(p.name, func(t *testing.T) { p.check(t, target) })
+				t.Run(p.name, func(t *testing.T) {
+					t.Parallel()
+
+					p.check(t, target)
+				})
 			}
 		})
-	})
+	}
 
 	for _, p := range policies {
 		if applied[p.name] == 0 {
@@ -150,6 +158,16 @@ func walkCommands(cmd *cobra.Command, visit func(*cobra.Command)) {
 	for _, sub := range cmd.Commands() {
 		walkCommands(sub, visit)
 	}
+}
+
+// allCommands returns root and every command below it, in walkCommands order.
+// A test that runs a subtest per command ranges over it rather than calling
+// t.Run from a visit func, which paralleltest cannot see into.
+func allCommands(root *cobra.Command) []*cobra.Command {
+	var all []*cobra.Command
+	walkCommands(root, func(cmd *cobra.Command) { all = append(all, cmd) })
+
+	return all
 }
 
 // argPath returns the arguments that select cmd, the binary name excluded.

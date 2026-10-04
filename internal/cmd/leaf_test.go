@@ -55,6 +55,8 @@ func runLeafRows(t *testing.T, rows []leafRow) {
 
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
+			t.Parallel()
+
 			argv := row.args
 			if !row.signedOut {
 				argv = slices.Concat(harnessAuth, row.args)

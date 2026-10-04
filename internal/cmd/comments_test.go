@@ -80,6 +80,8 @@ func commentViolations(fset *token.FileSet, file *ast.File) []string {
 }
 
 func TestSourceCommentsStateOnlyAWhy(t *testing.T) {
+	t.Parallel()
+
 	fset := token.NewFileSet()
 	parsed := 0
 
@@ -114,6 +116,8 @@ func TestSourceCommentsStateOnlyAWhy(t *testing.T) {
 }
 
 func TestCommentCheckRejectsRestatingAndTestabilityShapes(t *testing.T) {
+	t.Parallel()
+
 	const src = `package probe
 
 // newFoo creates a foo.

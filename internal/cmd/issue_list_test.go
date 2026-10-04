@@ -40,13 +40,7 @@ func listedIssue(key string) string {
 }
 
 func TestIssueList(t *testing.T) {
-	// go-pretty decides once, at init, whether to emit ANSI codes, from
-	// NO_COLOR and TERM; a developer's NO_COLOR=1 would strip the codes the
-	// colors row looks for.
-	if text.Bold.Sprint("x") == "x" {
-		text.EnableColors()
-		t.Cleanup(text.DisableColors)
-	}
+	t.Parallel()
 
 	const fullIssue = `{"key": "PROJ-1", "summary": "Fix login bug", "status": {"key": "inProgress", "display": "In Progress"},
 		"priority": {"display": "Critical"}, "type": {"display": "Bug"},

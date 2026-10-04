@@ -28,6 +28,8 @@ func optionDecodeError(t *testing.T) string {
 }
 
 func TestFieldList(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/fields"
 	fields := trackerGET(path, `[
 		{"id": "summary", "key": "summary", "name": "Summary",
@@ -117,6 +119,8 @@ func TestFieldList(t *testing.T) {
 }
 
 func TestFieldGet(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/fields/summary"
 	summary := trackerGET(path, `{"id": "summary", "key": "summary", "name": "Summary", "type": "standard",
 		"schema": {"type": "string", "required": true}, "readonly": false,

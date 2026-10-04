@@ -23,6 +23,8 @@ const (
 )
 
 func TestUserMyself(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/myself"
 	user := trackerGET(path, trackerUser)
 
@@ -64,6 +66,8 @@ func TestUserMyself(t *testing.T) {
 }
 
 func TestUserGet(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/users/12345"
 	user := trackerGET(path, trackerUser)
 
@@ -113,6 +117,8 @@ func userPage(page, perPage, total int, users string) faketracker.Exchange {
 }
 
 func TestUserList(t *testing.T) {
+	t.Parallel()
+
 	const users = `[
 		{"uid": 100, "display": "Alice", "login": "alice", "email": "alice@example.com"},
 		{"uid": 200, "display": "Bob", "login": "bob", "email": "bob@example.com"}]`

@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/spf13/cobra"
-
 	"github.com/slavkluev/ytr/internal/output"
 )
 
@@ -14,6 +12,8 @@ import (
 // the tree. A leaf missing from the table must offer nothing, so a leaf that
 // gains fields, or loses the ones it had, fails here.
 func TestJSONCompletionOffersEveryLeafItsFields(t *testing.T) {
+	t.Parallel()
+
 	refdata := []string{"id", "key", "name"}
 	issueDetail := []string{
 		"key", "summary", "status", "priority", "type", "author", "authorId",
@@ -96,14 +96,16 @@ func TestJSONCompletionOffersEveryLeafItsFields(t *testing.T) {
 	}
 
 	completed := 0
-	walkCommands(newRootCmd(&output.Options{}), func(leaf *cobra.Command) {
+	for _, leaf := range allCommands(newRootCmd(&output.Options{})) {
 		if leaf.HasSubCommands() {
-			return
+			continue
 		}
 		path := argPath(leaf)
 		name := strings.Join(path, " ")
 
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			res := runCLI(t, nil, slices.Concat([]string{"__complete"}, path, []string{"--json", ""})...)
 
 			// Cobra ends the offers with a ":<directive>" line.
@@ -119,7 +121,7 @@ func TestJSONCompletionOffersEveryLeafItsFields(t *testing.T) {
 		if _, ok := want[name]; ok {
 			completed++
 		}
-	})
+	}
 
 	if completed != len(want) {
 		t.Errorf("the walk reached %d of the %d leaves the table lists", completed, len(want))

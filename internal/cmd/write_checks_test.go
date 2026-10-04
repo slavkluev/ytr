@@ -22,6 +22,8 @@ const bothSuggestion = "Pass the request as flags or as --from-json, not both"
 // order the leaf declares them, a conflict names only the flags that were set,
 // and a leaf without --from-json leaves it out of the suggestion.
 func TestWriteChecksShareOneWording(t *testing.T) {
+	t.Parallel()
+
 	conflicts := []writeCheck{
 		{args: []string{"issue", "create", "--queue", "PROJ", "--from-json", `{"queue": "PROJ"}`},
 			message: "cannot combine --from-json with --queue"},

@@ -15,6 +15,8 @@ const linkAnswer = `{"id": 101, "direction": "inward",
 	"createdBy": {"id": "uid-a", "display": "Иван Петров"}}`
 
 func TestLinkCreate(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/links"
 	created := trackerPOST(path, linkAnswer)
 	create := func(extra ...string) []string { return slices.Concat([]string{"link", "create", "PROJ-1"}, extra) }
@@ -65,6 +67,8 @@ func TestLinkCreate(t *testing.T) {
 }
 
 func TestLinkDelete(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/links/101"
 	args := []string{"link", "delete", "PROJ-1", "101"}
 

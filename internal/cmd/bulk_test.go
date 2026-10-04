@@ -53,6 +53,8 @@ func assertFirstBody(want string) func(*testing.T, cliResult) {
 }
 
 func TestBulkMove(t *testing.T) {
+	t.Parallel()
+
 	started := bulkStarted("_move")
 	done := []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}
 	move := func(extra ...string) []string { return slices.Concat([]string{"bulk", "move"}, extra) }
@@ -128,6 +130,8 @@ func TestBulkMove(t *testing.T) {
 }
 
 func TestBulkUpdate(t *testing.T) {
+	t.Parallel()
+
 	started := bulkStarted("_update")
 	update := func(extra ...string) []string { return slices.Concat([]string{"bulk", "update"}, extra) }
 
@@ -176,6 +180,8 @@ func TestBulkUpdate(t *testing.T) {
 }
 
 func TestBulkTransition(t *testing.T) {
+	t.Parallel()
+
 	started := bulkStarted("_transition")
 	done := []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}
 	transition := func(extra ...string) []string { return slices.Concat([]string{"bulk", "transition"}, extra) }
@@ -218,6 +224,8 @@ func TestBulkTransition(t *testing.T) {
 }
 
 func TestBulkStatus(t *testing.T) {
+	t.Parallel()
+
 	completed := bulkStatusAnswer(bulkCompleted)
 	status := func(extra ...string) []string { return slices.Concat([]string{"bulk", "status", "op-1"}, extra) }
 

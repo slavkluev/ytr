@@ -9,6 +9,8 @@ import (
 )
 
 func TestQueueView(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/queues/MYQUEUE"
 	queue := trackerGET(path, `{"key": "MYQUEUE", "name": "My Queue", "description": "Queue for tracking tasks",
 		"lead": {"id": "uid-a", "display": "Иван Петров"}, "defaultType": {"display": "Task", "name": "Задача"},

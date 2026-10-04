@@ -15,6 +15,8 @@ func changelogPage(query url.Values, entries string) faketracker.Exchange {
 }
 
 func TestIssueChangelog(t *testing.T) {
+	t.Parallel()
+
 	const changes = `[
 		{"id": "cl-001", "updatedAt": "2024-03-15T10:00:00.000+0000", "updatedBy": {"id": "uid-a", "display": "alice"},
 			"type": "IssueUpdated", "fields": [

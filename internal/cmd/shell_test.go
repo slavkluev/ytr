@@ -206,6 +206,8 @@ func (c *simpleCommand) endWord() {
 }
 
 func TestShellCommands(t *testing.T) {
+	t.Parallel()
+
 	rows := []struct {
 		name    string
 		line    string
@@ -306,6 +308,8 @@ func TestShellCommands(t *testing.T) {
 
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
+			t.Parallel()
+
 			got, err := shellCommands(row.line)
 
 			if row.wantErr != "" {

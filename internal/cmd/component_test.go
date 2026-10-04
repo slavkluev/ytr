@@ -9,6 +9,8 @@ import (
 )
 
 func TestComponentList(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/components"
 	components := trackerGET(path, `[
 		{"id": 1, "name": "Backend", "queue": {"key": "PROJ"},
@@ -64,6 +66,8 @@ func TestComponentList(t *testing.T) {
 }
 
 func TestComponentGet(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/components/42"
 	component := trackerGET(path, `{"id": 42, "name": "Backend", "queue": {"key": "PROJ"},
 		"lead": {"id": "uid-a", "display": "Иван Петров"}, "description": "Backend services", "assignAuto": true}`)

@@ -317,6 +317,8 @@ func keyFlagProblems(leaf *cobra.Command, row commandRow) []string {
 }
 
 func TestSkillInvocationsRunAsWritten(t *testing.T) {
+	t.Parallel()
+
 	problems, checked := invocationProblems(skillCodeLines(readSkill(t)))
 	if checked == 0 {
 		t.Fatal("found no ytr invocation in SKILL.md's code blocks, so the check is not reaching them")
@@ -328,6 +330,8 @@ func TestSkillInvocationsRunAsWritten(t *testing.T) {
 }
 
 func TestExampleInvocationsRunAsWritten(t *testing.T) {
+	t.Parallel()
+
 	problems, checked := invocationProblems(exampleLines(newRootCmd(&output.Options{})))
 	if checked == 0 {
 		t.Fatal("found no ytr invocation in any Example, so the check is not reaching them")
@@ -339,6 +343,8 @@ func TestExampleInvocationsRunAsWritten(t *testing.T) {
 }
 
 func TestSkillCommandTableCoversEveryLeaf(t *testing.T) {
+	t.Parallel()
+
 	rows := commandRows(readSkill(t))
 	if len(rows) == 0 {
 		t.Fatal("found no command row in SKILL.md, so the check is not reaching the table")
@@ -350,6 +356,8 @@ func TestSkillCommandTableCoversEveryLeaf(t *testing.T) {
 }
 
 func TestSkillCheckNamesWhyAnInvocationFails(t *testing.T) {
+	t.Parallel()
+
 	rows := []struct {
 		line     string
 		rejected bool
@@ -399,6 +407,8 @@ func TestSkillCheckNamesWhyAnInvocationFails(t *testing.T) {
 
 	for _, row := range rows {
 		t.Run(row.line, func(t *testing.T) {
+			t.Parallel()
+
 			problems, _ := invocationProblems(
 				[]documentedLine{{where: "probe", text: row.line, rejected: row.rejected}},
 			)
@@ -418,6 +428,8 @@ func TestSkillCheckNamesWhyAnInvocationFails(t *testing.T) {
 }
 
 func TestSkillTableCheckNamesLeafAndFlag(t *testing.T) {
+	t.Parallel()
+
 	rows := []struct {
 		name string
 		doc  string
@@ -456,6 +468,8 @@ func TestSkillTableCheckNamesLeafAndFlag(t *testing.T) {
 
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
+			t.Parallel()
+
 			problems := commandTableProblems(newRootCmd(&output.Options{}), commandRows(row.doc))
 
 			for _, problem := range problems {
@@ -469,6 +483,8 @@ func TestSkillTableCheckNamesLeafAndFlag(t *testing.T) {
 }
 
 func TestSkillProblemsNameTheirLine(t *testing.T) {
+	t.Parallel()
+
 	rows := []struct {
 		name string
 		doc  []string
@@ -526,6 +542,8 @@ func TestSkillProblemsNameTheirLine(t *testing.T) {
 
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
+			t.Parallel()
+
 			problems, _ := invocationProblems(skillCodeLines(strings.Join(row.doc, "\n")))
 
 			if !slices.Equal(problems, row.want) {
@@ -536,6 +554,8 @@ func TestSkillProblemsNameTheirLine(t *testing.T) {
 }
 
 func TestSkillExampleLinesNameTheirCommand(t *testing.T) {
+	t.Parallel()
+
 	root := newRootCmd(&output.Options{})
 	lines := exampleLines(root)
 

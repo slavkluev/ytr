@@ -21,6 +21,8 @@ const (
 )
 
 func TestComponentCreate(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/components"
 	created := trackerPOST(path, componentAnswer)
 	create := func(extra ...string) []string { return slices.Concat([]string{"component", "create"}, extra) }
@@ -79,6 +81,8 @@ func TestComponentCreate(t *testing.T) {
 }
 
 func TestComponentEdit(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/components/42"
 	edited := trackerPATCH(path, componentAnswer)
 	edit := func(extra ...string) []string { return slices.Concat([]string{"component", "edit", "42"}, extra) }
@@ -137,6 +141,8 @@ func TestComponentEdit(t *testing.T) {
 }
 
 func TestComponentDelete(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/components/42"
 	args := []string{"component", "delete", "42"}
 

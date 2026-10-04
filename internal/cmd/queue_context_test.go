@@ -86,6 +86,8 @@ func globalFieldsAnswer(body string) faketracker.Exchange {
 }
 
 func TestQueueContext(t *testing.T) {
+	t.Parallel()
+
 	queue := queueAnswer("APP", appQueueAnswer)
 	w200 := workflowAnswer("W200", w200Answer)
 	components := componentsAnswer("APP", appComponentsAnswer)

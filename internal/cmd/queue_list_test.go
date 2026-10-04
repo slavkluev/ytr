@@ -20,6 +20,8 @@ func listedQueue(key string) string {
 }
 
 func TestQueueList(t *testing.T) {
+	t.Parallel()
+
 	two := queuePage(1, 50, 2, "["+listedQueue("PROJ")+","+listedQueue("TEST")+"]")
 	empty := queuePage(1, 50, 0, `[]`)
 	list := func(extra ...string) []string { return slices.Concat([]string{"queue", "list"}, extra) }

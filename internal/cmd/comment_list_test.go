@@ -35,6 +35,8 @@ func numberedComments(ids []string) string {
 }
 
 func TestCommentList(t *testing.T) {
+	t.Parallel()
+
 	const comments = `[
 		{"id": 101, "text": "Fixed in abc123", "createdBy": {"id": "uid-a", "display": "john.doe"},
 			"createdAt": "2026-09-19T14:22:31.000+0300", "updatedAt": "2026-09-20T10:00:00.000+0000"},

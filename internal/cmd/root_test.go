@@ -13,6 +13,8 @@ import (
 )
 
 func TestCommandTree(t *testing.T) {
+	t.Parallel()
+
 	root := cmd.RootCmd()
 
 	if root.Use != "ytr" {
@@ -37,6 +39,8 @@ func TestCommandTree(t *testing.T) {
 }
 
 func TestMutuallyExclusiveFlags(t *testing.T) {
+	t.Parallel()
+
 	root := cmd.RootCmd()
 	root.SetArgs([]string{"version", "--json", "key", "--quiet"})
 	buf := new(bytes.Buffer)
@@ -50,6 +54,8 @@ func TestMutuallyExclusiveFlags(t *testing.T) {
 }
 
 func TestMutuallyExclusiveJQAndQuiet(t *testing.T) {
+	t.Parallel()
+
 	root := cmd.RootCmd()
 	root.SetArgs([]string{"version", "--jq", ".version", "--quiet"})
 	buf := new(bytes.Buffer)
@@ -63,6 +69,8 @@ func TestMutuallyExclusiveJQAndQuiet(t *testing.T) {
 }
 
 func TestDebugFlagRegistered(t *testing.T) {
+	t.Parallel()
+
 	root := cmd.RootCmd()
 
 	if flag := root.PersistentFlags().Lookup("debug"); flag == nil {
@@ -71,6 +79,8 @@ func TestDebugFlagRegistered(t *testing.T) {
 }
 
 func TestCommandGroups(t *testing.T) {
+	t.Parallel()
+
 	root := cmd.RootCmd()
 	groups := root.Groups()
 	if len(groups) < 5 {
@@ -90,6 +100,8 @@ func TestCommandGroups(t *testing.T) {
 }
 
 func TestWorklogAndChecklistRegistered(t *testing.T) {
+	t.Parallel()
+
 	root := cmd.RootCmd()
 	subNames := make(map[string]bool)
 	for _, sub := range root.Commands() {
@@ -103,6 +115,8 @@ func TestWorklogAndChecklistRegistered(t *testing.T) {
 }
 
 func TestBulkRegistered(t *testing.T) {
+	t.Parallel()
+
 	root := cmd.RootCmd()
 
 	var bulkCmd *cobra.Command
@@ -135,6 +149,8 @@ func TestBulkRegistered(t *testing.T) {
 }
 
 func TestQueueContextRegistered(t *testing.T) {
+	t.Parallel()
+
 	root := cmd.RootCmd()
 
 	var queueCmd *cobra.Command
@@ -169,6 +185,8 @@ func TestQueueContextRegistered(t *testing.T) {
 }
 
 func TestAllCommandsGrouped(t *testing.T) {
+	t.Parallel()
+
 	root := cmd.RootCmd()
 	for _, c := range root.Commands() {
 		if c.Name() == "help" {

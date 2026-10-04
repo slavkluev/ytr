@@ -10,6 +10,8 @@ import (
 )
 
 func TestIssueView(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-123"
 	const description = "The login page returns 500 error when submitting the form."
 	issue := trackerGET(path, `{"key": "PROJ-123", "summary": "Fix login bug",

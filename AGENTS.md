@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-10-03 against 12f6b0a. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-10-04 against 725d30f. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## ytr
 
@@ -33,14 +33,14 @@ Yandex Tracker CLI for LLM agents and humans: Go 1.26, cobra, built on `github.c
 - In update and edit commands, set a request field only when `cmd.Flags().Changed(name)` — requests are partial PATCHes.
 - When an output shape or exit code changes, update `skills/ytr/SKILL.md` in the same commit and bump its `metadata.version` major; a wording change bumps nothing.
 - User-visible changes are `feat` or `fix` commits — goreleaser drops `docs`, `test`, and `chore` from release notes. Commit and branch format: `CONTRIBUTING.md`.
-- Test a runner command through `runCLI` (`runCLIOn` for a TTY, `internal/cmd/harness_test.go`) as `leafRow` table rows (`internal/cmd/leaf_test.go`) against inline Tracker exchanges that carry only the fields ytr reads; it has no mock, SDK interface or factory var.
-- Tests are white-box, stdlib `testing` only, never `t.Parallel` — they swap package globals (factory vars). In a mock test, give a run its output flags and terminal facts as an `output.Options` value (`{JSONFields: XxxFields}`, `{TTY: true, Colors: true}`), never through env vars: setup helpers take `opts output.Options` after the mock and run the leaf with `cmd.ExecuteContext(output.NewContext(t.Context(), &opts))`. Stub the factory var with a `t.Cleanup` restore, and pass auth as `--token`/`--org-id`/`--org-type` flags; tests touching env or config set `t.Setenv("YTR_CONFIG_DIR", t.TempDir())`.
+- Test every command through `runCLI` (`internal/cmd/harness_test.go`) as `leafRow` table rows (`internal/cmd/leaf_test.go`) against inline Tracker exchanges that carry only the fields ytr reads; there is no mock, SDK interface or factory var.
+- Tests are white-box, stdlib `testing` only, and parallel in `internal/cmd` (`paralleltest` and `tparallel` enforce it): give a row its terminal facts (`term: output.Options{TTY: true, Colors: true}`), `stdin`, extra `env` and starting `config`, or run it `signedOut`, through the row, and read what it wrote under `cliResult.ConfigDir` — never through `t.Setenv` or a package global, which a parallel test cannot use.
 - Comment only a why the code cannot say — never restate a name, label a step, or narrate a past bug; pin the bug with a named regression test instead. `internal/cmd/comments_test.go` fails on the commonest restating shapes.
 
 ## Known pitfalls
 
 - Never do less than asked silently: reject unknown or conflicting input with a user error, paginate to the end instead of capping, pass the server's error text through. This class has been fixed a dozen times (`--from-json` dropping keys, `--all` ignoring `--cursor`, the 50-comment cap).
-- Do not encode assumed API behavior in mocks: check the API reference or make a read-only call to the real Tracker first. Wrong assumptions "verified" by mocks shipped eight times (default page size, where 422 details live, what a field's `type` means).
+- Do not encode assumed API behavior in a test's Tracker exchanges: check the API reference or make a read-only call to the real Tracker first. Wrong assumptions "verified" by mocks shipped eight times (default page size, where 422 details live, what a field's `type` means).
 - When fixing one command, grep its siblings (every `runner.List`/`runner.Get` declaration and `runner.SetFields` call, every `from-json` flag, every `--all` list) and fix them all or the shared helper — `internal/cmd/runner/runner.go` for anything a declaration hands the runner. Single-site fixes have left the bug live six times.
 - The exit code must say whether the change happened: non-zero on failure, and 0 after a successful non-idempotent write even if a follow-up step fails — a false failure makes agents retry and create duplicates.
 - Write to stdout only after the last step that can fail: under `--json`/`--jq` a successful run writes exactly one document (the result stream under `--jq`) and nothing else, and a failing run leaves stdout empty and puts its single JSON error document on stderr, `--debug` included. A reader cannot tell a truncated stream from a complete one. Buffer instead — `ApplyJQ` collects the whole jq stream before writing, and a FAILED bulk renders nothing. A warning goes inside the document, never as a separate line on either stream.

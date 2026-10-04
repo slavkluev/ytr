@@ -26,6 +26,8 @@ const (
 )
 
 func TestIssueCreate(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/"
 	created := trackerPOST(path, issueAnswer)
 	create := func(extra ...string) []string { return slices.Concat([]string{"issue", "create"}, extra) }
@@ -106,6 +108,8 @@ func TestIssueCreate(t *testing.T) {
 }
 
 func TestIssueUpdate(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-7"
 	edited := trackerPATCH(path, issueAnswer)
 	update := func(extra ...string) []string {
@@ -160,6 +164,8 @@ func TestIssueUpdate(t *testing.T) {
 }
 
 func TestIssueTransition(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-123/transitions"
 	transitions := trackerGET(path, `[
 		{"id": "1", "to": {"key": "open", "display": "Open"}},

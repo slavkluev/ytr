@@ -10,6 +10,8 @@ import (
 )
 
 func TestWorklogList(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/worklog"
 	worklogs := trackerGET(path, `[
 		{"id": 101, "createdBy": {"id": "uid-a", "display": "Иван Петров"},
@@ -78,6 +80,8 @@ func TestWorklogList(t *testing.T) {
 }
 
 func TestLinkList(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/links"
 	links := trackerGET(path, `[
 		{"id": 101, "direction": "inward",
@@ -136,6 +140,8 @@ func TestLinkList(t *testing.T) {
 }
 
 func TestChecklistList(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/checklistItems"
 	items := trackerGET(path, `[
 		{"id": "item-1", "text": "Review code", "checked": true,

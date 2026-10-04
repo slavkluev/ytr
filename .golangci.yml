@@ -86,6 +86,7 @@ linters:
     - iotamixing
     - mnd
     - modernize
+    - paralleltest
     - testableexamples
     - testifylint
     - tparallel
@@ -93,9 +94,9 @@ linters:
     - usetesting
   disable:
     # Permanently excluded; rationale inline.
-    - gochecknoglobals   # Factory vars (newSearcher, newGetter) are the testability mechanism
+    - gochecknoglobals   # Field lists, request bodies and patterns are read-only package-level tables
     - gochecknoinits     # init() in internal/version reads build info when ldflags are unset
-    - testpackage        # White-box testing by design -- tests access factory vars from same package
+    - testpackage        # White-box testing by design -- tests reach the unexported execute and transforms
     # Not applicable to this project or impractical.
     - exhaustruct        # Tracker SDK types use *string/*int everywhere; requiring all fields is impractical
     - wrapcheck          # ytr wraps errors at MapAPIError boundary, not every call site
@@ -174,6 +175,11 @@ linters:
           - modernize
           - noctx
           - wrapcheck
+      # Command tests run in parallel against their own run's stdin, env and
+      # config; the other packages' tests still set the process environment.
+      - path-except: 'internal/cmd/[^/]+_test\.go$'
+        linters:
+          - paralleltest
       # main.go is trivial -- exclude complexity linters.
       - path: 'cmd/ytr/main\.go'
         linters:

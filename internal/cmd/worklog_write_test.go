@@ -20,6 +20,8 @@ const (
 )
 
 func TestWorklogCreate(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/worklog"
 	created := trackerPOST(path, worklogAnswer)
 	create := func(extra ...string) []string {
@@ -99,6 +101,8 @@ func TestWorklogCreate(t *testing.T) {
 }
 
 func TestWorklogEdit(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/worklog/101"
 	edited := trackerPATCH(path, worklogAnswer)
 	edit := func(extra ...string) []string {
@@ -175,6 +179,8 @@ func TestWorklogEdit(t *testing.T) {
 }
 
 func TestWorklogDelete(t *testing.T) {
+	t.Parallel()
+
 	const path = "/v3/issues/PROJ-1/worklog/101"
 	args := []string{"worklog", "delete", "PROJ-1", "101"}
 
