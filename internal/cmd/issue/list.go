@@ -1,39 +1,30 @@
 package issue
 
 import (
+	"context"
 	"fmt"
-	"io"
-	"strconv"
+	"iter"
 	"strings"
 	"time"
 
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/validate"
 )
 
 const (
-	defaultLimit = 50
-	maxLimit     = 1000
-
 	// tableReservedWidth is the space reserved for key (12), status (15),
 	// assignee (15), and padding (9) in table output.
 	tableReservedWidth = 51
 
 	minColumnWidth = 10
 )
-
-// IssueListFields lists the available JSON field names for issue list output.
-var IssueListFields = []string{
-	"key", "summary", "status", "priority", "type",
-	"assignee", "assigneeId", "createdAt", "updatedAt",
-}
 
 // Raw tracker.Issue fields are pointer types that produce nulls in JSON;
 // this struct uses value types with proper json tags.
@@ -50,17 +41,9 @@ type issueListItem struct {
 }
 
 func newListCmd() *cobra.Command {
-	var (
-		query       string
-		filterFlags []string
-		orderBy     string
-		orderAsc    bool
-		limit       int
-		cursor      string
-		all         bool
-	)
+	var search *tracker.IssueSearchRequest
 
-	cmd := &cobra.Command{
+	cmd := runner.Pages[*tracker.Issue, issueListItem]{
 		Use:   "list",
 		Short: "List issues",
 		Long: `Search and list Yandex Tracker issues with filtering and pagination.
@@ -69,10 +52,7 @@ Supports two search modes:
   - Structured filters: use --filter key=value (repeatable) for field filtering
   - Query language: use --query for full Tracker query language expressions
 
-The two modes are mutually exclusive: --query cannot be combined with --filter.
-
-JSON FIELDS
-  key, summary, status, priority, type, assignee, assigneeId, createdAt, updatedAt`,
+The two modes are mutually exclusive: --query cannot be combined with --filter.`,
 		Example: `  # Filter by queue
   ytr issue list --filter queue=PROJ
 
@@ -96,115 +76,68 @@ JSON FIELDS
 
   # Extract just keys with jq
   ytr issue list --filter queue=PROJ --json key --jq '.items[].key'`,
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(cmd, query, filterFlags, orderBy, orderAsc, limit, cursor, all)
+		Check: func(set *pflag.FlagSet) error {
+			var err error
+			search, err = searchRequest(set)
+			return err
 		},
-	}
+		Empty: "No issues found",
+		Page: func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) (
+			[]*tracker.Issue, *tracker.Response, error,
+		) {
+			return c.Issues.Search(ctx, search, &tracker.IssueSearchOptions{ListOptions: o})
+		},
+		All: func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) iter.Seq2[*tracker.Issue, error] {
+			return c.Issues.SearchIter(ctx, search, &tracker.IssueSearchOptions{ListOptions: o})
+		},
+		Item:   toListItem,
+		Header: []string{"KEY", "STATUS", "ASSIGNEE", "SUMMARY"},
+		Row:    issueRow,
+		Quiet:  func(issue *tracker.Issue) string { return api.DerefString(issue.Key, "") },
+	}.Command()
 
-	cmd.Flags().StringVar(&query, "query", "", "Search using Tracker query language (mutually exclusive with --filter)")
-	cmd.Flags().StringArrayVar(&filterFlags, "filter", nil, "Filter by field (key=value, repeatable)")
-	cmd.Flags().StringVar(&orderBy, "order-by", "", "Sort by field name (e.g., updated, created, priority)")
-	cmd.Flags().BoolVar(&orderAsc, "order-asc", false, "Sort ascending (default: descending)")
-	cmd.Flags().IntVar(&limit, "limit", defaultLimit, "Maximum number of results per page (max 1000)")
-	cmd.Flags().StringVar(&cursor, "cursor", "", "Page number for pagination")
-	cmd.Flags().BoolVar(&all, "all", false, "Fetch all pages automatically")
-
-	runner.SetFields(cmd, IssueListFields)
+	cmd.Flags().String("query", "", "Search using Tracker query language (mutually exclusive with --filter)")
+	cmd.Flags().StringArray("filter", nil, "Filter by field (key=value, repeatable)")
+	cmd.Flags().String("order-by", "", "Sort by field name (e.g., updated, created, priority)")
+	cmd.Flags().Bool("order-asc", false, "Sort ascending (default: descending)")
 
 	return cmd
 }
 
-type issueSearchResult struct {
-	issues     []*tracker.Issue
-	totalCount int
-	hasMore    bool
-	nextCursor string
-}
-
-func runList(
-	cmd *cobra.Command,
-	query string,
-	filterFlags []string,
-	orderBy string,
-	orderAsc bool,
-	limit int,
-	cursor string,
-	all bool,
-) error {
-	opts := output.FromContext(cmd.Context())
-
-	// Validate flag conflicts before any API work.
-	if err := validateSearchFlags(cmd); err != nil {
-		return err
+func searchRequest(set *pflag.FlagSet) (*tracker.IssueSearchRequest, error) {
+	if err := validateSearchFlags(set); err != nil {
+		return nil, err
 	}
 
-	page, err := validate.ParsePageCursor(cursor)
-	if err != nil {
-		return err
-	}
+	search := &tracker.IssueSearchRequest{}
 
-	searchReq := &tracker.IssueSearchRequest{}
-
-	if query != "" {
-		searchReq.Query = &query
-	} else if len(filterFlags) > 0 {
-		filter, parseErr := parseFilterFlags(filterFlags)
-		if parseErr != nil {
-			return parseErr
+	if query, _ := set.GetString("query"); query != "" {
+		search.Query = &query
+	} else if filters, _ := set.GetStringArray("filter"); len(filters) > 0 {
+		filter, err := parseFilterFlags(filters)
+		if err != nil {
+			return nil, err
 		}
-		searchReq.Filter = filter
+		search.Filter = filter
 	}
 
-	if orderBy != "" {
+	if orderBy, _ := set.GetString("order-by"); orderBy != "" {
 		prefix := "-"
-		if orderAsc {
+		if asc, _ := set.GetBool("order-asc"); asc {
 			prefix = "+"
 		}
 		order := prefix + orderBy
-		searchReq.Order = &order
+		search.Order = &order
 	}
 
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue list", IssueListFields)
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = IssueListFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err = output.ValidateFields(opts.JSONFields, IssueListFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueListFields)
-	}
-
-	client, err := runner.Client(cmd)
-	if err != nil {
-		return err
-	}
-
-	if limit < 1 {
-		limit = defaultLimit
-	}
-	if limit > maxLimit {
-		limit = maxLimit
-	}
-
-	result, err := fetchIssues(cmd, client.Issues, searchReq, limit, page, all)
-	if err != nil {
-		return err
-	}
-
-	return renderListOutput(cmd.OutOrStdout(), opts, result)
+	return search, nil
 }
 
-func validateSearchFlags(cmd *cobra.Command) error {
-	queryChanged := cmd.Flags().Changed("query")
-	orderByChanged := cmd.Flags().Changed("order-by")
+func validateSearchFlags(set *pflag.FlagSet) error {
+	queryChanged := set.Changed("query")
+	orderByChanged := set.Changed("order-by")
 
-	if queryChanged && cmd.Flags().Changed("filter") {
+	if queryChanged && set.Changed("filter") {
 		return ytrerrors.NewUserError(
 			"cannot combine --query with --filter",
 			"Use --query for Tracker query language, or --filter for structured search, but not both",
@@ -218,16 +151,14 @@ func validateSearchFlags(cmd *cobra.Command) error {
 		)
 	}
 
-	if cmd.Flags().Changed("order-asc") && !orderByChanged {
+	if set.Changed("order-asc") && !orderByChanged {
 		return ytrerrors.NewUserError(
 			"--order-asc requires --order-by",
 			"Use --order-by to specify the sort field (e.g., --order-by updated --order-asc)",
 		)
 	}
 
-	return validate.ConflictingAllAndCursor(
-		cmd.Flags().Changed("all"), cmd.Flags().Changed("cursor"),
-	)
+	return nil
 }
 
 // Splits on the first = sign only, so values may contain =.
@@ -262,136 +193,18 @@ func parseFilterFlags(flags []string) (map[string]any, error) {
 	return result, nil
 }
 
-func fetchIssues(cmd *cobra.Command, searcher *tracker.IssuesService, searchReq *tracker.IssueSearchRequest,
-	limit, page int, all bool) (*issueSearchResult, error) {
-	if all {
-		return fetchAllIssuePages(cmd, searcher, searchReq, limit)
+func issueRow(opts *output.Options, issue *tracker.Issue) []string {
+	status := issueStatusDisplay(issue)
+	if opts.Colors {
+		status = colorizeStatus(issue, status)
 	}
 
-	opts := &tracker.IssueSearchOptions{}
-	opts.Page = page
-	opts.PerPage = limit
-
-	issues, resp, err := searcher.Search(cmd.Context(), searchReq, opts)
-	if err != nil {
-		return nil, api.MapAPIError(err)
+	return []string{
+		api.DerefString(issue.Key, "-"),
+		status,
+		issue.Assignee.DisplayOr("-"),
+		opts.FitColumn(api.DerefString(issue.Summary, "-"), tableReservedWidth, minColumnWidth),
 	}
-
-	result := &issueSearchResult{issues: issues}
-	if resp != nil {
-		result.totalCount = resp.TotalCount
-	}
-	result.hasMore = len(issues) == limit
-	if result.hasMore {
-		result.nextCursor = strconv.Itoa(page + 1)
-	}
-	return result, nil
-}
-
-func fetchAllIssuePages(cmd *cobra.Command, searcher *tracker.IssuesService,
-	searchReq *tracker.IssueSearchRequest, limit int) (*issueSearchResult, error) {
-	var allIssues []*tracker.Issue
-	var totalCount int
-
-	currentPage := 1
-	for {
-		opts := &tracker.IssueSearchOptions{}
-		opts.Page = currentPage
-		opts.PerPage = limit
-
-		issues, resp, err := searcher.Search(cmd.Context(), searchReq, opts)
-		if err != nil {
-			return nil, api.MapAPIError(err)
-		}
-
-		allIssues = append(allIssues, issues...)
-		if resp != nil {
-			totalCount = resp.TotalCount
-		}
-
-		if len(issues) < limit {
-			break
-		}
-		currentPage++
-	}
-
-	return &issueSearchResult{issues: allIssues, totalCount: totalCount}, nil
-}
-
-func renderListOutput(w io.Writer, opts *output.Options, result *issueSearchResult) error {
-	if opts.IsJSON() {
-		return renderListJSON(w, opts, result)
-	}
-
-	if opts.Quiet {
-		keys := make([]string, len(result.issues))
-		for i, issue := range result.issues {
-			keys[i] = api.DerefString(issue.Key, "")
-		}
-		output.PrintQuiet(w, keys...)
-		return nil
-	}
-
-	return renderListTable(w, opts, result.issues)
-}
-
-func renderListJSON(w io.Writer, opts *output.Options, result *issueSearchResult) error {
-	items := make([]issueListItem, len(result.issues))
-	for i, issue := range result.issues {
-		items[i] = toListItem(issue)
-	}
-
-	var data any
-	if opts.HasFieldSelection() {
-		filtered := make([]map[string]any, len(items))
-		for i, item := range items {
-			filtered[i] = output.FilterFields(item, opts.JSONFields)
-		}
-		data = output.PaginatedResult{
-			Items: filtered,
-			Pagination: output.PaginationMeta{
-				Cursor: result.nextCursor, HasMore: result.hasMore, Total: result.totalCount,
-			},
-		}
-	} else {
-		data = output.PaginatedResult{
-			Items: items,
-			Pagination: output.PaginationMeta{
-				Cursor: result.nextCursor, HasMore: result.hasMore, Total: result.totalCount,
-			},
-		}
-	}
-
-	if opts.JQFilter != "" {
-		return output.ApplyJQ(w, data, opts.JQFilter)
-	}
-	return opts.PrintJSON(w, data)
-}
-
-func renderListTable(w io.Writer, opts *output.Options, issues []*tracker.Issue) error {
-	if len(issues) == 0 {
-		_, err := fmt.Fprintln(w, "No issues found")
-		return err
-	}
-
-	tbl := opts.NewTable(w)
-	tbl.AddHeader("KEY", "STATUS", "ASSIGNEE", "SUMMARY")
-
-	for _, issue := range issues {
-		key := api.DerefString(issue.Key, "-")
-		statusVal := issueStatusDisplay(issue)
-		assigneeVal := issue.Assignee.DisplayOr("-")
-		summary := opts.FitColumn(api.DerefString(issue.Summary, "-"), tableReservedWidth, minColumnWidth)
-
-		if opts.Colors {
-			statusVal = colorizeStatus(issue, statusVal)
-		}
-
-		tbl.AddRow(key, statusVal, assigneeVal, summary)
-	}
-
-	tbl.Render()
-	return nil
 }
 
 func toListItem(issue *tracker.Issue) issueListItem {

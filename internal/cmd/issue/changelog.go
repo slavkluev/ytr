@@ -14,6 +14,11 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
+const (
+	defaultLimit = 50
+	maxLimit     = 1000
+)
+
 // IssueChangelogFields lists the available JSON field names for changelog output.
 var IssueChangelogFields = []string{
 	"date", "author", "authorId", "type", "transport",

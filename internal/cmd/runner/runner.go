@@ -113,8 +113,9 @@ type Pages[T, Item any] struct {
 	// Long is the description; Command adds the JSON FIELDS section after it.
 	Use, Short, Long, Example string
 
-	// Check, when set, refuses flags that cannot go together, ahead of the
-	// field hint and auth.
+	// Check, when set, refuses flags that cannot go together or values that
+	// do not parse, ahead of the field hint and auth. It may keep what it
+	// parses for Page and All, which run only after it succeeds.
 	Check func(*pflag.FlagSet) error
 
 	// Empty is printed in place of a table with no rows.
