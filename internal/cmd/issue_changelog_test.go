@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"net/http"
 	"net/url"
 	"slices"
 	"testing"
@@ -106,6 +107,35 @@ func TestIssueChangelog(t *testing.T) {
 				changelogPage(url.Values{"perPage": {"1"}, "id": {"cursor-2"}}, `[]`),
 			},
 			json: `{"items": [{"author": "alice"}, {"author": "bob"}], "pagination": {"hasMore": false}}`,
+		},
+		{
+			name: "All pages keep the filters",
+			args: changelog("--all", "--limit", "1", "--field", "status", "--type", "IssueWorkflow", "--quiet"),
+			exchanges: []faketracker.Exchange{
+				changelogPage(url.Values{"perPage": {"1"}, "field": {"status"}, "type": {"IssueWorkflow"}},
+					entry("cursor-1", "alice")),
+				changelogPage(
+					url.Values{"perPage": {"1"}, "id": {"cursor-1"}, "field": {"status"}, "type": {"IssueWorkflow"}},
+					`[]`,
+				),
+			},
+			stdout: "status: open -> closed\n",
+			check: assertRequestOrder(
+				"field=status&perPage=1&type=IssueWorkflow", "field=status&id=cursor-1&perPage=1&type=IssueWorkflow",
+			),
+		},
+		{
+			name: "A later page fails", args: changelog("--all", "--limit", "1", "--json", "author"),
+			exchanges: []faketracker.Exchange{
+				changelogPage(url.Values{"perPage": {"1"}}, entry("cursor-1", "alice")),
+				withQuery(
+					trackerError(http.MethodGet, "/v3/issues/PROJ-123/changelog", http.StatusInternalServerError,
+						"Changelog unavailable"),
+					url.Values{"perPage": {"1"}, "id": {"cursor-1"}},
+				),
+			},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"Changelog unavailable"`},
+			check: assertOneErrorDocument("Changelog unavailable"),
 		},
 		{
 			name: "A page ending in null", args: changelog("--all", "--limit", "2", "--json", "author"),
