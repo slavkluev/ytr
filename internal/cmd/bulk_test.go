@@ -123,11 +123,13 @@ func TestBulkMove(t *testing.T) {
 		},
 		{
 			name: "Bad key on stdin", args: move("--queue", "TARGET"), stdin: "PROJ-1\ninvalid-key\n",
-			code: ytrerrors.ExitUserError, stderr: []string{`Error: invalid issue key "invalid-key"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`Error: invalid issue key or ID "invalid-key"`},
 		},
 		{
 			name: "Bad key", args: move("bad-key", "--queue", "TARGET"), code: ytrerrors.ExitUserError,
-			stderr: []string{`Error: invalid issue key "bad-key"`},
+			stderr: []string{
+				`Error: invalid issue key or ID "bad-key": expected QUEUE-123 or a 24-character hexadecimal ID`,
+			},
 		},
 		{
 			name: "Timeout", args: move("PROJ-1", "--queue", "TARGET", "--timeout", "1ms"),
@@ -183,6 +185,11 @@ func TestBulkUpdate(t *testing.T) {
 			name: "Keys on stdin", args: update("--field", "a=b", "--quiet"), stdin: "PROJ-1\nPROJ-2\n",
 			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}, stdout: "op-1\n",
 			check: assertFirstBody(`{"issues": ["PROJ-1", "PROJ-2"], "values": {"a": "b"}}`),
+		},
+		{
+			name: "Issue ID", args: update("4ff3e8dae4b0e2ac00000001", "--field", "a=b", "--quiet"),
+			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}, stdout: "op-1\n",
+			check: assertFirstBody(`{"issues": ["4ff3e8dae4b0e2ac00000001"], "values": {"a": "b"}}`),
 		},
 		{
 			name: "Empty field value", args: update("PROJ-1", "--field", "a=", "--quiet"),

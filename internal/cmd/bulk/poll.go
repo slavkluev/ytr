@@ -29,7 +29,7 @@ const (
 func readIssueKeys(args []string, stdin io.Reader) ([]string, error) {
 	if len(args) > 0 {
 		for _, key := range args {
-			if err := validate.ValidateIssueKey(key); err != nil {
+			if err := validate.ValidateIssueKeyOrID(key); err != nil {
 				return nil, err
 			}
 		}
@@ -66,7 +66,7 @@ func readIssueKeys(args []string, stdin io.Reader) ([]string, error) {
 	}
 
 	for _, key := range keys {
-		if err := validate.ValidateIssueKey(key); err != nil {
+		if err := validate.ValidateIssueKeyOrID(key); err != nil {
 			return nil, err
 		}
 	}

@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "17.0"
+  version: "17.1"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -206,6 +206,11 @@ ytr bulk transition PROJ-1 PROJ-2 --transition close --timeout 10m
 # Check bulk operation status
 ytr bulk status 6543210abcdef
 ```
+
+`bulk move`, `bulk update` and `bulk transition` take each issue as a key such
+as `PROJ-1` or a 24-character hexadecimal issue ID such as
+`4ff3e8dae4b0e2ac00000001`, as arguments or one per line on stdin. Anything
+else exits 1 with `invalid issue key or ID "bad"` and sends nothing.
 
 `bulk move`, `bulk update` and `bulk transition` wait for the operation and
 exit 1 when it ends `FAILED`, writing nothing to stdout in any mode, `--quiet`
