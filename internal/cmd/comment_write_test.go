@@ -124,6 +124,14 @@ func TestCommentEdit(t *testing.T) {
 			stderr: []string{"Error: control character U+0000 at position 5 in body\n"},
 		},
 		{
+			name: "Bad value signed out", args: edit("--body", "a\x00"), signedOut: true, code: ytrerrors.ExitUserError,
+			stderr: []string{"Error: control character U+0000 at position 1 in body\n"},
+		},
+		{
+			name: "Bad value in JSON", args: edit("--from-json", `{"text": "a\u0000"}`), code: ytrerrors.ExitUserError,
+			stderr: []string{"Error: control character U+0000 at position 1 in body\n"},
+		},
+		{
 			name: "Unknown key", args: edit("--from-json", `{"text": "hi", "bogus": 1}`, "--json", "id"),
 			code:   ytrerrors.ExitUserError,
 			stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},

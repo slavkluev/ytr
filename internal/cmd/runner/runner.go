@@ -312,29 +312,20 @@ func (w Write[Req, T, Item]) Command() *cobra.Command {
 	fields := ItemFields[Item]()
 	body := validate.Body{Required: w.Required, FromJSON: w.FromJSON != "", Update: w.Update}
 	for _, f := range w.Flags {
-		body.Flags = append(body.Flags, validate.BodyFlag{Name: f.name, Key: f.key})
+		body.Flags = append(body.Flags, validate.BodyFlag{Name: f.name, Key: f.key, Check: f.check})
 	}
 
 	cmd := newCommand(help{w.Use, w.Short, w.Long, w.Example}, w.Args, fields,
 		func(cmd *cobra.Command, args []string) error {
-			var (
-				patch map[string]any
-				req   Req
-			)
+			var req Req
 
 			return run(cmd, args, steps[T]{
 				args: w.Args, fields: fields,
 				check: func() error {
-					var err error
-					patch, err = flagBody(cmd.Flags(), body, w.Flags)
-					return err
+					return flagRequest(cmd.Flags(), body, w.Flags, &req)
 				},
 				prepare: func() error {
-					data, err := requestBody(cmd, patch)
-					if err != nil {
-						return err
-					}
-					return body.Decode(data, &req)
+					return jsonRequest(cmd, body, &req)
 				},
 				call: func(ctx context.Context, c *tracker.Client, args []string) (T, error) {
 					return w.Call(ctx, c, args, &req)
@@ -421,12 +412,13 @@ type deleted struct {
 	Deleted bool   `json:"deleted"`
 }
 
-// Flag is one request flag of a Write: the body key it sets and how its text
-// becomes that key's value.
+// Flag is one request flag of a Write: the body key it sets, how its text
+// becomes that key's value, and the check that value must pass.
 type Flag struct {
 	name, key, usage string
 	boolean          bool
 	parse            func(string) (any, error)
+	check            func(string) error
 }
 
 // Text is a flag whose value is its text as given.
@@ -477,16 +469,10 @@ func (f Flag) Key(key string) Flag {
 	return f
 }
 
-// Check makes f refuse a value check rejects, with check's error.
+// Check makes f refuse a value check rejects, with check's error, whether the
+// flag or the key it sets in --from-json gives the value.
 func (f Flag) Check(check func(string) error) Flag {
-	parse := f.parse
-	f.parse = func(s string) (any, error) {
-		if err := check(s); err != nil {
-			return nil, err
-		}
-		return parse(s)
-	}
-
+	f.check = check
 	return f
 }
 
@@ -499,12 +485,15 @@ func (f Flag) define(flags *pflag.FlagSet) {
 	flags.String(f.name, "", f.usage)
 }
 
-// flagBody checks the request flags a run set and returns the body they give,
-// one key per flag, before the field hint and auth. It is empty when
-// --from-json gives the body.
-func flagBody(set *pflag.FlagSet, body validate.Body, flags []Flag) (map[string]any, error) {
+// flagRequest checks the request flags a run set and decodes the body they
+// give, one key per flag, into req, before the field hint and auth. It leaves
+// req to jsonRequest when --from-json gives the body.
+func flagRequest(set *pflag.FlagSet, body validate.Body, flags []Flag, req any) error {
 	if err := body.CheckFlags(set.Changed); err != nil {
-		return nil, err
+		return err
+	}
+	if set.Changed(validate.FromJSONFlag) {
+		return nil
 	}
 
 	patch := make(map[string]any)
@@ -515,23 +504,34 @@ func flagBody(set *pflag.FlagSet, body validate.Body, flags []Flag) (map[string]
 
 		value, err := f.parse(set.Lookup(f.name).Value.String())
 		if err != nil {
-			return nil, err
+			return err
 		}
 		patch[f.key] = value
 	}
 
-	return patch, nil
-}
-
-// requestBody returns the body --from-json gives, read only once auth has
-// resolved, or else the one the flags gave, so both reach the same decoder.
-func requestBody(cmd *cobra.Command, patch map[string]any) ([]byte, error) {
-	if set := cmd.Flags(); set.Changed(validate.FromJSONFlag) {
-		value, _ := set.GetString(validate.FromJSONFlag)
-		return validate.ParseJSONInputFrom(value, cmd.InOrStdin())
+	data, err := json.Marshal(patch)
+	if err != nil {
+		return err
 	}
 
-	return json.Marshal(patch)
+	return body.Decode(data, req)
+}
+
+// jsonRequest decodes the body --from-json gives into req through the same
+// decoder as the flags, read only once auth has resolved.
+func jsonRequest(cmd *cobra.Command, body validate.Body, req any) error {
+	set := cmd.Flags()
+	if !set.Changed(validate.FromJSONFlag) {
+		return nil
+	}
+
+	value, _ := set.GetString(validate.FromJSONFlag)
+	data, err := validate.ParseJSONInputFrom(value, cmd.InOrStdin())
+	if err != nil {
+		return err
+	}
+
+	return body.Decode(data, req)
 }
 
 // Arg is one positional argument: the check it must pass before anything else

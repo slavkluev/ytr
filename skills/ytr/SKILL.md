@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "16.1"
+  version: "17.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -473,9 +473,15 @@ each exits 1 before any request:
   `issue transition --to` are required the same way.
 - `nothing to update`: an edit or `issue update` with no request flag, or with a
   `--from-json` object that sets no key, such as `'{}'` or `'{"text": null}'`.
-- `control character U+0000 at position 1 in summary`: a control character
-  other than tab, newline and carriage return in `--summary`, `--description`
-  or `--body`, named after the flag. Remove it.
+- `control character U+0000 at position 1 in summary`: a character below
+  U+0020 other than tab, newline and carriage return in `--summary` or
+  `--description` of `issue create` and `issue update`, or in `--body` of
+  `comment create` and `comment edit`, or in the key the flag sets in
+  `--from-json` (`"text"` for `--body`); the error names the flag either way.
+  Remove it.
+- `invalid issue key or ID "bad"`: a `link create --issue`, or an `"issue"` in
+  its `--from-json`, that is neither an issue key such as `PROJ-456` nor a
+  24-character hexadecimal issue ID.
 
 ### Bad invocations
 
@@ -527,7 +533,7 @@ the help text to stdout and exit 0, even on a mistyped command path
 | `--token` | Global auth override | Override auth token |
 | `--org-id` | Global auth override | Override organization ID |
 | `--org-type` | Global auth override | Override organization type: `360` or `cloud` |
-| `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin); keys the request body has no field for are rejected, not dropped; cannot be combined with the command's request flags; a create needs its required keys and an edit at least one key |
+| `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin); keys the request body has no field for are rejected, not dropped; cannot be combined with the command's request flags; a create needs its required keys and an edit at least one key; a key's value must pass its flag's check |
 | `--query` | `issue list` | Search using Tracker query language; mutually exclusive with `--filter` and `--order-by` |
 | `--filter k=v` | `issue list` | Filter by field (repeatable); mutually exclusive with `--query` |
 | `--order-by` | `issue list` | Sort by field (descending by default); cannot be used with `--query` |

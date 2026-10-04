@@ -38,6 +38,13 @@ func TestLinkCreate(t *testing.T) {
 			stdout:    "Link 101 created on PROJ-1\n",
 		},
 		{
+			name:      "Issue ID in JSON",
+			args:      create("--from-json", `{"relationship": "relates", "issue": "4ff3e8dae4b0e2ac00000001"}`),
+			exchanges: []faketracker.Exchange{created},
+			body:      `{"relationship": "relates", "issue": "4ff3e8dae4b0e2ac00000001"}`,
+			stdout:    "Link 101 created on PROJ-1\n",
+		},
+		{
 			name: "JSON", args: create("--type", "depends on", "--issue", "PROJ-2", "--json", "id,type,issue,summary"),
 			exchanges: []faketracker.Exchange{created},
 			json:      `{"id": "101", "type": "depends on", "issue": "PROJ-2", "summary": ""}`,
@@ -55,6 +62,24 @@ func TestLinkCreate(t *testing.T) {
 			stderr: []string{
 				`Error: invalid issue key or ID "bad-key": expected QUEUE-123 or a 24-character hexadecimal ID`,
 			},
+		},
+		{
+			name: "Bad value signed out", args: create("--type", "relates", "--issue", "bad"),
+			signedOut: true, code: ytrerrors.ExitUserError,
+			stderr: []string{
+				`Error: invalid issue key or ID "bad": expected QUEUE-123 or a 24-character hexadecimal ID`,
+			},
+		},
+		{
+			name: "Bad value in JSON", args: create("--from-json", `{"relationship": "relates", "issue": "bad"}`),
+			code: ytrerrors.ExitUserError,
+			stderr: []string{
+				`Error: invalid issue key or ID "bad": expected QUEUE-123 or a 24-character hexadecimal ID`,
+			},
+		},
+		{
+			name: "Missing key before a bad value", args: create("--from-json", `{"issue": "bad"}`),
+			code: ytrerrors.ExitUserError, stderr: []string{"Error: missing --type\n"},
 		},
 		{
 			name: "Unknown key", args: create("--from-json", `{"relationship": "relates", "bogus": 1}`, "--json", "id"),

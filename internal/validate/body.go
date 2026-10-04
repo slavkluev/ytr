@@ -33,6 +33,10 @@ type Body struct {
 // sets.
 type BodyFlag struct {
 	Name, Key string
+
+	// Check, when set, refuses a value of Key, whether the flag or --from-json
+	// gives it, with the same error either way.
+	Check func(string) error
 }
 
 // CheckFlags checks the flags changed reports as set, before the field hint
@@ -69,8 +73,8 @@ func (b Body) CheckFlags(changed func(name string) bool) error {
 }
 
 // Decode decodes data, the body --from-json or the flags give, into req with
-// UnmarshalRequestJSON, and fails an update that would send no key and a body
-// that would send no required key.
+// UnmarshalRequestJSON, and fails an update that would send no key, a body
+// that would send no required key, and a value a flag's Check refuses.
 func (b Body) Decode(data []byte, req any) error {
 	if err := UnmarshalRequestJSON(data, req); err != nil {
 		return err
@@ -93,10 +97,29 @@ func (b Body) Decode(data []byte, req any) error {
 		return b.nothingToUpdate()
 	}
 
-	return b.missing(func(f BodyFlag) bool {
+	if err := b.missing(func(f BodyFlag) bool {
 		_, ok := present[f.Key]
 		return !ok
-	})
+	}); err != nil {
+		return err
+	}
+
+	for _, f := range b.Flags {
+		raw, ok := present[f.Key]
+		if f.Check == nil || !ok {
+			continue
+		}
+
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return err
+		}
+		if err := f.Check(value); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (b Body) missing(absent func(BodyFlag) bool) error {

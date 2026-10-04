@@ -107,6 +107,17 @@ func TestIssueCreate(t *testing.T) {
 			stderr: []string{"Error: control character U+0000 at position 1 in summary\n"},
 		},
 		{
+			name: "Flag next to JSON signed out", args: create("--summary", "x", "--from-json", "{}"),
+			signedOut: true, code: ytrerrors.ExitUserError,
+			stderr: []string{"Error: cannot combine --from-json with --summary\n"},
+		},
+		{
+			name:   "Bad value in JSON",
+			args:   create("--from-json", `{"queue": "PROJ", "summary": "a\u0000"}`),
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{"Error: control character U+0000 at position 1 in summary\n"},
+		},
+		{
 			name: "Unknown key",
 			args: create("--from-json", `{"queue": "PROJ", "summary": "Fix login bug", "size": ["L"]}`,
 				"--json", "key"),
@@ -190,6 +201,31 @@ func TestIssueUpdate(t *testing.T) {
 			name: "Bad description before the hint", args: update("--description", "a\x00", "--json="),
 			signedOut: true, code: ytrerrors.ExitUserError,
 			stderr: []string{"Error: control character U+0000 at position 1 in description\n"},
+		},
+		{
+			name: "Bad description in JSON", args: update("--from-json", `{"description": "a\u0001b"}`),
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{"Error: control character U+0001 at position 1 in description\n"},
+		},
+		{
+			name:   "Bad value in JSON under a key in another case",
+			args:   update("--from-json", `{"Summary": "a\u0000"}`),
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{"Error: control character U+0000 at position 1 in summary\n"},
+		},
+		{
+			name:      "Tab and line breaks",
+			args:      update("--description", "Steps:\r\n\t1. Log in\n"),
+			exchanges: []faketracker.Exchange{edited},
+			body:      `{"description": "Steps:\r\n\t1. Log in\n"}`,
+			stdout:    issueCard,
+		},
+		{
+			name:      "Tab and line breaks in JSON",
+			args:      update("--from-json", `{"description": "Steps:\r\n\t1. Log in\n"}`),
+			exchanges: []faketracker.Exchange{edited},
+			body:      `{"description": "Steps:\r\n\t1. Log in\n"}`,
+			stdout:    issueCard,
 		},
 		{
 			name: "Bad arg", args: []string{"issue", "update", "bad-key", "--summary", "x"},
