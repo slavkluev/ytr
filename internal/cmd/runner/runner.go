@@ -534,7 +534,7 @@ func run[V any](cmd *cobra.Command, raw []string, s steps[V]) error {
 		return err
 	}
 
-	client, err := newClient(cmd)
+	client, err := Client(cmd)
 	if err != nil {
 		return err
 	}
@@ -575,7 +575,9 @@ func selectFields(cmd *cobra.Command, opts *output.Options, fields []string) err
 	return nil
 }
 
-func newClient(cmd *cobra.Command) (*tracker.Client, error) {
+// Client returns the Tracker client a run of cmd sends its requests with,
+// signed in by what config.ResolveAuth makes of the root's auth flags.
+func Client(cmd *cobra.Command) (*tracker.Client, error) {
 	flags := cmd.Root().PersistentFlags()
 	token, _ := flags.GetString("token")
 	orgID, _ := flags.GetString("org-id")

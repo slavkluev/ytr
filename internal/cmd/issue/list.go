@@ -13,7 +13,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
@@ -155,16 +154,10 @@ func runList(
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueListFields)
 	}
 
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
+	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
-
-	searcher := newSearcher(auth)
 
 	if limit < 1 {
 		limit = defaultLimit
@@ -199,7 +192,7 @@ func runList(
 		searchReq.Order = &order
 	}
 
-	result, err := fetchIssues(cmd, searcher, searchReq, limit, page, all)
+	result, err := fetchIssues(cmd, client.Issues, searchReq, limit, page, all)
 	if err != nil {
 		return err
 	}
@@ -269,7 +262,7 @@ func parseFilterFlags(flags []string) (map[string]any, error) {
 	return result, nil
 }
 
-func fetchIssues(cmd *cobra.Command, searcher issueSearcher, searchReq *tracker.IssueSearchRequest,
+func fetchIssues(cmd *cobra.Command, searcher *tracker.IssuesService, searchReq *tracker.IssueSearchRequest,
 	limit, page int, all bool) (*issueSearchResult, error) {
 	if all {
 		return fetchAllIssuePages(cmd, searcher, searchReq, limit)
@@ -295,7 +288,7 @@ func fetchIssues(cmd *cobra.Command, searcher issueSearcher, searchReq *tracker.
 	return result, nil
 }
 
-func fetchAllIssuePages(cmd *cobra.Command, searcher issueSearcher,
+func fetchAllIssuePages(cmd *cobra.Command, searcher *tracker.IssuesService,
 	searchReq *tracker.IssueSearchRequest, limit int) (*issueSearchResult, error) {
 	var allIssues []*tracker.Issue
 	var totalCount int

@@ -10,7 +10,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -107,16 +106,10 @@ func runChangelog(
 
 	issueKey := args[0]
 
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
+	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
-
-	getter := newChangelogGetter(auth)
 
 	if limit < 1 {
 		limit = defaultLimit
@@ -126,7 +119,7 @@ func runChangelog(
 	}
 
 	entries, page, err := fetchChangelogPage(
-		cmd.Context(), getter, issueKey, limit, cursor, all, fieldFilter, typeFilter,
+		cmd.Context(), client.Issues, issueKey, limit, cursor, all, fieldFilter, typeFilter,
 	)
 	if err != nil {
 		return err
@@ -141,7 +134,7 @@ func runChangelog(
 
 func fetchChangelogPage(
 	ctx context.Context,
-	getter changelogGetter,
+	getter *tracker.IssuesService,
 	issueKey string,
 	limit int,
 	cursor string,
@@ -188,7 +181,7 @@ func renderChangelogNonJSON(w io.Writer, opts *output.Options, items []changelog
 
 func fetchAllChangelog(
 	ctx context.Context,
-	getter changelogGetter,
+	getter *tracker.IssuesService,
 	issueKey string,
 	limit int,
 	fieldFilter string,

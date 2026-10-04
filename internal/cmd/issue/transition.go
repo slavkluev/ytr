@@ -10,7 +10,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
@@ -82,18 +81,12 @@ func runTransition(cmd *cobra.Command, issueKey, toFlag string) error {
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueTransitionFields)
 	}
 
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
+	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
 
-	transitioner := newTransitioner(auth)
-
-	transitions, _, err := transitioner.GetTransitions(cmd.Context(), issueKey)
+	transitions, _, err := client.Issues.GetTransitions(cmd.Context(), issueKey)
 	if err != nil {
 		return api.MapAPIError(err)
 	}
@@ -104,7 +97,7 @@ func runTransition(cmd *cobra.Command, issueKey, toFlag string) error {
 		return buildTransitionError(issueKey, toFlag, transitions)
 	}
 
-	_, _, err = transitioner.ExecuteTransition(cmd.Context(), issueKey, api.DerefFlexString(matched.ID, ""), nil)
+	_, _, err = client.Issues.ExecuteTransition(cmd.Context(), issueKey, api.DerefFlexString(matched.ID, ""), nil)
 	if err != nil {
 		return api.MapAPIError(err)
 	}

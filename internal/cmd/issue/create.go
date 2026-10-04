@@ -9,7 +9,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -98,11 +97,7 @@ func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueDetailFields)
 	}
 
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
+	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
@@ -113,8 +108,7 @@ func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
 		return err
 	}
 
-	creator := newCreator(auth)
-	issue, _, err := creator.Create(cmd.Context(), req)
+	issue, _, err := client.Issues.Create(cmd.Context(), req)
 	if err != nil {
 		return api.MapAPIError(err)
 	}

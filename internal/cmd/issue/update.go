@@ -7,7 +7,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -88,11 +87,7 @@ func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueDetailFields)
 	}
 
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
+	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
@@ -103,8 +98,7 @@ func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
 		return err
 	}
 
-	editor := newEditor(auth)
-	issue, _, err := editor.Edit(cmd.Context(), issueKey, req, nil)
+	issue, _, err := client.Issues.Edit(cmd.Context(), issueKey, req, nil)
 	if err != nil {
 		return api.MapAPIError(err)
 	}
