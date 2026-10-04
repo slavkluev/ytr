@@ -101,7 +101,8 @@ func runList(cmd *cobra.Command, issueKey string) error {
 
 // fetchAllComments retrieves every comment on an issue by following the
 // comment-ID cursor until an empty page. A short page does not end the list,
-// since Tracker may cap a page below the size asked for.
+// since Tracker may cap a page below the size asked for. A page whose last ID
+// is empty or repeats the cursor is an error, not the end of the list.
 func fetchAllComments(
 	ctx context.Context,
 	lister *tracker.IssuesService,
@@ -123,10 +124,15 @@ func fetchAllComments(
 
 		all = append(all, comments...)
 
-		lastID := api.DerefFlexString(comments[len(comments)-1].ID, "")
-		// Stop on a missing or non-advancing cursor to avoid looping forever.
+		var lastID string
+		if last := comments[len(comments)-1]; last != nil {
+			lastID = api.DerefFlexString(last.ID, "")
+		}
+		// Paging on from such an ID would fetch the same pages forever.
 		if lastID == "" || lastID == cursor {
-			break
+			return nil, api.MapAPIError(fmt.Errorf(
+				"tracker: cannot page past cursor %q: the last item of the page has ID %q", cursor, lastID,
+			))
 		}
 		cursor = lastID
 	}

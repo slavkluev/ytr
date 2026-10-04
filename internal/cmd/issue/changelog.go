@@ -207,10 +207,15 @@ func fetchAllChangelog(
 
 		all = append(all, entries...)
 
-		lastID := lastChangelogCursorID(entries)
-		// Stop on a missing or non-advancing cursor to avoid looping forever.
+		var lastID string
+		if last := entries[len(entries)-1]; last != nil {
+			lastID = api.DerefFlexString(last.ID, "")
+		}
+		// Paging on from such an ID would fetch the same pages forever.
 		if lastID == "" || lastID == currentCursor {
-			break
+			return nil, api.MapAPIError(fmt.Errorf(
+				"tracker: cannot page past cursor %q: the last item of the page has ID %q", currentCursor, lastID,
+			))
 		}
 		currentCursor = lastID
 	}

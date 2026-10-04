@@ -74,8 +74,8 @@ func TestCommentList(t *testing.T) {
 			json:      `[{"id": "7", "author": "", "authorId": "", "body": "", "createdAt": ""}]`,
 		},
 		{
-			name: "Table of a bare comment", args: list(), exchanges: []faketracker.Exchange{commentPage("", `[{}]`)},
-			stdout: "ID\tAUTHOR\tDATE\tBODY\n\t-\t-\t\n",
+			name: "Table of a bare comment", args: list(), exchanges: commentThread(`[{"id": 7}]`, "7"),
+			stdout: "ID\tAUTHOR\tDATE\tBODY\n7\t-\t-\t\n",
 		},
 		{
 			name: "Namesakes keep their author IDs", args: list("--jq", "[.[].authorId]"),
@@ -130,7 +130,14 @@ func TestCommentList(t *testing.T) {
 				commentPage("", numberedComments([]string{"1", "stuck"})),
 				commentPage("stuck", numberedComments([]string{"2", "stuck"})),
 			},
-			stdout: "1\nstuck\n2\nstuck\n",
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{`cannot page past cursor "stuck": the last item of the page has ID "stuck"`},
+		},
+		{
+			name: "A page ending in null", args: list("--quiet"),
+			exchanges: []faketracker.Exchange{commentPage("", `[{"id": 1}, null]`)},
+			code:      ytrerrors.ExitUserError,
+			stderr:    []string{`cannot page past cursor "": the last item of the page has ID ""`},
 		},
 		{
 			name: "TTY", args: list(), term: output.Options{TTY: true, Colors: true},

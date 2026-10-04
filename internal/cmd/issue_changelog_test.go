@@ -154,12 +154,20 @@ func TestIssueChangelog(t *testing.T) {
 					url.Values{"perPage": {"2"}},
 					`[{"id": "cl-001", "updatedBy": {"display": "alice"}}, null]`,
 				),
-				changelogPage(url.Values{"perPage": {"2"}, "id": {"cl-001"}},
-					`[{"id": "cl-003", "updatedBy": {"display": "bob"}}]`),
-				changelogPage(url.Values{"perPage": {"2"}, "id": {"cl-003"}}, `[]`),
 			},
-			json:  `{"items": [{"author": "alice"}, {"author": "bob"}], "pagination": {"hasMore": false}}`,
-			check: assertRequestOrder("perPage=2", "id=cl-001&perPage=2", "id=cl-003&perPage=2"),
+			code: ytrerrors.ExitUserError, stderr: []string{"cannot page past cursor"},
+			check: assertOneErrorDocument(
+				`API request failed: tracker: cannot page past cursor "": the last item of the page has ID ""`,
+			),
+		},
+		{
+			name: "A cursor that does not move", args: changelog("--all", "--quiet"),
+			exchanges: []faketracker.Exchange{
+				changelogPage(firstPage, entry("stuck", "alice")),
+				changelogPage(url.Values{"perPage": {"50"}, "id": {"stuck"}}, entry("stuck", "bob")),
+			},
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{`cannot page past cursor "stuck": the last item of the page has ID "stuck"`},
 		},
 		{
 			name: "Not an issue key", args: []string{"issue", "changelog", "123"},
