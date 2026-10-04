@@ -50,6 +50,11 @@ func TestIssueCreate(t *testing.T) {
 			stdout: issueCard,
 		},
 		{
+			name: "Empty description", args: create(slices.Concat(required, []string{"--description", ""})...),
+			exchanges: []faketracker.Exchange{created},
+			body:      `{"queue": "PROJ", "summary": "Fix login bug", "description": ""}`, stdout: issueCard,
+		},
+		{
 			name: "JSON body", args: create("--from-json", `{"queue": "PROJ", "summary": "Fix login bug"}`),
 			exchanges: []faketracker.Exchange{created},
 			body:      `{"queue": "PROJ", "summary": "Fix login bug"}`, stdout: issueCard,
@@ -129,6 +134,18 @@ func TestIssueUpdate(t *testing.T) {
 			body: `{"summary": "Fix login bug", "description": "Steps to reproduce", "type": "task",
 				"priority": "critical", "assignee": "uid-assignee", "parent": "PROJ-1"}`,
 			stdout: issueCard,
+		},
+		{
+			name: "Empty assignee", args: update("--assignee", ""), exchanges: []faketracker.Exchange{edited},
+			body: `{"assignee": ""}`, stdout: issueCard,
+		},
+		{
+			name: "Empty description", args: update("--description", ""), exchanges: []faketracker.Exchange{edited},
+			body: `{"description": ""}`, stdout: issueCard,
+		},
+		{
+			name: "Empty JSON value", args: update("--from-json", `{"assignee": ""}`),
+			exchanges: []faketracker.Exchange{edited}, body: `{"assignee": ""}`, stdout: issueCard,
 		},
 		{
 			name: "JSON body", args: update("--from-json", `{"summary": "Fix login bug"}`),
@@ -216,6 +233,14 @@ func TestIssueTransition(t *testing.T) {
 				"Error: transition \"nonexistent\" is not available for PROJ-123\n" +
 					"Valid transitions: Open, In Progress, Closed\n" +
 					"Try: ytr issue transition PROJ-123 --to \"Open\"\n",
+			},
+		},
+		{
+			name: "Empty target", args: transition("--to", ""), exchanges: []faketracker.Exchange{transitions},
+			code: ytrerrors.ExitUserError,
+			stderr: []string{
+				"Error: transition \"\" is not available for PROJ-123\n" +
+					"Valid transitions: Open, In Progress, Closed\n",
 			},
 		},
 		{
