@@ -11,7 +11,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -88,18 +87,12 @@ func runList(cmd *cobra.Command, issueKey string) error {
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, CommentFields)
 	}
 
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
+	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
 
-	lister := newCommentLister(auth)
-
-	comments, err := fetchAllComments(cmd.Context(), lister, issueKey)
+	comments, err := fetchAllComments(cmd.Context(), client.Issues, issueKey)
 	if err != nil {
 		return err
 	}
@@ -112,7 +105,7 @@ func runList(cmd *cobra.Command, issueKey string) error {
 // list endpoint caps a single page at the server default (~50).
 func fetchAllComments(
 	ctx context.Context,
-	lister commentLister,
+	lister *tracker.IssuesService,
 	issueKey string,
 ) ([]*tracker.Comment, error) {
 	var all []*tracker.Comment
