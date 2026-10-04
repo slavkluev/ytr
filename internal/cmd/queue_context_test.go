@@ -59,6 +59,18 @@ const (
 	w200JSON           = `{"id": "W200", "initialStatus": "open", "transitions": {"open": ["closed"], "closed": []}}`
 	appLocalFieldsJSON = `[{"id": "5d0e4f1a2b3c4d5e6f708192--size", "key": "size", "name": "Размер",
 		"schema": "string", "readonly": false, "options": ["S", "M", "L"]}]`
+
+	// The whole APP document, as queue context prints it with no flags.
+	appContextJSON = `{"key":"APP","name":"Demo application","defaultType":"task","defaultPriority":"normal",` +
+		`"issueTypes":[{"key":"task","name":"Задача","workflow":"W200"},` +
+		`{"key":"bug","name":"Ошибка","workflow":"W200"}],` +
+		`"statuses":[{"key":"open","name":"Открыт"},{"key":"closed","name":"Закрыт"}],` +
+		`"workflows":[{"id":"W200","initialStatus":"open","transitions":{"open":["closed"],"closed":[]}}],` +
+		`"components":[{"id":"55","name":"Hotfix"}],` +
+		`"requiredFields":[{"id":"summary"},{"id":"type","default":"task"}],` +
+		`"localFields":[{"id":"5d0e4f1a2b3c4d5e6f708192--size","key":"size","name":"Размер",` +
+		`"schema":"string","readonly":false,"options":["S","M","L"]}],` +
+		`"globalFields":[{"key":"tags","name":"Теги"}],"incomplete":[]}`
 )
 
 func queueAnswer(key, body string) faketracker.Exchange {
@@ -101,16 +113,12 @@ func TestQueueContext(t *testing.T) {
 			// W200 is fetched once, though two issue types follow it.
 			name: "Parts in order", args: context("APP"),
 			exchanges: []faketracker.Exchange{queue, w200, components, queueFields, localFields, globalFields},
-			stdout: `{"key":"APP","name":"Demo application","defaultType":"task","defaultPriority":"normal",` +
-				`"issueTypes":[{"key":"task","name":"Задача","workflow":"W200"},` +
-				`{"key":"bug","name":"Ошибка","workflow":"W200"}],` +
-				`"statuses":[{"key":"open","name":"Открыт"},{"key":"closed","name":"Закрыт"}],` +
-				`"workflows":[{"id":"W200","initialStatus":"open","transitions":{"open":["closed"],"closed":[]}}],` +
-				`"components":[{"id":"55","name":"Hotfix"}],` +
-				`"requiredFields":[{"id":"summary"},{"id":"type","default":"task"}],` +
-				`"localFields":[{"id":"5d0e4f1a2b3c4d5e6f708192--size","key":"size","name":"Размер",` +
-				`"schema":"string","readonly":false,"options":["S","M","L"]}],` +
-				`"globalFields":[{"key":"tags","name":"Теги"}],"incomplete":[]}` + "\n",
+			stdout:    appContextJSON + "\n",
+		},
+		{
+			name: "Whole document through jq", args: context("APP", "--jq", "."),
+			exchanges: []faketracker.Exchange{queue, w200, components, queueFields, localFields, globalFields},
+			json:      appContextJSON,
 		},
 		{
 			name:      "Queue parts and global fields",
