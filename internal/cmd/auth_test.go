@@ -67,14 +67,14 @@ func assertNoConfigFile(t *testing.T, res cliResult) {
 	}
 }
 
-// assertStderrNamesTheConfig wants stderr to be want followed by the path of
+// assertStdoutNamesTheConfig wants stdout to be want followed by the path of
 // the run's config.yaml and a newline.
-func assertStderrNamesTheConfig(want string) func(*testing.T, cliResult) {
+func assertStdoutNamesTheConfig(want string) func(*testing.T, cliResult) {
 	return func(t *testing.T, res cliResult) {
 		t.Helper()
 
-		if full := want + filepath.Join(res.ConfigDir, "config.yaml") + "\n"; res.Stderr != full {
-			t.Errorf("stderr = %q, want %q", res.Stderr, full)
+		if full := want + filepath.Join(res.ConfigDir, "config.yaml") + "\n"; res.Stdout != full {
+			t.Errorf("stdout = %q, want %q", res.Stdout, full)
 		}
 	}
 }
@@ -103,11 +103,11 @@ func TestAuthLogin(t *testing.T) {
 		{
 			name: "Flags", args: login(slices.Concat(flags, []string{"--org-type", "360"})...), signedOut: true,
 			exchanges: []faketracker.Exchange{myselfAnswer("Test User")},
-			stderr:    []string{"Authenticated as Test User (org: test-org, type: 360)\nConfig saved to "},
+			holds:     []string{"Authenticated as Test User (org: test-org, type: 360)\nConfig saved to "},
 			check: func(t *testing.T, res cliResult) {
 				t.Helper()
 				assertConfigFile("token: test-token\norg_id: test-org\norg_type: \"360\"\n")(t, res)
-				assertStderrNamesTheConfig("Authenticated as Test User (org: test-org, type: 360)\nConfig saved to ")(
+				assertStdoutNamesTheConfig("Authenticated as Test User (org: test-org, type: 360)\nConfig saved to ")(
 					t, res)
 			},
 		},
@@ -149,7 +149,7 @@ func TestAuthLogin(t *testing.T) {
 			exchanges: []faketracker.Exchange{
 				myselfError(http.StatusForbidden, "No access to organization"), myselfAnswer("Piped User"),
 			},
-			stderr: []string{"Authenticated as Piped User (org: O, type: cloud)\n"},
+			holds: []string{"Authenticated as Piped User (org: O, type: cloud)\n"},
 			check: func(t *testing.T, res cliResult) {
 				t.Helper()
 				assertSignIns("tok", "O")(t, res)
@@ -159,7 +159,7 @@ func TestAuthLogin(t *testing.T) {
 		{
 			name: "Detection tries 360 first", args: login(flags...), signedOut: true,
 			exchanges: []faketracker.Exchange{myselfAnswer("360 User")},
-			stderr:    []string{"Authenticated as 360 User (org: test-org, type: 360)\n"},
+			holds:     []string{"Authenticated as 360 User (org: test-org, type: 360)\n"},
 			check: func(t *testing.T, res cliResult) {
 				t.Helper()
 				assertSignIns("test-token", "test-org")(t, res)
@@ -246,10 +246,8 @@ func TestAuthStatus(t *testing.T) {
 		{
 			name: "From the config", args: status, signedOut: true, config: cloudConfig,
 			exchanges: []faketracker.Exchange{myselfAnswer("Status User")},
-			stderr: []string{
-				"Authenticated as Status User\n  Token source: config\n  Organization: org-123\n" +
-					"  Organization type: cloud\n",
-			},
+			stdout: "Authenticated as Status User\n  Token source: config\n  Organization: org-123\n" +
+				"  Organization type: cloud\n",
 		},
 		{
 			name: "JSON from the config", args: jq, signedOut: true, config: cloudConfig,
@@ -309,12 +307,12 @@ func TestAuthLogout(t *testing.T) {
 			check: func(t *testing.T, res cliResult) {
 				t.Helper()
 				assertConfigFile("{}\n")(t, res)
-				assertStderrNamesTheConfig("Logged out. Credentials removed from ")(t, res)
+				assertStdoutNamesTheConfig("Logged out. Credentials removed from ")(t, res)
 			},
-			stderr: []string{"Logged out. Credentials removed from "},
+			holds: []string{"Logged out. Credentials removed from "},
 		},
 		{
-			name: "No config yet", args: logout, stderr: []string{"Logged out. Credentials removed from "},
+			name: "No config yet", args: logout, holds: []string{"Logged out. Credentials removed from "},
 			check: assertConfigFile("{}\n"),
 		},
 		{

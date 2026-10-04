@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/cobra"
 
@@ -84,8 +85,10 @@ func runStatus(cmd *cobra.Command, _ []string) error {
 		return runner.PrintJSON(cmd, opts, output.FilterFields(item, opts.JSONFields))
 	}
 
-	_, _ = fmt.Fprintf(cmd.ErrOrStderr(),
-		"Authenticated as %s\n  Token source: %s\n  Organization: %s\n  Organization type: %s\n",
-		item.User, item.TokenSource, item.OrgID, item.OrgType)
-	return nil
+	return runner.PrintText(cmd, func(w io.Writer) error {
+		_, err := fmt.Fprintf(w,
+			"Authenticated as %s\n  Token source: %s\n  Organization: %s\n  Organization type: %s\n",
+			item.User, item.TokenSource, item.OrgID, item.OrgType)
+		return err
+	})
 }

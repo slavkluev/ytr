@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/cobra"
 
@@ -66,8 +67,8 @@ func runLogout(cmd *cobra.Command, _ []string) error {
 		return runner.PrintJSON(cmd, opts, output.FilterFields(item, opts.JSONFields))
 	}
 
-	_, _ = fmt.Fprintf(cmd.ErrOrStderr(),
-		"Logged out. Credentials removed from %s\n",
-		cfgPath)
-	return nil
+	return runner.PrintText(cmd, func(w io.Writer) error {
+		_, err := fmt.Fprintf(w, "Logged out. Credentials removed from %s\n", cfgPath)
+		return err
+	})
 }
