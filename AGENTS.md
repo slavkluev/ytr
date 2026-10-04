@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-10-04 against 5500ae3. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-10-04 against 1acf719. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## ytr
 
@@ -14,8 +14,8 @@ Yandex Tracker CLI for LLM agents and humans: Go 1.26, cobra, built on `github.c
 
 ## Where things are
 
-- New command: copy the declaration of its shape under `internal/cmd/` — `worklog/list.go` (`runner.List`; `status/list.go` when the endpoint pages, through `runner.Collect`), `component/get.go` (`runner.Get`), `worklog/create.go` (`runner.Write` with `Required`), `worklog/edit.go` (`runner.Write` with `Update`), `worklog/delete.go` (`runner.Delete`); `FromJSON` adds `--from-json`. A group file such as `worklog/worklog.go` holds only the group command.
-- Procedural, because no shape fits them: `auth`, `bulk`, `completion`, `comment list`, the `{items, pagination}` lists `issue list`/`queue list`/`user list`, `issue changelog`, `issue create`/`update`/`transition`, `queue context`, `version`. Copy one only for a command no shape fits. All but `auth` and `completion` take shared pieces from `internal/cmd/runner/runner.go` (`Client`, `SetFields`, `ItemFields`).
+- New command: copy the declaration of its shape under `internal/cmd/` — `worklog/list.go` (`runner.List`; `status/list.go` when the endpoint pages, through `runner.Collect`), `queue/list.go` (`runner.Pages`, for the `{items, pagination}` envelope with `--limit`, `--cursor` and `--all`), `component/get.go` (`runner.Get`), `worklog/create.go` (`runner.Write` with `Required`), `worklog/edit.go` (`runner.Write` with `Update`), `worklog/delete.go` (`runner.Delete`); `FromJSON` adds `--from-json`. A group file such as `worklog/worklog.go` holds only the group command.
+- Procedural, because no shape fits them: `auth`, `bulk`, `completion`, `comment list`, the `{items, pagination}` list `issue list`, `issue changelog`, `issue create`/`update`/`transition`, `queue context`, `version`. Copy one only for a command no shape fits. All but `auth` and `completion` take shared pieces from `internal/cmd/runner/runner.go` (`Client`, `SetFields`, `ItemFields`).
 
 ## Running and verifying
 
