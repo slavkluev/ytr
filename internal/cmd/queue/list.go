@@ -10,7 +10,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -100,16 +99,10 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, QueueListFields)
 	}
 
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
+	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
-
-	lister := newLister(auth)
 
 	if limit < 1 {
 		limit = defaultLimit
@@ -123,7 +116,7 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		return err
 	}
 
-	result, err := fetchQueues(cmd, lister, limit, page, all)
+	result, err := fetchQueues(cmd, client.Queues, limit, page, all)
 	if err != nil {
 		return err
 	}
@@ -131,7 +124,7 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 	return renderListOutput(cmd.OutOrStdout(), opts, result)
 }
 
-func fetchQueues(cmd *cobra.Command, lister queueLister, limit, page int,
+func fetchQueues(cmd *cobra.Command, lister *tracker.QueuesService, limit, page int,
 	all bool) (*queueSearchResult, error) {
 	if all {
 		return fetchAllQueuePages(cmd, lister, limit)
@@ -157,7 +150,7 @@ func fetchQueues(cmd *cobra.Command, lister queueLister, limit, page int,
 	return result, nil
 }
 
-func fetchAllQueuePages(cmd *cobra.Command, lister queueLister,
+func fetchAllQueuePages(cmd *cobra.Command, lister *tracker.QueuesService,
 	limit int) (*queueSearchResult, error) {
 	var allQueues []*tracker.Queue
 	var totalCount int

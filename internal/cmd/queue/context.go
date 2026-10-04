@@ -10,7 +10,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
@@ -126,20 +125,14 @@ func runContext(cmd *cobra.Command, queueKey string) error {
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, QueueContextFields)
 	}
 
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
+	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
 
-	client := newContextClient(auth)
-
 	// The queue comes first: without it there is no document, and its
 	// issueTypesConfig names the workflows to fetch.
-	q, _, err := client.GetQueue(cmd.Context(), queueKey, &tracker.QueueGetOptions{Expand: "issueTypesConfig"})
+	q, _, err := client.Queues.Get(cmd.Context(), queueKey, &tracker.QueueGetOptions{Expand: "issueTypesConfig"})
 	if err != nil {
 		return api.MapAPIError(err)
 	}
@@ -153,7 +146,7 @@ func runContext(cmd *cobra.Command, queueKey string) error {
 // read after all of them finish.
 func fetchParts(
 	ctx context.Context,
-	client queueContextClient,
+	client *tracker.Client,
 	queueKey string,
 	workflows []string,
 	wanted map[string]bool,
@@ -163,28 +156,28 @@ func fetchParts(
 
 	if wanted[partStatuses] || wanted[partWorkflows] {
 		wg.Go(func() {
-			r.workflows, r.failedWorkflow, r.workflowsErr = fetchWorkflows(ctx, client, workflows)
+			r.workflows, r.failedWorkflow, r.workflowsErr = fetchWorkflows(ctx, client.Workflows, workflows)
 		})
 	}
 	if wanted[partComponents] {
 		wg.Go(func() {
 			opts := &tracker.QueueComponentsListOptions{Fields: "name"}
-			r.components, _, r.componentsErr = client.ListComponents(ctx, queueKey, opts)
+			r.components, _, r.componentsErr = client.Queues.ListComponents(ctx, queueKey, opts)
 		})
 	}
 	if wanted[partRequiredFields] {
 		wg.Go(func() {
-			r.queueFields, _, r.queueFieldsErr = client.ListQueueFields(ctx, queueKey)
+			r.queueFields, _, r.queueFieldsErr = client.Queues.ListFields(ctx, queueKey)
 		})
 	}
 	if wanted[partLocalFields] {
 		wg.Go(func() {
-			r.localFields, _, r.localFieldsErr = client.ListLocalFields(ctx, queueKey)
+			r.localFields, _, r.localFieldsErr = client.Fields.ListLocal(ctx, queueKey)
 		})
 	}
 	if wanted[partGlobalFields] {
 		wg.Go(func() {
-			r.globalFields, _, r.globalErr = client.ListGlobalFields(ctx)
+			r.globalFields, _, r.globalErr = client.Fields.List(ctx)
 		})
 	}
 
@@ -197,12 +190,12 @@ func fetchParts(
 // statuses and transitions incomplete, so the rest would not be used.
 func fetchWorkflows(
 	ctx context.Context,
-	client queueContextClient,
+	workflowsService *tracker.WorkflowsService,
 	ids []string,
 ) ([]*tracker.Workflow, string, error) {
 	workflows := make([]*tracker.Workflow, 0, len(ids))
 	for _, id := range ids {
-		wf, _, err := client.GetWorkflow(ctx, id)
+		wf, _, err := workflowsService.Get(ctx, id)
 		if err != nil {
 			return nil, id, err
 		}
