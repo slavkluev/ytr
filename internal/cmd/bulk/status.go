@@ -5,7 +5,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -66,18 +65,12 @@ func runStatus(cmd *cobra.Command, operationID string) error {
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, BulkStatusFields)
 	}
 
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
+	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
 
-	getter := newBulkStatusGetter(auth)
-
-	bc, _, err := getter.GetStatus(cmd.Context(), operationID)
+	bc, _, err := client.BulkChange.GetStatus(cmd.Context(), operationID)
 	if err != nil {
 		return api.MapAPIError(err)
 	}

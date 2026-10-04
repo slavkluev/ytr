@@ -133,7 +133,7 @@ func clearProgress(w io.Writer) {
 
 func pollUntilDone(
 	ctx context.Context,
-	getter bulkStatusGetter,
+	getter *tracker.BulkChangeService,
 	operationID string,
 	stderr io.Writer,
 ) (*tracker.BulkChange, error) {
@@ -169,7 +169,7 @@ func pollUntilDone(
 func awaitBulkCompletion(
 	cmd *cobra.Command,
 	opts *output.Options,
-	getter bulkStatusGetter,
+	getter *tracker.BulkChangeService,
 	bc *tracker.BulkChange,
 	timeout time.Duration,
 ) error {

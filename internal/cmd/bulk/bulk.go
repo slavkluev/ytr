@@ -2,7 +2,6 @@
 package bulk
 
 import (
-	"context"
 	"time"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
@@ -10,52 +9,7 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 )
-
-type bulkMover interface {
-	Move(
-		ctx context.Context,
-		move *tracker.BulkMoveRequest,
-	) (*tracker.BulkChange, *tracker.Response, error)
-}
-
-type bulkUpdater interface {
-	Update(
-		ctx context.Context,
-		update *tracker.BulkUpdateRequest,
-	) (*tracker.BulkChange, *tracker.Response, error)
-}
-
-type bulkTransitioner interface {
-	Transition(
-		ctx context.Context,
-		transition *tracker.BulkTransitionRequest,
-	) (*tracker.BulkChange, *tracker.Response, error)
-}
-
-type bulkStatusGetter interface {
-	GetStatus(
-		ctx context.Context,
-		bulkChangeID string,
-	) (*tracker.BulkChange, *tracker.Response, error)
-}
-
-var newBulkMover = func(auth *config.ResolvedAuth) bulkMover {
-	return api.NewClient(auth).BulkChange
-}
-
-var newBulkUpdater = func(auth *config.ResolvedAuth) bulkUpdater {
-	return api.NewClient(auth).BulkChange
-}
-
-var newBulkTransitioner = func(auth *config.ResolvedAuth) bulkTransitioner {
-	return api.NewClient(auth).BulkChange
-}
-
-var newBulkStatusGetter = func(auth *config.ResolvedAuth) bulkStatusGetter {
-	return api.NewClient(auth).BulkChange
-}
 
 type bulkChangeDetail struct {
 	ID                    string `json:"id"`

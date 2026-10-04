@@ -8,7 +8,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -94,11 +93,7 @@ func runTransition(
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, BulkStatusFields)
 	}
 
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
+	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
@@ -108,14 +103,12 @@ func runTransition(
 		return err
 	}
 
-	transitioner := newBulkTransitioner(auth)
-
-	bc, _, err := transitioner.Transition(cmd.Context(), req)
+	bc, _, err := client.BulkChange.Transition(cmd.Context(), req)
 	if err != nil {
 		return api.MapAPIError(err)
 	}
 
-	return awaitBulkCompletion(cmd, opts, newBulkStatusGetter(auth), bc, timeout)
+	return awaitBulkCompletion(cmd, opts, client.BulkChange, bc, timeout)
 }
 
 func buildTransitionRequest(
