@@ -18,11 +18,14 @@ import (
 // trackerPage answers a paged list request, page of perPage, with items, a
 // JSON array, and the X-Total-Count Tracker sends with it.
 func trackerPage(method, path string, page, perPage, total int, items string) faketracker.Exchange {
-	ex := trackerWrite(method, path, http.StatusOK, items)
-	ex.Query = url.Values{"page": {strconv.Itoa(page)}, "perPage": {strconv.Itoa(perPage)}}
+	ex := withQuery(trackerWrite(method, path, http.StatusOK, items), pageQuery(page, perPage))
 	ex.Header.Set("X-Total-Count", strconv.Itoa(total))
 
 	return ex
+}
+
+func pageQuery(page, perPage int) url.Values {
+	return url.Values{"page": {strconv.Itoa(page)}, "perPage": {strconv.Itoa(perPage)}}
 }
 
 func issueSearch(page, perPage, total int, issues string) faketracker.Exchange {
