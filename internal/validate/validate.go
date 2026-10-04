@@ -15,7 +15,10 @@ import (
 // Protects against unbounded memory consumption from piped input.
 const maxJSONInputSize = 10 << 20 // 10 MB
 
-var issueKeyRegexp = regexp.MustCompile(`^[A-Z][A-Z0-9_]+-[1-9][0-9]*$`)
+var (
+	issueKeyRegexp = regexp.MustCompile(`^[A-Z][A-Z0-9_]+-[1-9][0-9]*$`)
+	issueIDRegexp  = regexp.MustCompile(`^[0-9a-f]{24}$`)
+)
 
 // ValidateIssueKey validates that key matches the Yandex Tracker issue key format.
 // Valid keys: PROJ-123, PROJ_V2-42. Invalid: proj-123, PROJ-0, PROJ, empty.
@@ -24,6 +27,20 @@ func ValidateIssueKey(key string) error {
 		return errors.NewUserError(
 			fmt.Sprintf("invalid issue key %q: expected format QUEUE-123", key),
 			"Issue keys must be uppercase letters followed by a dash and a number (e.g., PROJ-42)",
+		)
+	}
+	return nil
+}
+
+// ValidateIssueKeyOrID validates that ref names an issue the way a Tracker
+// endpoint taking "ID or key" accepts: a key such as PROJ-123, or an ID of 24
+// lowercase hexadecimal characters such as 593cd211ef7e8a33ae4f3d1b.
+func ValidateIssueKeyOrID(ref string) error {
+	if !issueKeyRegexp.MatchString(ref) && !issueIDRegexp.MatchString(ref) {
+		return errors.NewUserError(
+			fmt.Sprintf("invalid issue key or ID %q: expected QUEUE-123 or a 24-character hexadecimal ID", ref),
+			"Use an issue key, uppercase letters followed by a dash and a number (e.g., PROJ-42), "+
+				"or an issue ID, 24 lowercase hexadecimal characters (e.g., 4ff3e8dae4b0e2ac00000001)",
 		)
 	}
 	return nil

@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "16.0"
+  version: "16.1"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -250,7 +250,8 @@ ytr issue changelog PROJ-123 --all
 ### Sub-resources
 
 ```bash
-# Create a link between issues
+# Create a link between issues; --issue takes the other issue's key or its
+# 24-character ID, such as 4ff3e8dae4b0e2ac00000001
 ytr link create PROJ-123 --type "relates" --issue PROJ-456
 
 # List links on an issue

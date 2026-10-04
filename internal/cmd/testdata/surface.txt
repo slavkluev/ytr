@@ -1,4 +1,4 @@
-version 16.0
+version 16.1
 command ytr
 command ytr auth
 command ytr auth login

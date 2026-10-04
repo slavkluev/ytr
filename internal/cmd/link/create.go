@@ -30,7 +30,7 @@ Provide --type and --issue for individual flags, or --from-json for full JSON in
 		Args: []runner.Arg{runner.IssueKey},
 		Flags: []runner.Flag{
 			runner.Text("type", `Link type (e.g., "depends on", "relates")`).Key("relationship"),
-			runner.Text("issue", "Target issue key (e.g., PROJ-456)").Check(validate.ValidateIssueKey),
+			runner.Text("issue", "Target issue key or ID (e.g., PROJ-456)").Check(validate.ValidateIssueKeyOrID),
 		},
 		FromJSON: `JSON input: inline '{"relationship":"...","issue":"..."}', @file, or - for stdin`,
 		Required: []string{"relationship", "issue"},

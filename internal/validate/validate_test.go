@@ -55,6 +55,33 @@ func TestValidateIssueKey(t *testing.T) {
 	}
 }
 
+func TestValidateIssueKeyOrID(t *testing.T) {
+	tests := []struct {
+		name    string
+		ref     string
+		wantErr bool
+	}{
+		{name: "key", ref: "PROJ-123", wantErr: false},
+		{name: "ID", ref: "4ff3e8dae4b0e2ac00000001", wantErr: false},
+		{name: "uppercase ID", ref: "4FF3E8DAE4B0E2AC00000001", wantErr: true},
+		{name: "ID one character short", ref: "4ff3e8dae4b0e2ac0000001", wantErr: true},
+		{name: "ID one character long", ref: "4ff3e8dae4b0e2ac000000001", wantErr: true},
+		{name: "non-hexadecimal ID", ref: "4ff3e8dae4b0e2ac0000000g", wantErr: true},
+		{name: "lowercase key", ref: "proj-123", wantErr: true},
+		{name: "word", ref: "bad", wantErr: true},
+		{name: "empty string", ref: "", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateIssueKeyOrID(tt.ref)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateIssueKeyOrID(%q) error = %v, wantErr %v", tt.ref, err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestValidateNoControlChars(t *testing.T) {
 	tests := []struct {
 		name      string
