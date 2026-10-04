@@ -5,12 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/mattn/go-isatty"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
@@ -28,11 +26,7 @@ const (
 	bulkStatusFail = "FAILED"
 )
 
-var stdinFile *os.File = os.Stdin
-
-var stderrFile *os.File = os.Stderr
-
-func readIssueKeys(args []string) ([]string, error) {
+func readIssueKeys(args []string, stdin io.Reader) ([]string, error) {
 	if len(args) > 0 {
 		for _, key := range args {
 			if err := validate.ValidateIssueKey(key); err != nil {
@@ -42,8 +36,7 @@ func readIssueKeys(args []string) ([]string, error) {
 		return dedupeKeys(args), nil
 	}
 
-	fd := stdinFile.Fd()
-	if isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd) {
+	if _, tty := output.TerminalFile(stdin); tty {
 		return nil, ytrerrors.NewUserError(
 			"no issue keys provided",
 			"Provide keys as arguments or pipe them via stdin (one per line)",
@@ -51,7 +44,7 @@ func readIssueKeys(args []string) ([]string, error) {
 	}
 
 	var keys []string
-	scanner := bufio.NewScanner(stdinFile)
+	scanner := bufio.NewScanner(stdin)
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -117,13 +110,8 @@ func parseFieldFlags(fields []string) (map[string]any, error) {
 	return values, nil
 }
 
-func isStderrTTY() bool {
-	fd := stderrFile.Fd()
-	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
-}
-
 func showProgress(w io.Writer, bc *tracker.BulkChange) {
-	if !isStderrTTY() {
+	if _, tty := output.TerminalFile(w); !tty {
 		return
 	}
 
@@ -136,7 +124,7 @@ func showProgress(w io.Writer, bc *tracker.BulkChange) {
 }
 
 func clearProgress(w io.Writer) {
-	if !isStderrTTY() {
+	if _, tty := output.TerminalFile(w); !tty {
 		return
 	}
 

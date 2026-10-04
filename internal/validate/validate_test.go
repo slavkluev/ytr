@@ -91,19 +91,19 @@ func TestValidateNoControlChars(t *testing.T) {
 	}
 }
 
-func TestParseJSONInput(t *testing.T) {
+func TestParseJSONInputFrom(t *testing.T) {
 	t.Run("inline JSON string", func(t *testing.T) {
 		input := `{"summary":"test"}`
-		data, err := ParseJSONInput(input)
+		data, err := ParseJSONInputFrom(input, strings.NewReader(""))
 		if err != nil {
-			t.Fatalf("ParseJSONInput(%q) unexpected error: %v", input, err)
+			t.Fatalf("ParseJSONInputFrom(%q) unexpected error: %v", input, err)
 		}
 		if string(data) != input {
-			t.Errorf("ParseJSONInput(%q) = %q, want %q", input, string(data), input)
+			t.Errorf("ParseJSONInputFrom(%q) = %q, want %q", input, string(data), input)
 		}
 	})
 
-	t.Run("stdin via ParseJSONInputFrom", func(t *testing.T) {
+	t.Run("stdin", func(t *testing.T) {
 		stdinContent := `{"queue":"PROJ","summary":"from stdin"}`
 		reader := bytes.NewBufferString(stdinContent)
 		data, err := ParseJSONInputFrom("-", reader)
@@ -123,9 +123,9 @@ func TestParseJSONInput(t *testing.T) {
 			t.Fatalf("failed to write temp file: %v", err)
 		}
 
-		data, err := ParseJSONInput("@" + tmpFile)
+		data, err := ParseJSONInputFrom("@"+tmpFile, strings.NewReader(""))
 		if err != nil {
-			t.Fatalf("ParseJSONInput(@file) unexpected error: %v", err)
+			t.Fatalf("ParseJSONInputFrom(@file) unexpected error: %v", err)
 		}
 		if string(data) != content {
 			t.Errorf("got %q, want %q", string(data), content)
@@ -133,9 +133,9 @@ func TestParseJSONInput(t *testing.T) {
 	})
 
 	t.Run("nonexistent file", func(t *testing.T) {
-		_, err := ParseJSONInput("@/tmp/nonexistent_ytr_test_file.json")
+		_, err := ParseJSONInputFrom("@/tmp/nonexistent_ytr_test_file.json", strings.NewReader(""))
 		if err == nil {
-			t.Fatal("ParseJSONInput(@nonexistent) expected error, got nil")
+			t.Fatal("ParseJSONInputFrom(@nonexistent) expected error, got nil")
 		}
 		if !strings.Contains(err.Error(), "failed to read JSON input") {
 			t.Errorf("error %q should contain 'failed to read JSON input'", err.Error())

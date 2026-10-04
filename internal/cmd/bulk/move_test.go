@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -112,20 +111,11 @@ func setupMoveCmd(
 	}
 	t.Cleanup(func() { newBulkStatusGetter = origGetter })
 
-	// Suppress progress output in tests.
-	origStderr := stderrFile
-	r, w, _ := os.Pipe()
-	stderrFile = r
-	t.Cleanup(func() {
-		stderrFile = origStderr
-		w.Close()
-		r.Close()
-	})
-
 	// Separate buffers: only what reaches stdout is returned, so a test can
 	// tell the command's document apart from cobra's error text.
 	buf := &bytes.Buffer{}
 	cmd := newMoveCmd()
+	cmd.SetIn(strings.NewReader(""))
 	cmd.SetOut(buf)
 	cmd.SetErr(io.Discard)
 	// The binary silences both on the root command, so nothing cobra writes
@@ -327,16 +317,6 @@ func TestMoveAPIError(t *testing.T) {
 }
 
 func TestMoveNoKeys(t *testing.T) {
-	// Override stdin to a TTY-like pipe that appears as non-pipe.
-	// Since readIssueKeys uses isatty, we override stdinFile to os.Stdout
-	// which is a TTY in test environments. Use a pipe instead to simulate.
-	origStdin := stdinFile
-	r, w, _ := os.Pipe()
-	// Write nothing and close to simulate empty non-TTY stdin.
-	w.Close()
-	stdinFile = r
-	t.Cleanup(func() { stdinFile = origStdin; r.Close() })
-
 	mover := &mockBulkMover{bc: makeCompletedBulkChange("x")}
 	poll := &mockPollGetter{bc: makeCompletedBulkChange("x")}
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -52,8 +53,8 @@ type ResolvedAuth struct {
 
 // Load reads the config file and returns the parsed Config.
 // If the config file does not exist, it returns an empty Config with no error.
-func Load() (*Config, error) {
-	path, err := ConfigFilePath()
+func Load(ctx context.Context) (*Config, error) {
+	path, err := ConfigFilePath(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine config path: %w", err)
 	}
@@ -95,8 +96,8 @@ func ParseOrgType(value string) (OrgType, error) {
 // The config directory is created with 0700 if it does not exist.
 // The file is written to a temp file first, then atomically renamed
 // to prevent corruption from interrupted writes.
-func Save(cfg *Config) error {
-	dir, err := ConfigDir()
+func Save(ctx context.Context, cfg *Config) error {
+	dir, err := ConfigDir(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to determine config directory: %w", err)
 	}
@@ -117,7 +118,7 @@ func Save(cfg *Config) error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	path, err := ConfigFilePath()
+	path, err := ConfigFilePath(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to determine config path: %w", err)
 	}
@@ -159,7 +160,7 @@ func Save(cfg *Config) error {
 // tier is complete. Config file auth is strict once reached so persisted
 // partial credentials are surfaced to the user instead of being ignored.
 func ResolveAuth(
-	flagToken, flagOrgID, flagOrgType string,
+	ctx context.Context, flagToken, flagOrgID, flagOrgType string,
 ) (*ResolvedAuth, error) {
 	if hasCompleteAuth(flagToken, flagOrgID, flagOrgType) {
 		return resolveAuthTier("flag", "", flagToken, flagOrgID, flagOrgType)
@@ -179,14 +180,14 @@ func ResolveAuth(
 		)
 	}
 
-	envToken := os.Getenv("YTR_TOKEN")
-	envOrgID := os.Getenv("YTR_ORG_ID")
-	envOrgType := os.Getenv("YTR_ORG_TYPE")
+	envToken := getenv(ctx, "YTR_TOKEN")
+	envOrgID := getenv(ctx, "YTR_ORG_ID")
+	envOrgType := getenv(ctx, "YTR_ORG_TYPE")
 	if hasCompleteAuth(envToken, envOrgID, envOrgType) {
 		return resolveAuthTier("env", "", envToken, envOrgID, envOrgType)
 	}
 
-	cfgPath, err := ConfigFilePath()
+	cfgPath, err := ConfigFilePath(ctx)
 	if err != nil {
 		return nil, ytrerrors.NewUserError(
 			fmt.Sprintf("failed to determine config path: %v", err),
@@ -194,7 +195,7 @@ func ResolveAuth(
 		)
 	}
 
-	cfg, err := Load()
+	cfg, err := Load(ctx)
 	if err != nil {
 		return nil, ytrerrors.NewUserError(
 			fmt.Sprintf("failed to load config: %v", err),

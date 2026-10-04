@@ -165,7 +165,7 @@ func TestLoginWithFlags_InvalidToken(t *testing.T) {
 	}
 
 	// Verify config was NOT created
-	cfgPath, err := config.ConfigFilePath()
+	cfgPath, err := config.ConfigFilePath(t.Context())
 	if err != nil {
 		t.Fatalf("ConfigFilePath() unexpected error: %v", err)
 	}
@@ -246,11 +246,8 @@ func TestLoginPipedStdin(t *testing.T) {
 		t.Fatalf("failed to close pipe writer: %v", err)
 	}
 
-	origStdin := stdinFile
-	stdinFile = r
-	t.Cleanup(func() { stdinFile = origStdin })
-
 	loginCmd := newLoginCmd()
+	loginCmd.SetIn(r)
 	buf := new(bytes.Buffer)
 	loginCmd.SetOut(buf)
 	loginCmd.SetErr(buf)
@@ -676,11 +673,8 @@ func TestLoginNoOrgID(t *testing.T) {
 		t.Fatalf("failed to close pipe writer: %v", err)
 	}
 
-	origStdin := stdinFile
-	stdinFile = r
-	t.Cleanup(func() { stdinFile = origStdin })
-
 	loginCmd := newLoginCmd()
+	loginCmd.SetIn(r)
 	buf := new(bytes.Buffer)
 	loginCmd.SetOut(buf)
 	loginCmd.SetErr(buf)

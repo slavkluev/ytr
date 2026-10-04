@@ -141,7 +141,7 @@ func registerSubcommands(rootCmd *cobra.Command) {
 // Execute runs the root command and returns the appropriate exit code.
 // The caller (main.go) must pass this to os.Exit.
 func Execute() int {
-	return execute(context.Background(), output.Terminal(os.Stdout), os.Args[1:], os.Stdout, os.Stderr)
+	return execute(context.Background(), output.Terminal(os.Stdout), os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
 }
 
 // The arguments reach the renderer as well as cobra, because a failed
@@ -151,7 +151,7 @@ func Execute() int {
 //
 // Debug diagnostics share errOut with the error document, so a caller reading
 // stderr sees them in the order they happened.
-func execute(ctx context.Context, opts output.Options, args []string, out, errOut io.Writer) int {
+func execute(ctx context.Context, opts output.Options, args []string, in io.Reader, out, errOut io.Writer) int {
 	// SetArgs(nil) makes cobra fall back to os.Args[1:], which would turn a bare
 	// invocation into whatever the process was started with.
 	if args == nil {
@@ -161,6 +161,7 @@ func execute(ctx context.Context, opts output.Options, args []string, out, errOu
 	opts.DebugOut = errOut
 	root := newRootCmd(&opts)
 	root.SetArgs(args)
+	root.SetIn(in)
 	root.SetOut(out)
 	root.SetErr(errOut)
 

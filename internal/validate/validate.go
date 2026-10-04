@@ -44,16 +44,10 @@ func ValidateNoControlChars(fieldName, value string) error {
 	return nil
 }
 
-// ParseJSONInput reads JSON data from one of three sources:
-//   - "-" reads from os.Stdin.
+// ParseJSONInputFrom reads JSON data from one of three sources:
+//   - "-" reads from stdin, the run's own standard input.
 //   - "@path" reads from the file at path.
 //   - anything else is treated as inline JSON.
-func ParseJSONInput(value string) ([]byte, error) {
-	return ParseJSONInputFrom(value, os.Stdin)
-}
-
-// ParseJSONInputFrom reads JSON data from the given source, using the provided
-// reader for stdin.
 func ParseJSONInputFrom(value string, stdin io.Reader) ([]byte, error) {
 	switch {
 	case value == "-":

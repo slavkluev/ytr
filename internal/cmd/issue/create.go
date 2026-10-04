@@ -102,7 +102,7 @@ func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
 
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
+	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
 func buildCreateRequest(cmd *cobra.Command, queue, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) (*tracker.IssueRequest, error) {
 	if cmd.Flags().Changed("from-json") {
-		return parseIssueRequestFromJSON(fromJSON, createBody)
+		return parseIssueRequestFromJSON(fromJSON, cmd.InOrStdin(), createBody)
 	}
 
 	if valErr := validate.ValidateNoControlChars("summary", summary); valErr != nil {
@@ -160,8 +160,8 @@ func buildCreateRequest(cmd *cobra.Command, queue, summary, description, issueTy
 	return req, nil
 }
 
-func parseIssueRequestFromJSON(fromJSON string, body validate.Body) (*tracker.IssueRequest, error) {
-	data, parseErr := validate.ParseJSONInput(fromJSON)
+func parseIssueRequestFromJSON(fromJSON string, stdin io.Reader, body validate.Body) (*tracker.IssueRequest, error) {
+	data, parseErr := validate.ParseJSONInputFrom(fromJSON, stdin)
 	if parseErr != nil {
 		return nil, parseErr
 	}

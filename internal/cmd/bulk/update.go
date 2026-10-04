@@ -96,7 +96,7 @@ func runUpdate(
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
 
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
+	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func buildUpdateRequest(
 	fromJSON string,
 ) (*tracker.BulkUpdateRequest, error) {
 	if cmd.Flags().Changed("from-json") {
-		data, err := validate.ParseJSONInput(fromJSON)
+		data, err := validate.ParseJSONInputFrom(fromJSON, cmd.InOrStdin())
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +136,7 @@ func buildUpdateRequest(
 		return req, nil
 	}
 
-	keys, err := readIssueKeys(args)
+	keys, err := readIssueKeys(args, cmd.InOrStdin())
 	if err != nil {
 		return nil, err
 	}

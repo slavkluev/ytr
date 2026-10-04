@@ -2,6 +2,7 @@ package output
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -86,5 +87,20 @@ func TestTerminalReportsARegularFileAsNoTTY(t *testing.T) {
 	}
 	if opts.IsJSON() || opts.Quiet || opts.Debug {
 		t.Errorf("Terminal(regular file) set a flag field: %+v", opts)
+	}
+}
+
+func TestTerminalFileTakesOnlyAFileOnATerminal(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "stdin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	if got, tty := TerminalFile(f); got != f || tty {
+		t.Errorf("TerminalFile(regular file) = %v, %v, want the file and no terminal", got, tty)
+	}
+	if got, tty := TerminalFile(strings.NewReader("")); got != nil || tty {
+		t.Errorf("TerminalFile(reader) = %v, %v, want no file and no terminal", got, tty)
 	}
 }

@@ -92,7 +92,7 @@ func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
 	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
 	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
 
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
+	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
 func buildUpdateRequest(cmd *cobra.Command, summary, description, issueType,
 	priority, assignee, parent, fromJSON string) (*tracker.IssueRequest, error) {
 	if cmd.Flags().Changed("from-json") {
-		return parseIssueRequestFromJSON(fromJSON, updateBody)
+		return parseIssueRequestFromJSON(fromJSON, cmd.InOrStdin(), updateBody)
 	}
 
 	req := &tracker.IssueRequest{}

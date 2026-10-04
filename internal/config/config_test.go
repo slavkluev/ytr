@@ -15,7 +15,7 @@ func TestLoad_NoFile(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("YTR_CONFIG_DIR", dir)
 
-	cfg, err := config.Load()
+	cfg, err := config.Load(t.Context())
 	if err != nil {
 		t.Fatalf("Load() returned error: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestLoad_ValidYAML(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg, err := config.Load()
+	cfg, err := config.Load(t.Context())
 	if err != nil {
 		t.Fatalf("Load() returned error: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestLoad_InvalidYAML(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := config.Load()
+	_, err := config.Load(t.Context())
 	if err == nil {
 		t.Fatal("Load() should return error for invalid YAML")
 	}
@@ -75,7 +75,7 @@ func TestSave_CreatesDir(t *testing.T) {
 		OrgID:   "o",
 		OrgType: config.OrgType360,
 	}
-	if err := config.Save(cfg); err != nil {
+	if err := config.Save(t.Context(), cfg); err != nil {
 		t.Fatalf("Save() returned error: %v", err)
 	}
 
@@ -103,7 +103,7 @@ func TestSave_SecuresExistingLooseDir(t *testing.T) {
 	t.Setenv("YTR_CONFIG_DIR", dir)
 
 	cfg := &config.Config{Token: "t", OrgID: "o", OrgType: config.OrgType360}
-	if err := config.Save(cfg); err != nil {
+	if err := config.Save(t.Context(), cfg); err != nil {
 		t.Fatalf("Save() returned error: %v", err)
 	}
 
@@ -130,7 +130,7 @@ func TestSave_OverwritesLooseTempFile(t *testing.T) {
 	}
 
 	cfg := &config.Config{Token: "secret", OrgID: "o", OrgType: config.OrgType360}
-	if err := config.Save(cfg); err != nil {
+	if err := config.Save(t.Context(), cfg); err != nil {
 		t.Fatalf("Save() returned error: %v", err)
 	}
 
@@ -155,11 +155,11 @@ func TestSave_WritesYAML(t *testing.T) {
 		OrgID:   "myorg",
 		OrgType: config.OrgTypeCloud,
 	}
-	if err := config.Save(cfg); err != nil {
+	if err := config.Save(t.Context(), cfg); err != nil {
 		t.Fatalf("Save() returned error: %v", err)
 	}
 
-	loaded, err := config.Load()
+	loaded, err := config.Load(t.Context())
 	if err != nil {
 		t.Fatalf("Load() returned error: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestSave_FilePermissions(t *testing.T) {
 		OrgID:   "o",
 		OrgType: config.OrgType360,
 	}
-	if err := config.Save(cfg); err != nil {
+	if err := config.Save(t.Context(), cfg); err != nil {
 		t.Fatalf("Save() returned error: %v", err)
 	}
 
@@ -205,7 +205,7 @@ func TestSave_AtomicRename(t *testing.T) {
 		OrgID:   "o",
 		OrgType: config.OrgType360,
 	}
-	if err := config.Save(cfg); err != nil {
+	if err := config.Save(t.Context(), cfg); err != nil {
 		t.Fatalf("Save() returned error: %v", err)
 	}
 
@@ -222,7 +222,7 @@ func TestSave_AtomicRename(t *testing.T) {
 }
 
 func TestResolveAuth_Flags(t *testing.T) {
-	auth, err := config.ResolveAuth("flagtoken", "flagorg", "360")
+	auth, err := config.ResolveAuth(t.Context(), "flagtoken", "flagorg", "360")
 	if err != nil {
 		t.Fatalf("ResolveAuth() returned error: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestResolveAuth_EnvVars(t *testing.T) {
 	t.Setenv("YTR_ORG_TYPE", "cloud")
 	t.Setenv("YTR_CONFIG_DIR", t.TempDir())
 
-	auth, err := config.ResolveAuth("", "", "")
+	auth, err := config.ResolveAuth(t.Context(), "", "", "")
 	if err != nil {
 		t.Fatalf("ResolveAuth() returned error: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestResolveAuth_ConfigFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	auth, err := config.ResolveAuth("", "", "")
+	auth, err := config.ResolveAuth(t.Context(), "", "", "")
 	if err != nil {
 		t.Fatalf("ResolveAuth() returned error: %v", err)
 	}
@@ -306,7 +306,7 @@ func TestResolveAuth_InvalidConfigIsSurfaced(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := config.ResolveAuth("", "", "")
+	_, err := config.ResolveAuth(t.Context(), "", "", "")
 	if err == nil {
 		t.Fatal("ResolveAuth() should return error for invalid config")
 	}
@@ -338,7 +338,7 @@ func TestResolveAuth_Precedence(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	auth, err := config.ResolveAuth("flagtoken", "flagorg", "360")
+	auth, err := config.ResolveAuth(t.Context(), "flagtoken", "flagorg", "360")
 	if err != nil {
 		t.Fatalf("ResolveAuth() returned error: %v", err)
 	}
@@ -346,7 +346,7 @@ func TestResolveAuth_Precedence(t *testing.T) {
 		t.Errorf("TokenSource = %q, want %q (flags beat env)", auth.TokenSource, "flag")
 	}
 
-	auth, err = config.ResolveAuth("", "", "")
+	auth, err = config.ResolveAuth(t.Context(), "", "", "")
 	if err != nil {
 		t.Fatalf("ResolveAuth() returned error: %v", err)
 	}
@@ -370,7 +370,7 @@ func TestResolveAuth_PartialEnvFallsBackToConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	auth, err := config.ResolveAuth("", "", "")
+	auth, err := config.ResolveAuth(t.Context(), "", "", "")
 	if err != nil {
 		t.Fatalf("ResolveAuth() returned error: %v", err)
 	}
@@ -391,7 +391,7 @@ func TestResolveAuth_PartialFlagsRejected(t *testing.T) {
 	t.Setenv("YTR_ORG_ID", "envorg")
 	t.Setenv("YTR_ORG_TYPE", "cloud")
 
-	_, err := config.ResolveAuth("flagtoken", "flagorg", "")
+	_, err := config.ResolveAuth(t.Context(), "flagtoken", "flagorg", "")
 	if err == nil {
 		t.Fatal("ResolveAuth() should reject incomplete flag authentication")
 	}
@@ -417,7 +417,7 @@ func TestResolveAuth_InvalidPartialFlagsRejected(t *testing.T) {
 	t.Setenv("YTR_ORG_ID", "envorg")
 	t.Setenv("YTR_ORG_TYPE", "cloud")
 
-	_, err := config.ResolveAuth("flagtoken", "flagorg", "invalid")
+	_, err := config.ResolveAuth(t.Context(), "flagtoken", "flagorg", "invalid")
 	if err == nil {
 		t.Fatal("ResolveAuth() should reject invalid partial flag org type")
 	}
@@ -446,7 +446,7 @@ func TestResolveAuth_InvalidPartialEnvFallsBackToConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	auth, err := config.ResolveAuth("", "", "")
+	auth, err := config.ResolveAuth(t.Context(), "", "", "")
 	if err != nil {
 		t.Fatalf("ResolveAuth() returned error: %v", err)
 	}
@@ -470,7 +470,7 @@ func TestResolveAuth_PartialConfigRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := config.ResolveAuth("", "", "")
+	_, err := config.ResolveAuth(t.Context(), "", "", "")
 	if err == nil {
 		t.Fatal("ResolveAuth() should reject incomplete config authentication")
 	}
@@ -502,7 +502,7 @@ func TestResolveAuth_InvalidPartialConfigRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := config.ResolveAuth("", "", "")
+	_, err := config.ResolveAuth(t.Context(), "", "", "")
 	if err == nil {
 		t.Fatal("ResolveAuth() should reject invalid partial config org type")
 	}
@@ -523,7 +523,7 @@ func TestResolveAuth_InvalidPartialConfigRejected(t *testing.T) {
 }
 
 func TestResolveAuth_InvalidOrgTypeRejected(t *testing.T) {
-	_, err := config.ResolveAuth("flagtoken", "flagorg", "invalid")
+	_, err := config.ResolveAuth(t.Context(), "flagtoken", "flagorg", "invalid")
 	if err == nil {
 		t.Fatal("ResolveAuth() should reject invalid org type")
 	}
@@ -547,7 +547,7 @@ func TestResolveAuth_NoAuth(t *testing.T) {
 	t.Setenv("YTR_ORG_ID", "")
 	t.Setenv("YTR_ORG_TYPE", "")
 
-	_, err := config.ResolveAuth("", "", "")
+	_, err := config.ResolveAuth(t.Context(), "", "", "")
 	if err == nil {
 		t.Fatal("ResolveAuth() should return error when no auth configured")
 	}
@@ -564,5 +564,34 @@ func TestResolveAuth_NoAuth(t *testing.T) {
 	}
 	if !strings.Contains(exitErr.Suggestion, "YTR_ORG_TYPE") {
 		t.Errorf("Suggestion = %q, want to contain %q", exitErr.Suggestion, "YTR_ORG_TYPE")
+	}
+}
+
+func TestResolveAuthReadsOnlyTheEnvironmentItsContextCarries(t *testing.T) {
+	dir := t.TempDir()
+	env := map[string]string{
+		"YTR_CONFIG_DIR": dir, "YTR_TOKEN": "ctxtoken", "YTR_ORG_ID": "ctxorg", "YTR_ORG_TYPE": "cloud",
+	}
+	ctx := config.WithEnv(t.Context(), func(name string) (string, bool) {
+		value, ok := env[name]
+		return value, ok
+	})
+
+	auth, err := config.ResolveAuth(ctx, "", "", "")
+	if err != nil {
+		t.Fatalf("ResolveAuth() returned error: %v", err)
+	}
+	if auth.TokenSource != "env" || auth.Token != "ctxtoken" || auth.OrgID != "ctxorg" {
+		t.Errorf("ResolveAuth() = %+v, want the context's env credentials", auth)
+	}
+
+	path, err := config.ConfigFilePath(ctx)
+	if err != nil || path != filepath.Join(dir, "config.yaml") {
+		t.Errorf("ConfigFilePath() = %q, %v, want the context's YTR_CONFIG_DIR", path, err)
+	}
+
+	delete(env, "YTR_TOKEN")
+	if _, err := config.ResolveAuth(ctx, "", "", ""); err == nil {
+		t.Error("ResolveAuth() succeeded without a token in the context's env, want the process env ignored")
 	}
 }

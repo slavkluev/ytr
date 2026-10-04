@@ -186,7 +186,7 @@ func (w Write[Req, T, Item]) Command() *cobra.Command {
 					return err
 				},
 				prepare: func() error {
-					data, err := requestBody(cmd.Flags(), patch)
+					data, err := requestBody(cmd, patch)
 					if err != nil {
 						return err
 					}
@@ -377,10 +377,10 @@ func flagBody(set *pflag.FlagSet, body validate.Body, flags []Flag) (map[string]
 
 // requestBody returns the body --from-json gives, read only once auth has
 // resolved, or else the one the flags gave, so both reach the same decoder.
-func requestBody(set *pflag.FlagSet, patch map[string]any) ([]byte, error) {
-	if set.Changed(validate.FromJSONFlag) {
+func requestBody(cmd *cobra.Command, patch map[string]any) ([]byte, error) {
+	if set := cmd.Flags(); set.Changed(validate.FromJSONFlag) {
 		value, _ := set.GetString(validate.FromJSONFlag)
-		return validate.ParseJSONInput(value)
+		return validate.ParseJSONInputFrom(value, cmd.InOrStdin())
 	}
 
 	return json.Marshal(patch)
@@ -581,7 +581,7 @@ func newClient(cmd *cobra.Command) (*tracker.Client, error) {
 	orgID, _ := flags.GetString("org-id")
 	orgType, _ := flags.GetString("org-type")
 
-	auth, err := config.ResolveAuth(token, orgID, orgType)
+	auth, err := config.ResolveAuth(cmd.Context(), token, orgID, orgType)
 	if err != nil {
 		return nil, err
 	}

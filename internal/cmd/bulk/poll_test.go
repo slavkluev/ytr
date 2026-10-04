@@ -3,6 +3,7 @@ package bulk
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -15,7 +16,7 @@ import (
 // --- readIssueKeys tests ---
 
 func TestReadIssueKeys_FromArgs(t *testing.T) {
-	keys, err := readIssueKeys([]string{"PROJ-1", "PROJ-2"})
+	keys, err := readIssueKeys([]string{"PROJ-1", "PROJ-2"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -26,7 +27,7 @@ func TestReadIssueKeys_FromArgs(t *testing.T) {
 }
 
 func TestReadIssueKeys_DedupesArgs(t *testing.T) {
-	keys, err := readIssueKeys([]string{"PROJ-1", "PROJ-2", "PROJ-1", "PROJ-2", "PROJ-3"})
+	keys, err := readIssueKeys([]string{"PROJ-1", "PROJ-2", "PROJ-1", "PROJ-2", "PROJ-3"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -54,11 +55,7 @@ func TestReadIssueKeys_DedupesStdin(t *testing.T) {
 	}
 	w.Close()
 
-	origStdin := stdinFile
-	stdinFile = r
-	t.Cleanup(func() { stdinFile = origStdin })
-
-	keys, err := readIssueKeys(nil)
+	keys, err := readIssueKeys(nil, r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -77,11 +74,7 @@ func TestReadIssueKeys_FromStdin(t *testing.T) {
 	_, _ = w.WriteString("PROJ-1\nPROJ-2\n")
 	w.Close()
 
-	origStdin := stdinFile
-	stdinFile = r
-	t.Cleanup(func() { stdinFile = origStdin })
-
-	keys, err := readIssueKeys(nil)
+	keys, err := readIssueKeys(nil, r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -100,11 +93,7 @@ func TestReadIssueKeys_ArgsOverStdin(t *testing.T) {
 	_, _ = w.WriteString("STDIN-1\n")
 	w.Close()
 
-	origStdin := stdinFile
-	stdinFile = r
-	t.Cleanup(func() { stdinFile = origStdin })
-
-	keys, err := readIssueKeys([]string{"ARG-1"})
+	keys, err := readIssueKeys([]string{"ARG-1"}, r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -123,11 +112,7 @@ func TestReadIssueKeys_EmptyStdin(t *testing.T) {
 	_, _ = w.WriteString("")
 	w.Close()
 
-	origStdin := stdinFile
-	stdinFile = r
-	t.Cleanup(func() { stdinFile = origStdin })
-
-	_, err = readIssueKeys(nil)
+	_, err = readIssueKeys(nil, r)
 	if err == nil {
 		t.Fatal("expected error for empty stdin, got nil")
 	}
@@ -146,11 +131,7 @@ func TestReadIssueKeys_InvalidKey(t *testing.T) {
 	_, _ = w.WriteString("invalid-key\n")
 	w.Close()
 
-	origStdin := stdinFile
-	stdinFile = r
-	t.Cleanup(func() { stdinFile = origStdin })
-
-	_, err = readIssueKeys(nil)
+	_, err = readIssueKeys(nil, r)
 	if err == nil {
 		t.Fatal("expected error for invalid key, got nil")
 	}
@@ -169,11 +150,7 @@ func TestReadIssueKeys_SkipsBlankLines(t *testing.T) {
 	_, _ = w.WriteString("\nPROJ-1\n\n  \nPROJ-2\n")
 	w.Close()
 
-	origStdin := stdinFile
-	stdinFile = r
-	t.Cleanup(func() { stdinFile = origStdin })
-
-	keys, err := readIssueKeys(nil)
+	keys, err := readIssueKeys(nil, r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -184,7 +161,7 @@ func TestReadIssueKeys_SkipsBlankLines(t *testing.T) {
 }
 
 func TestReadIssueKeys_InvalidArg(t *testing.T) {
-	_, err := readIssueKeys([]string{"bad-key"})
+	_, err := readIssueKeys([]string{"bad-key"}, nil)
 	if err == nil {
 		t.Fatal("expected error for invalid arg key, got nil")
 	}
@@ -303,15 +280,7 @@ func TestPollUntilDone_ImmediateComplete(t *testing.T) {
 		},
 	}
 
-	// Suppress progress output in tests.
-	origStderr := stderrFile
-	r, w, _ := os.Pipe()
-	stderrFile = r
-	t.Cleanup(func() {
-		stderrFile = origStderr
-		w.Close()
-		r.Close()
-	})
+	w := io.Discard
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -344,14 +313,7 @@ func TestPollUntilDone_CompletesAfterPolling(t *testing.T) {
 		},
 	}
 
-	origStderr := stderrFile
-	r, w, _ := os.Pipe()
-	stderrFile = r
-	t.Cleanup(func() {
-		stderrFile = origStderr
-		w.Close()
-		r.Close()
-	})
+	w := io.Discard
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -385,14 +347,7 @@ func TestPollUntilDone_FailedStatus(t *testing.T) {
 		},
 	}
 
-	origStderr := stderrFile
-	r, w, _ := os.Pipe()
-	stderrFile = r
-	t.Cleanup(func() {
-		stderrFile = origStderr
-		w.Close()
-		r.Close()
-	})
+	w := io.Discard
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -412,14 +367,7 @@ func TestPollUntilDone_APIError(t *testing.T) {
 		err: errors.New("connection refused"),
 	}
 
-	origStderr := stderrFile
-	r, w, _ := os.Pipe()
-	stderrFile = r
-	t.Cleanup(func() {
-		stderrFile = origStderr
-		w.Close()
-		r.Close()
-	})
+	w := io.Discard
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -444,14 +392,7 @@ func TestPollUntilDone_ContextTimeout(t *testing.T) {
 		},
 	}
 
-	origStderr := stderrFile
-	r, w, _ := os.Pipe()
-	stderrFile = r
-	t.Cleanup(func() {
-		stderrFile = origStderr
-		w.Close()
-		r.Close()
-	})
+	w := io.Discard
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()

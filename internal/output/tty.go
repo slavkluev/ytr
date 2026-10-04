@@ -15,10 +15,9 @@ const defaultTerminalWidth = 80
 // terminal, its width, and whether colors are on by the environment's rules.
 // The flag fields are left zero for the root command to fill.
 func Terminal(f *os.File) Options {
-	fd := f.Fd()
-	tty := isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
+	_, tty := TerminalFile(f)
 
-	width, _, err := term.GetSize(int(fd)) //nolint:gosec // fd conversion is safe for terminal operations
+	width, _, err := term.GetSize(int(f.Fd())) //nolint:gosec // fd conversion is safe for terminal operations
 	if err != nil {
 		width = 0
 	}
@@ -28,6 +27,20 @@ func Terminal(f *os.File) Options {
 		Colors: colorsEnabled(os.LookupEnv, tty),
 		Width:  width,
 	}
+}
+
+// TerminalFile returns stream as a file and whether that file is open on a
+// terminal. A stream that is not an *os.File, such as a test's buffer, is never
+// a terminal.
+func TerminalFile(stream any) (*os.File, bool) {
+	f, ok := stream.(*os.File)
+	if !ok {
+		return nil, false
+	}
+
+	fd := f.Fd()
+
+	return f, isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
 // TerminalWidth returns the width a table may fill, falling back to 80 columns

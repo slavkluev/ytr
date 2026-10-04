@@ -26,7 +26,7 @@ func runLogout(cmd *cobra.Command, args []string) error {
 	opts := output.FromContext(cmd.Context())
 
 	// Load existing config; treat missing file as success (nothing to log out of).
-	cfg, err := config.Load()
+	cfg, err := config.Load(cmd.Context())
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -36,12 +36,12 @@ func runLogout(cmd *cobra.Command, args []string) error {
 	cfg.OrgID = ""
 	cfg.OrgType = ""
 
-	if err := config.Save(cfg); err != nil {
+	if err := config.Save(cmd.Context(), cfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
 	// Config was just saved successfully, so ConfigFilePath cannot fail.
-	cfgPath, _ := config.ConfigFilePath()
+	cfgPath, _ := config.ConfigFilePath(cmd.Context())
 
 	// No field selection or hints -- fixed-structure JSON.
 	jsonRequested := cmd.Flags().Changed("json") || opts.IsJSON()

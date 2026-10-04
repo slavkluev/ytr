@@ -5,10 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
-	"github.com/mattn/go-isatty"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -242,8 +241,6 @@ func (d defaultOrgTypeDetector) Detect(
 
 var detectOrgType orgTypeDetector = defaultOrgTypeDetector{}
 
-var stdinFile *os.File = os.Stdin
-
 func newLoginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
@@ -299,7 +296,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 
 	username := user.DisplayOr("unknown")
 
-	if err := config.Save(&config.Config{
+	if err := config.Save(cmd.Context(), &config.Config{
 		Token:   token,
 		OrgID:   orgID,
 		OrgType: orgType,
@@ -309,7 +306,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 
 	// No field selection or hints -- fixed-structure JSON.
 	// Config was just saved successfully, so ConfigFilePath cannot fail.
-	cfgPath, _ := config.ConfigFilePath()
+	cfgPath, _ := config.ConfigFilePath(cmd.Context())
 
 	jsonRequested := cmd.Flags().Changed("json") || opts.IsJSON()
 	if jsonRequested {
@@ -364,14 +361,14 @@ func resolveToken(flagValue string, cmd *cobra.Command) (string, error) {
 		return flagValue, nil
 	}
 
-	return readToken(stdinFile, cmd)
+	return readToken(cmd.InOrStdin(), cmd)
 }
 
-func readToken(stdin *os.File, cmd *cobra.Command) (string, error) {
-	if isatty.IsTerminal(stdin.Fd()) || isatty.IsCygwinTerminal(stdin.Fd()) {
+func readToken(stdin io.Reader, cmd *cobra.Command) (string, error) {
+	if terminal, tty := output.TerminalFile(stdin); tty {
 		_, _ = fmt.Fprint(cmd.ErrOrStderr(), "Token: ")
 		//nolint:gosec // fd conversion is safe for terminal operations
-		tokenBytes, err := term.ReadPassword(int(stdin.Fd()))
+		tokenBytes, err := term.ReadPassword(int(terminal.Fd()))
 		_, _ = fmt.Fprintln(cmd.ErrOrStderr()) // newline after masked input
 		if err != nil {
 			return "", fmt.Errorf("failed to read token: %w", err)
@@ -413,9 +410,9 @@ func resolveOrgID(flagValue string, cmd *cobra.Command) (string, error) {
 		return flagValue, nil
 	}
 
-	if isatty.IsTerminal(stdinFile.Fd()) || isatty.IsCygwinTerminal(stdinFile.Fd()) {
+	if terminal, tty := output.TerminalFile(cmd.InOrStdin()); tty {
 		_, _ = fmt.Fprint(cmd.ErrOrStderr(), "Organization ID: ")
-		scanner := bufio.NewScanner(stdinFile)
+		scanner := bufio.NewScanner(terminal)
 		if scanner.Scan() {
 			orgID := strings.TrimSpace(scanner.Text())
 			if orgID != "" {

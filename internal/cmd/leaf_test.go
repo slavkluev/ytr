@@ -25,6 +25,14 @@ type leafRow struct {
 	exchanges []faketracker.Exchange
 	code      int
 
+	// The run reads stdin, env and config as runAgainst describes. It is
+	// signed in by harnessAuth unless signedOut is set, which leaves it only
+	// the credentials env and config give it.
+	stdin     string
+	env       map[string]string
+	config    string
+	signedOut bool
+
 	// stdout is compared byte for byte, unless json or holds is set: json
 	// wants stdout to decode to the same JSON value, and holds wants stdout,
 	// less its ANSI codes, to contain each of its strings.
@@ -46,7 +54,12 @@ func runLeafRows(t *testing.T, rows []leafRow) {
 
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
-			res := runCLIOn(t, row.term, row.exchanges, row.args...)
+			argv := row.args
+			if !row.signedOut {
+				argv = slices.Concat(harnessAuth, row.args)
+			}
+			in := cliInput{term: row.term, stdin: row.stdin, env: row.env, config: row.config}
+			res := runAgainst(t, in, faketracker.New(t, row.exchanges), argv)
 
 			if res.Code != row.code {
 				t.Errorf("exit = %d, want %d (stderr: %s)", res.Code, row.code, res.Stderr)

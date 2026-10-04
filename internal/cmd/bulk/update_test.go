@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -61,20 +60,11 @@ func setupUpdateCmd(
 	}
 	t.Cleanup(func() { newBulkStatusGetter = origGetter })
 
-	// Suppress progress output in tests.
-	origStderr := stderrFile
-	r, w, _ := os.Pipe()
-	stderrFile = r
-	t.Cleanup(func() {
-		stderrFile = origStderr
-		w.Close()
-		r.Close()
-	})
-
 	// Separate buffers: only what reaches stdout is returned, so a test can
 	// tell the command's document apart from cobra's error text.
 	buf := &bytes.Buffer{}
 	cmd := newUpdateCmd()
+	cmd.SetIn(strings.NewReader(""))
 	cmd.SetOut(buf)
 	cmd.SetErr(io.Discard)
 	// The binary silences both on the root command, so nothing cobra writes

@@ -40,7 +40,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		orgTypeFlag, _ = root.PersistentFlags().GetString("org-type")
 	}
 
-	auth, err := config.ResolveAuth(tokenFlag, orgIDFlag, orgTypeFlag)
+	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
 	if err != nil {
 		return err
 	}

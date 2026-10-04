@@ -18,7 +18,7 @@ func TestConfigDir_Default(t *testing.T) {
 	}
 
 	want := filepath.Join(homeDir, ".config", "ytr")
-	got, err := config.ConfigDir()
+	got, err := config.ConfigDir(t.Context())
 	if err != nil {
 		t.Fatalf("ConfigDir() unexpected error: %v", err)
 	}
@@ -30,7 +30,7 @@ func TestConfigDir_Default(t *testing.T) {
 func TestConfigDir_YTRConfigDir(t *testing.T) {
 	t.Setenv("YTR_CONFIG_DIR", "/tmp/custom")
 
-	got, err := config.ConfigDir()
+	got, err := config.ConfigDir(t.Context())
 	if err != nil {
 		t.Fatalf("ConfigDir() unexpected error: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestConfigDir_XDGConfigHome(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "/tmp/xdg")
 
 	want := filepath.Join("/tmp/xdg", "ytr")
-	got, err := config.ConfigDir()
+	got, err := config.ConfigDir(t.Context())
 	if err != nil {
 		t.Fatalf("ConfigDir() unexpected error: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestConfigFilePath(t *testing.T) {
 	t.Setenv("YTR_CONFIG_DIR", "/tmp/testcfg")
 
 	want := filepath.Join("/tmp/testcfg", "config.yaml")
-	got, err := config.ConfigFilePath()
+	got, err := config.ConfigFilePath(t.Context())
 	if err != nil {
 		t.Fatalf("ConfigFilePath() unexpected error: %v", err)
 	}
