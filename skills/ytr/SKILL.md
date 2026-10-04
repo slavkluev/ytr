@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "14.0"
+  version: "15.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -482,10 +482,11 @@ subcommand (`ytr issue`), `ytr` with no arguments at all, an unknown flag, a
 stray positional argument, a malformed one such as `ytr issue view 123` (not an
 issue key) or an empty one, a `--limit` outside 1 to 1000, a `--cursor` of
 `issue list`, `queue list` or `user list` that is not a page number (`2` is
-one, `abc` is not), an `issue list --filter` without `=`, and an unknown
-`ytr help` topic. None of them reach Tracker, and none print help and exit 0.
-A bad `--limit`, `--cursor` or `--filter` exits 1 even without credentials,
-since ytr checks it before auth.
+one, `abc` is not), `--all` together with `--cursor`, an `issue list --filter`
+without `=`, and an unknown `ytr help` topic. None of them reach Tracker, and
+none print help and exit 0. A bad `--limit`, `--cursor` or `--filter`, or
+`--all` with `--cursor`, exits 1 even without credentials, since ytr checks it
+before auth.
 
 `--json` is honoured even when it comes after the mistake, so
 `ytr issue list --nosuchflag --json key` still answers with JSON.

@@ -174,6 +174,10 @@ func TestIssueChangelog(t *testing.T) {
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "123"`},
 		},
 		{
+			name: "Conflict before the hint", args: changelog("--all", "--cursor", "2", "--json="), signedOut: true,
+			code: ytrerrors.ExitUserError, stderr: []string{"Error: cannot combine --all with --cursor\n"},
+		},
+		{
 			name: "Bad arg before the hint", args: []string{"issue", "changelog", "123", "--json="},
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "123"`},
 		},

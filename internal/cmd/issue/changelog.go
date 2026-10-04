@@ -83,20 +83,20 @@ func runChangelog(
 	cursor string,
 	all bool,
 ) error {
-	opts := output.FromContext(cmd.Context())
+	if err := validate.ConflictingAllAndCursor(
+		cmd.Flags().Changed("all"), cmd.Flags().Changed("cursor"),
+	); err != nil {
+		return err
+	}
 
 	if err := validate.ValidatePageLimit(limit); err != nil {
 		return err
 	}
 
+	opts := output.FromContext(cmd.Context())
+
 	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue changelog", IssueChangelogFields)
-	}
-
-	if err := validate.ConflictingAllAndCursor(
-		cmd.Flags().Changed("all"), cmd.Flags().Changed("cursor"),
-	); err != nil {
-		return err
 	}
 
 	if opts.JQFilter != "" && !opts.HasFieldSelection() {
