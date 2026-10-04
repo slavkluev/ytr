@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "17.1"
+  version: "18.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -209,8 +209,10 @@ ytr bulk status 6543210abcdef
 
 `bulk move`, `bulk update` and `bulk transition` take each issue as a key such
 as `PROJ-1` or a 24-character hexadecimal issue ID such as
-`4ff3e8dae4b0e2ac00000001`, as arguments or one per line on stdin. Anything
-else exits 1 with `invalid issue key or ID "bad"` and sends nothing.
+`4ff3e8dae4b0e2ac00000001`, as arguments, one per line on stdin, or in the
+`"issues"` array of `--from-json`. Anything else exits 1 with
+`invalid issue key or ID "bad"` and sends nothing, as does a `--from-json`
+body whose `"issues"` is missing or empty (`no issue keys provided`).
 
 `bulk move`, `bulk update` and `bulk transition` wait for the operation and
 exit 1 when it ends `FAILED`, writing nothing to stdout in any mode, `--quiet`
@@ -474,8 +476,10 @@ each exits 1 before any request:
   `--from-json`, naming the flags you set. Pass the request one way or the other.
 - `missing --name, --queue`: a create without a required flag, or a
   `--from-json` without the matching key (here `"name"`, `"queue"`); the
-  suggestion names the keys. `comment create --body` and
-  `issue transition --to` are required the same way.
+  suggestion names the keys. `comment create --body`,
+  `issue transition --to`, `bulk move --queue`, `bulk update --field` (key
+  `"values"`, which needs at least one field) and `bulk transition --transition`
+  are required the same way.
 - `nothing to update`: an edit or `issue update` with no request flag, or with a
   `--from-json` object that sets no key, such as `'{}'` or `'{"text": null}'`.
 - `control character U+0000 at position 1 in summary`: a character below
@@ -486,7 +490,10 @@ each exits 1 before any request:
   Remove it.
 - `invalid issue key or ID "bad"`: a `link create --issue`, or an `"issue"` in
   its `--from-json`, that is neither an issue key such as `PROJ-456` nor a
-  24-character hexadecimal issue ID.
+  24-character hexadecimal issue ID, or such an entry in the `"issues"` of a
+  bulk `--from-json`.
+- `no issue keys provided`: a bulk `--from-json` body without `"issues"`, or
+  with an empty one.
 
 ### Bad invocations
 
@@ -538,7 +545,7 @@ the help text to stdout and exit 0, even on a mistyped command path
 | `--token` | Global auth override | Override auth token |
 | `--org-id` | Global auth override | Override organization ID |
 | `--org-type` | Global auth override | Override organization type: `360` or `cloud` |
-| `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin); keys the request body has no field for are rejected, not dropped; cannot be combined with the command's request flags; a create needs its required keys and an edit at least one key; a key's value must pass its flag's check |
+| `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin); keys the request body has no field for are rejected, not dropped; cannot be combined with the command's request flags; a create or bulk command needs its required keys and an edit at least one key; a bulk body needs a non-empty `"issues"`; a key's value must pass its flag's check |
 | `--query` | `issue list` | Search using Tracker query language; mutually exclusive with `--filter` and `--order-by` |
 | `--filter k=v` | `issue list` | Filter by field (repeatable); mutually exclusive with `--query` |
 | `--order-by` | `issue list` | Sort by field (descending by default); cannot be used with `--query` |

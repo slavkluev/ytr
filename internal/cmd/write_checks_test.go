@@ -142,6 +142,26 @@ func TestWriteChecksShareOneWording(t *testing.T) {
 			message:    "missing --queue",
 			suggestion: `Pass it as a flag, or as the key "queue" in --from-json`,
 		},
+		{
+			args:       []string{"bulk", "move", "--from-json", `{"issues": ["PROJ-1"]}`},
+			message:    "missing --queue",
+			suggestion: `Pass it as a flag, or as the key "queue" in --from-json`,
+		},
+		{
+			args:       []string{"bulk", "update", "--from-json", `{"issues": ["PROJ-1"]}`},
+			message:    "missing --field",
+			suggestion: `Pass it as a flag, or as the key "values" in --from-json`,
+		},
+		{
+			args:       []string{"bulk", "update", "--from-json", `{"issues": ["PROJ-1"], "values": {}}`},
+			message:    "missing --field",
+			suggestion: `Pass it as a flag, or as the key "values" in --from-json`,
+		},
+		{
+			args:       []string{"bulk", "transition", "--from-json", `{"issues": ["PROJ-1"], "values": {"a": "b"}}`},
+			message:    "missing --transition",
+			suggestion: `Pass it as a flag, or as the key "transition" in --from-json`,
+		},
 	}
 
 	nothing := []writeCheck{

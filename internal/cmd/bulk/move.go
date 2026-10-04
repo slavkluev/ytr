@@ -128,7 +128,11 @@ func buildMoveRequest(
 		}
 
 		req := &tracker.BulkMoveRequest{}
-		if err := validate.UnmarshalRequestJSON(data, req); err != nil {
+		if err := moveBody.Decode(data, req); err != nil {
+			return nil, err
+		}
+
+		if err := checkIssues(req.Issues); err != nil {
 			return nil, err
 		}
 

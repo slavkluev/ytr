@@ -122,7 +122,11 @@ func buildUpdateRequest(
 		}
 
 		req := &tracker.BulkUpdateRequest{}
-		if err := validate.UnmarshalRequestJSON(data, req); err != nil {
+		if err := updateBody.Decode(data, req); err != nil {
+			return nil, err
+		}
+
+		if err := checkIssues(req.Issues); err != nil {
 			return nil, err
 		}
 

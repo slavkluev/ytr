@@ -125,7 +125,11 @@ func buildTransitionRequest(
 		}
 
 		req := &tracker.BulkTransitionRequest{}
-		if err := validate.UnmarshalRequestJSON(data, req); err != nil {
+		if err := transitionBody.Decode(data, req); err != nil {
+			return nil, err
+		}
+
+		if err := checkIssues(req.Issues); err != nil {
 			return nil, err
 		}
 

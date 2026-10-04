@@ -74,6 +74,24 @@ func readIssueKeys(args []string, stdin io.Reader) ([]string, error) {
 	return dedupeKeys(keys), nil
 }
 
+// Body.Decode checks only the keys flags set, and no flag sets "issues".
+func checkIssues(issues []string) error {
+	if len(issues) == 0 {
+		return ytrerrors.NewUserError(
+			"no issue keys provided",
+			`Pass them as the key "issues" in --from-json`,
+		)
+	}
+
+	for _, issue := range issues {
+		if err := validate.ValidateIssueKeyOrID(issue); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Bulk requests should not carry the same key twice (the API would process it
 // redundantly), and duplicates commonly arrive when piping unsorted output.
 func dedupeKeys(keys []string) []string {

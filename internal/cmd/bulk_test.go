@@ -145,6 +145,13 @@ func TestBulkMove(t *testing.T) {
 			stderr:    []string{`"code":"bulk_no_operation_id"`, "the API returned no operation ID"},
 		},
 		{
+			name: "JSON body with no issues",
+			args: move("--from-json", `{"queue": "TARGET", "issues": []}`, "--json", "id"),
+			code: ytrerrors.ExitUserError,
+			stderr: []string{`{"code":"user_error","message":"no issue keys provided",` +
+				`"suggestion":"Pass them as the key \"issues\" in --from-json"}`},
+		},
+		{
 			name: "Unknown key", args: move("--from-json", `{"queue": "TARGET", "issues": ["PROJ-1"], "bogus": 1}`,
 				"--json", "id"),
 			code: ytrerrors.ExitUserError, stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
@@ -213,6 +220,25 @@ func TestBulkUpdate(t *testing.T) {
 			},
 		},
 		{
+			name: "Issue ID in JSON body",
+			args: update(
+				"--from-json",
+				`{"issues": ["4ff3e8dae4b0e2ac00000001"], "values": {"a": "b"}}`,
+				"--quiet",
+			),
+			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)},
+			stdout:    "op-1\n",
+			check:     assertFirstBody(`{"issues": ["4ff3e8dae4b0e2ac00000001"], "values": {"a": "b"}}`),
+		},
+		{
+			name: "Bad issue in JSON body",
+			args: update("--from-json", `{"issues": ["PROJ-1", "bad"], "values": {"a": "b"}}`),
+			code: ytrerrors.ExitUserError,
+			stderr: []string{
+				`Error: invalid issue key or ID "bad": expected QUEUE-123 or a 24-character hexadecimal ID`,
+			},
+		},
+		{
 			name: "Unknown key", args: update("--from-json", `{"issues": ["PROJ-1"], "bogus": 1}`, "--json", "id"),
 			code: ytrerrors.ExitUserError, stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
 		},
@@ -269,6 +295,22 @@ func TestBulkTransition(t *testing.T) {
 				started, trackerError(http.MethodGet, "/v3/bulkchange/op-1", http.StatusInternalServerError, "Boom"),
 			},
 			code: ytrerrors.ExitUserError, stderr: []string{`"message":"Boom"`}, check: assertOneErrorDocument("Boom"),
+		},
+		{
+			name: "JSON issues are sent as given",
+			args: transition(
+				"--from-json",
+				`{"transition": "close", "issues": ["PROJ-2", "PROJ-1", "PROJ-2"]}`,
+				"--quiet",
+			),
+			exchanges: done,
+			stdout:    "op-1\n",
+			check:     assertFirstBody(`{"transition": "close", "issues": ["PROJ-2", "PROJ-1", "PROJ-2"]}`),
+		},
+		{
+			name: "JSON body without issues", args: transition("--from-json", `{"transition": "close"}`),
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{"Error: no issue keys provided\nPass them as the key \"issues\" in --from-json\n"},
 		},
 		{
 			name: "Unknown key",
