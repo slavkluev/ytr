@@ -133,7 +133,7 @@ func TestAuthLogin(t *testing.T) {
 			check:  assertNoConfigFile,
 		},
 		{
-			name: "Field hint before the token is read", args: login("--org-id", "O", "--json="), signedOut: true,
+			name: "Field hint before any request", args: login("--org-id", "O", "--json="), signedOut: true,
 			stdin: "tok\n", code: ytrerrors.ExitUserError,
 			stderr: []string{fieldHint("auth login", []string{"status", "user", "org_id", "org_type", "config_path"})},
 			check:  assertNoConfigFile,
