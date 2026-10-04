@@ -109,6 +109,15 @@ func TestIssueChangelog(t *testing.T) {
 			json: `{"items": [{"author": "alice"}, {"author": "bob"}], "pagination": {"hasMore": false}}`,
 		},
 		{
+			name: "All pages as JSON when they hold --limit entries",
+			args: changelog("--all", "--limit", "1", "--json", "author"),
+			exchanges: []faketracker.Exchange{
+				changelogPage(url.Values{"perPage": {"1"}}, entry("cursor-1", "alice")),
+				changelogPage(url.Values{"perPage": {"1"}, "id": {"cursor-1"}}, `[]`),
+			},
+			json: `{"items": [{"author": "alice"}], "pagination": {"hasMore": false}}`,
+		},
+		{
 			name: "A short page is not the last", args: changelog("--all", "--limit", "2", "--quiet"),
 			exchanges: []faketracker.Exchange{
 				changelogPage(url.Values{"perPage": {"2"}}, entry("cursor-1", "alice")),
@@ -176,6 +185,10 @@ func TestIssueChangelog(t *testing.T) {
 		{
 			name: "Conflict before the hint", args: changelog("--all", "--cursor", "2", "--json="), signedOut: true,
 			code: ytrerrors.ExitUserError, stderr: []string{"Error: cannot combine --all with --cursor\n"},
+		},
+		{
+			name: "Conflict before the limit", args: changelog("--all", "--cursor", "2", "--limit", "0"),
+			signedOut: true, code: ytrerrors.ExitUserError, stderr: []string{"cannot combine --all with --cursor"},
 		},
 		{
 			name: "Bad arg before the hint", args: []string{"issue", "changelog", "123", "--json="},
