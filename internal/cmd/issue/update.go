@@ -65,7 +65,11 @@ func validateUpdateFlags(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return updateBody.CheckFlags(cmd.Flags().Changed)
+	if err := updateBody.CheckFlags(cmd.Flags().Changed); err != nil {
+		return err
+	}
+
+	return checkIssueText(cmd.Flags())
 }
 
 func runUpdate(cmd *cobra.Command, issueKey, summary, description, issueType,
@@ -115,15 +119,9 @@ func buildUpdateRequest(cmd *cobra.Command, summary, description, issueType,
 	req := &tracker.IssueRequest{}
 
 	if cmd.Flags().Changed("summary") {
-		if valErr := validate.ValidateNoControlChars("summary", summary); valErr != nil {
-			return nil, valErr
-		}
 		req.Summary = new(summary)
 	}
 	if cmd.Flags().Changed("description") {
-		if valErr := validate.ValidateNoControlChars("description", description); valErr != nil {
-			return nil, valErr
-		}
 		req.Description = new(description)
 	}
 	if cmd.Flags().Changed("type") {

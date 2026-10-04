@@ -6,6 +6,7 @@ import (
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
@@ -45,7 +46,10 @@ JSON FIELDS
   ytr issue create --queue PROJ --summary "Bug" --json key --jq '.key'`,
 		Args: cobra.NoArgs,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return createBody.CheckFlags(cmd.Flags().Changed)
+			if err := createBody.CheckFlags(cmd.Flags().Changed); err != nil {
+				return err
+			}
+			return checkIssueText(cmd.Flags())
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, queue, summary, description, issueType,
@@ -76,6 +80,22 @@ var createBody = validate.Body{
 var issueFlags = []validate.BodyFlag{
 	{Name: "summary", Key: "summary"}, {Name: "description", Key: "description"}, {Name: "type", Key: "type"},
 	{Name: "priority", Key: "priority"}, {Name: "assignee", Key: "assignee"}, {Name: "parent", Key: "parent"},
+}
+
+// checkIssueText refuses a control character in --summary or --description
+// ahead of the field hint and auth.
+func checkIssueText(flags *pflag.FlagSet) error {
+	for _, name := range []string{"summary", "description"} {
+		if !flags.Changed(name) {
+			continue
+		}
+		value, _ := flags.GetString(name)
+		if err := validate.ValidateNoControlChars(name, value); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func runCreate(cmd *cobra.Command, queue, summary, description, issueType,
@@ -120,15 +140,6 @@ func buildCreateRequest(cmd *cobra.Command, queue, summary, description, issueTy
 	priority, assignee, parent, fromJSON string) (*tracker.IssueRequest, error) {
 	if cmd.Flags().Changed("from-json") {
 		return parseIssueRequestFromJSON(fromJSON, cmd.InOrStdin(), createBody)
-	}
-
-	if valErr := validate.ValidateNoControlChars("summary", summary); valErr != nil {
-		return nil, valErr
-	}
-	if cmd.Flags().Changed("description") {
-		if valErr := validate.ValidateNoControlChars("description", description); valErr != nil {
-			return nil, valErr
-		}
 	}
 
 	req := &tracker.IssueRequest{}

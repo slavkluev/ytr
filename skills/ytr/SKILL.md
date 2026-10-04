@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "15.0"
+  version: "16.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -472,6 +472,9 @@ each exits 1 before any request:
   `issue transition --to` are required the same way.
 - `nothing to update`: an edit or `issue update` with no request flag, or with a
   `--from-json` object that sets no key, such as `'{}'` or `'{"text": null}'`.
+- `control character U+0000 at position 1 in summary`: a control character
+  other than tab, newline and carriage return in `--summary`, `--description`
+  or `--body`, named after the flag. Remove it.
 
 ### Bad invocations
 
@@ -484,8 +487,9 @@ issue key) or an empty one, a `--limit` outside 1 to 1000, a `--cursor` of
 `issue list`, `queue list` or `user list` that is not a page number (`2` is
 one, `abc` is not), `--all` together with `--cursor`, an `issue list --filter`
 without `=`, and an unknown `ytr help` topic. None of them reach Tracker, and
-none print help and exit 0. A bad `--limit`, `--cursor` or `--filter`, or
-`--all` with `--cursor`, exits 1 even without credentials, since ytr checks it
+none print help and exit 0. A bad `--limit`, `--cursor` or `--filter`,
+`--all` with `--cursor`, or a flag error above that does not come from a
+`--from-json` body, exits 1 even without credentials, since ytr checks it
 before auth.
 
 `--json` is honoured even when it comes after the mistake, so
