@@ -47,8 +47,9 @@ Notes:
 - `auth status`, `auth login` and `auth logout` take `--json` fields and `--jq` like any other
   command. `--json=` lists their fields, and it or an unknown field exits 1 before any request
   or config change.
-- Without `--json` or `--jq` their result is text on stdout, as for any other command. Only
-  the prompts `auth login` shows on a terminal for a missing token or organization ID go to stderr.
+- Without `--json` or `--jq` their result is text on stdout, as for any other command. On
+  success, only the prompts `auth login` shows on a terminal for a missing token or organization
+  ID go to stderr.
 - Config is stored in `~/.config/ytr/config.yaml`.
 
 ## Command Reference
