@@ -141,7 +141,8 @@ func registerSubcommands(rootCmd *cobra.Command) {
 // Execute runs the root command and returns the appropriate exit code.
 // The caller (main.go) must pass this to os.Exit.
 func Execute() int {
-	return execute(context.Background(), output.Terminal(os.Stdout), os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	stdout, stderr := os.Stdout, os.Stderr //nolint:forbidigo // the process's streams are wired here
+	return execute(context.Background(), output.Terminal(stdout), os.Args[1:], os.Stdin, stdout, stderr)
 }
 
 // The arguments reach the renderer as well as cobra, because a failed

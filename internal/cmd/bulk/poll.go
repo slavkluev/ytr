@@ -195,7 +195,8 @@ func awaitBulkCompletion(
 	ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
 	defer cancel()
 
-	result, err := pollUntilDone(ctx, getter, operationID, cmd.ErrOrStderr())
+	progress := cmd.ErrOrStderr() //nolint:forbidigo // progress shows on a terminal while the change runs, before the result
+	result, err := pollUntilDone(ctx, getter, operationID, progress)
 	if err != nil {
 		return handlePollError(ctx, err, timeout, operationID)
 	}

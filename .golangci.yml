@@ -122,6 +122,14 @@ linters:
       check:
         - switch
         - map
+    forbidigo:
+      # Matches a method by its type, so cmd.OutOrStdout() reads as
+      # cobra.Command.OutOrStdout whatever the receiver is named.
+      analyze-types: true
+      forbid:
+        - pattern: ^(fmt\.Print(|f|ln)|print|println)$
+        - pattern: ^(os\.(Stdout|Stderr)|cobra\.Command\.(OutOrStdout|ErrOrStderr|OutOrStderr|Print|Printf|Println|PrintErr|PrintErrf|PrintErrln))$
+          msg: command code writes through the runner's printers, or says in a nolint why it must name a stream
     funlen:
       lines: 100
       statements: 50
@@ -146,6 +154,9 @@ linters:
       max-func-lines: 0
     nestif:
       min-complexity: 5
+    nolintlint:
+      require-explanation: true
+      require-specific: true
     revive:
       rules:
         - name: unexported-return
@@ -180,6 +191,20 @@ linters:
       - path-except: 'internal/cmd/[^/]+_test\.go$'
         linters:
           - paralleltest
+      # The stream ban is for command code; the runner owns cmd's streams, and
+      # tests and the other packages hand theirs around.
+      - path: '_test\.go'
+        linters:
+          - forbidigo
+        text: "writes through the runner's printers"
+      - path: 'internal/cmd/runner/'
+        linters:
+          - forbidigo
+        text: "writes through the runner's printers"
+      - path-except: '^internal/cmd/'
+        linters:
+          - forbidigo
+        text: "writes through the runner's printers"
       # main.go is trivial -- exclude complexity linters.
       - path: 'cmd/ytr/main\.go'
         linters:

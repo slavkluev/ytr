@@ -366,10 +366,11 @@ func resolveToken(flagValue string, cmd *cobra.Command) (string, error) {
 
 func readToken(stdin io.Reader, cmd *cobra.Command) (string, error) {
 	if terminal, tty := output.TerminalFile(stdin); tty {
-		_, _ = fmt.Fprint(cmd.ErrOrStderr(), "Token: ")
+		prompt := cmd.ErrOrStderr() //nolint:forbidigo // an interactive prompt, kept off stdout
+		_, _ = fmt.Fprint(prompt, "Token: ")
 		//nolint:gosec // fd conversion is safe for terminal operations
 		tokenBytes, err := term.ReadPassword(int(terminal.Fd()))
-		_, _ = fmt.Fprintln(cmd.ErrOrStderr()) // newline after masked input
+		_, _ = fmt.Fprintln(prompt) // newline after masked input
 		if err != nil {
 			return "", fmt.Errorf("failed to read token: %w", err)
 		}
@@ -411,7 +412,8 @@ func resolveOrgID(flagValue string, cmd *cobra.Command) (string, error) {
 	}
 
 	if terminal, tty := output.TerminalFile(cmd.InOrStdin()); tty {
-		_, _ = fmt.Fprint(cmd.ErrOrStderr(), "Organization ID: ")
+		prompt := cmd.ErrOrStderr() //nolint:forbidigo // an interactive prompt, kept off stdout
+		_, _ = fmt.Fprint(prompt, "Organization ID: ")
 		scanner := bufio.NewScanner(terminal)
 		if scanner.Scan() {
 			orgID := strings.TrimSpace(scanner.Text())

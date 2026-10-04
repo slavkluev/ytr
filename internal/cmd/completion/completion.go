@@ -48,7 +48,7 @@ Fish:
   ytr completion bash > $(brew --prefix)/etc/bash_completion.d/ytr`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return rootCmd.GenBashCompletionV2(cmd.OutOrStdout(), true)
+			return rootCmd.GenBashCompletionV2(cmd.OutOrStdout(), true) //nolint:forbidigo // cobra writes the script
 		},
 	})
 
@@ -60,7 +60,7 @@ Fish:
   ytr completion zsh > "${fpath[1]}/_ytr"`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return rootCmd.GenZshCompletion(cmd.OutOrStdout())
+			return rootCmd.GenZshCompletion(cmd.OutOrStdout()) //nolint:forbidigo // cobra writes the script
 		},
 	})
 
@@ -72,7 +72,7 @@ Fish:
   ytr completion fish > ~/.config/fish/completions/ytr.fish`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return rootCmd.GenFishCompletion(cmd.OutOrStdout(), true)
+			return rootCmd.GenFishCompletion(cmd.OutOrStdout(), true) //nolint:forbidigo // cobra writes the script
 		},
 	})
 
