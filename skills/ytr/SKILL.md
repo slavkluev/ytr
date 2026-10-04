@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "19.0"
+  version: "20.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -214,7 +214,10 @@ as `PROJ-1` or a 24-character hexadecimal issue ID such as
 `invalid issue key or ID "bad"` and sends nothing, as does a `--from-json`
 body whose `"issues"` is missing or empty (`no issue keys provided`). Keys
 given as arguments or on stdin, and `--field` values, are checked before auth
-and before the `--json=` field hint.
+and before the `--json=` field hint. Under `--from-json` the body's `"issues"`
+is the only source of keys: key arguments beside it exit 1 with
+`cannot combine --from-json with issue keys`, and stdin is not read for keys
+(with `--from-json -` it carries the body itself).
 
 `bulk move`, `bulk update` and `bulk transition` wait for the operation and
 exit 1 when it ends `FAILED`, writing nothing to stdout in any mode, `--quiet`
@@ -476,6 +479,8 @@ each exits 1 before any request:
 
 - `cannot combine --from-json with --summary, --type`: a request flag next to
   `--from-json`, naming the flags you set. Pass the request one way or the other.
+  Issue key arguments next to a bulk `--from-json` fail the same way, as
+  `cannot combine --from-json with issue keys`.
 - `missing --name, --queue`: a create without a required flag, or a
   `--from-json` without the matching key (here `"name"`, `"queue"`); the
   suggestion names the keys. `comment create --body`,
@@ -547,7 +552,7 @@ the help text to stdout and exit 0, even on a mistyped command path
 | `--token` | Global auth override | Override auth token |
 | `--org-id` | Global auth override | Override organization ID |
 | `--org-type` | Global auth override | Override organization type: `360` or `cloud` |
-| `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin); keys the request body has no field for are rejected, not dropped; cannot be combined with the command's request flags; a create or bulk command needs its required keys and an edit at least one key; a bulk body needs a non-empty `"issues"`; a key's value must pass its flag's check |
+| `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin); keys the request body has no field for are rejected, not dropped; cannot be combined with the command's request flags, nor with a bulk command's issue key arguments, and stdin is not read for bulk keys; a create or bulk command needs its required keys and an edit at least one key; a bulk body needs a non-empty `"issues"`; a key's value must pass its flag's check |
 | `--query` | `issue list` | Search using Tracker query language; mutually exclusive with `--filter` and `--order-by` |
 | `--filter k=v` | `issue list` | Filter by field (repeatable); mutually exclusive with `--query` |
 | `--order-by` | `issue list` | Sort by field (descending by default); cannot be used with `--query` |

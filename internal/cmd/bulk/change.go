@@ -9,6 +9,7 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
+	"github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
@@ -75,10 +76,18 @@ func (c change[Req]) run(cmd *cobra.Command, args []string) error {
 
 // flagRequest decodes into req the body the issue keys and the request flags
 // give, one key per flag, before the field hint and auth. It leaves req to
-// jsonRequest when --from-json gives the body.
+// jsonRequest when --from-json gives the body, whose "issues" stdin cannot add
+// to: stdin may be the body itself.
 func (c change[Req]) flagRequest(cmd *cobra.Command, args []string, req *Req) error {
 	set := cmd.Flags()
 	if set.Changed(validate.FromJSONFlag) {
+		if len(args) > 0 {
+			return errors.NewUserError(
+				"cannot combine --from-json with issue keys",
+				`Pass the issue keys as arguments or as the key "issues" in --from-json, not both`,
+			)
+		}
+
 		return nil
 	}
 

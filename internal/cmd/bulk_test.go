@@ -108,6 +108,28 @@ func TestBulkMove(t *testing.T) {
 			check:     assertFirstBody(`{"queue": "T", "issues": ["PROJ-1"]}`),
 		},
 		{
+			name: "Keys as args beside JSON",
+			args: move("PROJ-1", "--from-json", `{"queue": "T", "issues": ["PROJ-2"]}`),
+			code: ytrerrors.ExitUserError,
+			stderr: []string{
+				"Error: cannot combine --from-json with issue keys\n" +
+					`Pass the issue keys as arguments or as the key "issues" in --from-json, not both` + "\n",
+			},
+		},
+		{
+			name: "Keys as args beside JSON signed out", signedOut: true,
+			args: move("PROJ-1", "--from-json", `{"queue": "T", "issues": ["PROJ-2"]}`, "--json="),
+			code: ytrerrors.ExitUserError, stderr: []string{"Error: cannot combine --from-json with issue keys\n"},
+		},
+		{
+			name:      "Keys on stdin beside JSON",
+			args:      move("--from-json", `{"queue": "T", "issues": ["PROJ-2"]}`, "--quiet"),
+			stdin:     "PROJ-1\n",
+			exchanges: done,
+			stdout:    "op-1\n",
+			check:     assertFirstBody(`{"queue": "T", "issues": ["PROJ-2"]}`),
+		},
+		{
 			name: "Failed", args: move("PROJ-1", "PROJ-2", "PROJ-3", "--queue", "TARGET", "--quiet"),
 			exchanges: []faketracker.Exchange{started, bulkFailed("3", "1")}, code: ytrerrors.ExitUserError,
 			stderr: []string{
