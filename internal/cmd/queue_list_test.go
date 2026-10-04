@@ -116,6 +116,15 @@ func TestQueueList(t *testing.T) {
 			check:  assertRequestOrder("page=1&perPage=2", "page=2&perPage=2"),
 		},
 		{
+			name: "All pages end on a full page", args: list("--all", "--limit", "2", "--quiet"),
+			exchanges: []faketracker.Exchange{
+				queuePage(1, 2, 4, "["+listedQueue("A")+","+listedQueue("B")+"]"),
+				queuePage(2, 2, 4, "["+listedQueue("C")+","+listedQueue("D")+"]"),
+			},
+			stdout: "A\nB\nC\nD\n",
+			check:  assertRequestOrder("page=1&perPage=2", "page=2&perPage=2"),
+		},
+		{
 			name: "All pages as JSON", args: list("--all", "--limit", "2", "--json", "key"),
 			exchanges: []faketracker.Exchange{
 				queuePage(1, 2, 3, "["+listedQueue("A")+","+listedQueue("B")+"]"),

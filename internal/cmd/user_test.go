@@ -201,6 +201,15 @@ func TestUserList(t *testing.T) {
 			check:  assertRequestOrder("page=1&perPage=2", "page=2&perPage=2"),
 		},
 		{
+			name: "All pages end on a full page", args: list("--all", "--limit", "2", "--quiet"),
+			exchanges: []faketracker.Exchange{
+				userPage(1, 2, 4, users),
+				userPage(2, 2, 4, `[{"uid": 300, "login": "carol"}, {"uid": 400, "login": "dave"}]`),
+			},
+			stdout: "100\n200\n300\n400\n",
+			check:  assertRequestOrder("page=1&perPage=2", "page=2&perPage=2"),
+		},
+		{
 			name: "All pages as JSON", args: list("--all", "--limit", "2", "--json", "uid"),
 			exchanges: []faketracker.Exchange{
 				userPage(1, 2, 3, users), userPage(2, 2, 3, `[{"uid": 300, "login": "carol"}]`),
