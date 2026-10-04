@@ -18,20 +18,6 @@ import (
 	"github.com/slavkluev/ytr/internal/output"
 )
 
-type userValidator interface {
-	Myself(ctx context.Context) (*tracker.User, *tracker.Response, error)
-}
-
-type orgTypeDetector interface {
-	Detect(ctx context.Context, token, orgID string) (config.OrgType, *tracker.User, error)
-}
-
-var newValidator = func(auth *config.ResolvedAuth) userValidator {
-	return api.NewClient(auth).Users
-}
-
-type defaultOrgTypeDetector struct{}
-
 type orgTypeAttemptFailure struct {
 	OrgType config.OrgType
 	Err     error
@@ -208,10 +194,9 @@ func allTransportFailures(failures []orgTypeAttemptFailure) bool {
 	return true
 }
 
-func (d defaultOrgTypeDetector) Detect(
-	ctx context.Context,
-	token, orgID string,
-) (config.OrgType, *tracker.User, error) {
+// detectOrganization signs in as each organization type in turn, 360 first,
+// and returns the first that Tracker accepts.
+func detectOrganization(ctx context.Context, token, orgID string) (config.OrgType, *tracker.User, error) {
 	var failures []orgTypeAttemptFailure
 
 	for _, orgType := range []config.OrgType{
@@ -225,7 +210,7 @@ func (d defaultOrgTypeDetector) Detect(
 			TokenSource: "flag",
 		}
 
-		user, _, err := newValidator(auth).Myself(ctx)
+		user, _, err := api.NewClient(auth).Users.Myself(ctx)
 		if err == nil {
 			return orgType, user, nil
 		}
@@ -238,8 +223,6 @@ func (d defaultOrgTypeDetector) Detect(
 
 	return "", nil, &orgTypeDetectionError{Failures: failures}
 }
-
-var detectOrgType orgTypeDetector = defaultOrgTypeDetector{}
 
 func newLoginCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -329,7 +312,7 @@ func resolveUserAndOrgType(
 	cmd *cobra.Command, token, orgID string, orgType config.OrgType,
 ) (*tracker.User, config.OrgType, error) {
 	if orgType == "" {
-		detectedType, user, err := detectOrgType.Detect(cmd.Context(), token, orgID)
+		detectedType, user, err := detectOrganization(cmd.Context(), token, orgID)
 		if err != nil {
 			var detectErr *orgTypeDetectionError
 			if errors.As(err, &detectErr) {
@@ -347,8 +330,7 @@ func resolveUserAndOrgType(
 		TokenSource: "flag",
 	}
 
-	validator := newValidator(auth)
-	user, _, err := validator.Myself(cmd.Context())
+	user, _, err := api.NewClient(auth).Users.Myself(cmd.Context())
 	if err != nil {
 		return nil, "", api.MapAPIError(err)
 	}

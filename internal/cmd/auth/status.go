@@ -45,8 +45,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	validator := newValidator(auth)
-	user, _, err := validator.Myself(cmd.Context())
+	user, _, err := api.NewClient(auth).Users.Myself(cmd.Context())
 	if err != nil {
 		return api.MapAPIError(err)
 	}
