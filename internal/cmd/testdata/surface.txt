@@ -1,4 +1,4 @@
-version 18.0
+version 19.0
 command ytr
 command ytr auth
 command ytr auth login

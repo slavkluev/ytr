@@ -132,6 +132,18 @@ func TestBulkMove(t *testing.T) {
 			},
 		},
 		{
+			name: "Bad key signed out", args: move("", "--queue", "TARGET"), signedOut: true,
+			code: ytrerrors.ExitUserError, stderr: []string{`Error: invalid issue key or ID ""`},
+		},
+		{
+			name: "Bad key on stdin signed out", args: move("--queue", "TARGET"), stdin: "bad\n", signedOut: true,
+			code: ytrerrors.ExitUserError, stderr: []string{`Error: invalid issue key or ID "bad"`},
+		},
+		{
+			name: "Bad key before the hint", args: move("bad", "--queue", "TARGET", "--json="),
+			code: ytrerrors.ExitUserError, stderr: []string{`Error: invalid issue key or ID "bad"`},
+		},
+		{
 			name: "Timeout", args: move("PROJ-1", "--queue", "TARGET", "--timeout", "1ms"),
 			exchanges: []faketracker.Exchange{started}, code: ytrerrors.ExitUserError,
 			stderr: []string{
@@ -218,6 +230,13 @@ func TestBulkUpdate(t *testing.T) {
 				"Error: invalid field format \"noequals\": expected key=value\n" +
 					"Use --field key=value (e.g., --field priority=critical)\n",
 			},
+		},
+		{
+			name:      "Not a field signed out",
+			args:      update("PROJ-1", "--field", "noequals"),
+			signedOut: true,
+			code:      ytrerrors.ExitUserError,
+			stderr:    []string{"Error: invalid field format \"noequals\": expected key=value\n"},
 		},
 		{
 			name: "Issue ID in JSON body",

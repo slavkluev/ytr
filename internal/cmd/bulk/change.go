@@ -44,6 +44,11 @@ func (c change[Req]) command(cmd *cobra.Command) *cobra.Command {
 }
 
 func (c change[Req]) run(cmd *cobra.Command, args []string) error {
+	var req Req
+	if err := c.flagRequest(cmd, args, &req); err != nil {
+		return err
+	}
+
 	opts, err := runner.SelectFields(cmd, BulkStatusFields)
 	if err != nil {
 		return err
@@ -54,10 +59,6 @@ func (c change[Req]) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var req Req
-	if err = c.flagRequest(cmd, args, &req); err != nil {
-		return err
-	}
 	if err = c.jsonRequest(cmd, &req); err != nil {
 		return err
 	}
@@ -73,8 +74,8 @@ func (c change[Req]) run(cmd *cobra.Command, args []string) error {
 }
 
 // flagRequest decodes into req the body the issue keys and the request flags
-// give, one key per flag, and leaves req to jsonRequest when --from-json gives
-// the body.
+// give, one key per flag, before the field hint and auth. It leaves req to
+// jsonRequest when --from-json gives the body.
 func (c change[Req]) flagRequest(cmd *cobra.Command, args []string, req *Req) error {
 	set := cmd.Flags()
 	if set.Changed(validate.FromJSONFlag) {
@@ -111,6 +112,8 @@ func (c change[Req]) flagRequest(cmd *cobra.Command, args []string, req *Req) er
 	return c.decode(data, req)
 }
 
+// jsonRequest decodes the body --from-json gives into req through the same
+// decoder as the flags, read only once auth has resolved.
 func (c change[Req]) jsonRequest(cmd *cobra.Command, req *Req) error {
 	set := cmd.Flags()
 	if !set.Changed(validate.FromJSONFlag) {

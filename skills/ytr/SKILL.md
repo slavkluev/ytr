@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "18.0"
+  version: "19.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -212,7 +212,9 @@ as `PROJ-1` or a 24-character hexadecimal issue ID such as
 `4ff3e8dae4b0e2ac00000001`, as arguments, one per line on stdin, or in the
 `"issues"` array of `--from-json`. Anything else exits 1 with
 `invalid issue key or ID "bad"` and sends nothing, as does a `--from-json`
-body whose `"issues"` is missing or empty (`no issue keys provided`).
+body whose `"issues"` is missing or empty (`no issue keys provided`). Keys
+given as arguments or on stdin, and `--field` values, are checked before auth
+and before the `--json=` field hint.
 
 `bulk move`, `bulk update` and `bulk transition` wait for the operation and
 exit 1 when it ends `FAILED`, writing nothing to stdout in any mode, `--quiet`
@@ -490,8 +492,8 @@ each exits 1 before any request:
   Remove it.
 - `invalid issue key or ID "bad"`: a `link create --issue`, or an `"issue"` in
   its `--from-json`, that is neither an issue key such as `PROJ-456` nor a
-  24-character hexadecimal issue ID, or such an entry in the `"issues"` of a
-  bulk `--from-json`.
+  24-character hexadecimal issue ID, or such a bulk issue, given as an
+  argument, on stdin or in the `"issues"` of a bulk `--from-json`.
 - `no issue keys provided`: a bulk `--from-json` body without `"issues"`, or
   with an empty one.
 
@@ -507,9 +509,9 @@ issue key) or an empty one, a `--limit` outside 1 to 1000, a `--cursor` of
 one, `abc` is not), `--all` together with `--cursor`, an `issue list --filter`
 without `=`, and an unknown `ytr help` topic. None of them reach Tracker, and
 none print help and exit 0. A bad `--limit`, `--cursor` or `--filter`,
-`--all` with `--cursor`, or a flag error above that does not come from a
-`--from-json` body, exits 1 even without credentials, since ytr checks it
-before auth.
+`--all` with `--cursor`, a bad bulk issue key given as an argument or on
+stdin, or a flag error above that does not come from a `--from-json` body,
+exits 1 even without credentials, since ytr checks it before auth.
 
 `--json` is honoured even when it comes after the mistake, so
 `ytr issue list --nosuchflag --json key` still answers with JSON.
