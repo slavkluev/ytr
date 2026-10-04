@@ -102,7 +102,7 @@ func TestQueueList(t *testing.T) {
 			exchanges: []faketracker.Exchange{queuePage(3, 50, 0, `[]`)},
 		},
 		{
-			name: "Not a page cursor", args: list("--cursor", "abc"), code: ytrerrors.ExitUserError,
+			name: "Not a page cursor", args: list("--cursor", "abc"), signedOut: true, code: ytrerrors.ExitUserError,
 			stderr: []string{"invalid cursor"},
 		},
 		{

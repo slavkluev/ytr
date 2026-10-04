@@ -122,7 +122,7 @@ func TestIssueList(t *testing.T) {
 			json:      `{"items": [], "pagination": {"hasMore": false}}`,
 		},
 		{
-			name: "Not a page cursor", args: list("--cursor", "abc"), code: ytrerrors.ExitUserError,
+			name: "Not a page cursor", args: list("--cursor", "abc"), signedOut: true, code: ytrerrors.ExitUserError,
 			stderr: []string{"invalid cursor"},
 		},
 		{
@@ -215,7 +215,8 @@ func TestIssueList(t *testing.T) {
 			exchanges: []faketracker.Exchange{empty}, body: `{"order": "+created"}`,
 		},
 		{
-			name: "Not a filter", args: list("--filter", "noequalssign"), code: ytrerrors.ExitUserError,
+			name: "Not a filter", args: list("--filter", "noequalssign"), signedOut: true,
+			code: ytrerrors.ExitUserError,
 			stderr: []string{
 				"Error: invalid filter format \"noequalssign\": expected key=value\n" +
 					"Use --filter key=value (e.g., --filter priority=critical)\n",

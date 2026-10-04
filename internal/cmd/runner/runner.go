@@ -156,7 +156,14 @@ func (p Pages[T, Item]) Command() *cobra.Command {
 							return err
 						}
 					}
-					return validate.ConflictingAllAndCursor(set.Changed("all"), set.Changed("cursor"))
+					if err := validate.ConflictingAllAndCursor(set.Changed("all"), set.Changed("cursor")); err != nil {
+						return err
+					}
+
+					cursor, _ := set.GetString("cursor")
+					var err error
+					o.Page, err = validate.ParsePageCursor(cursor)
+					return err
 				},
 				prepare: func() error {
 					limit, _ := set.GetInt("limit")
@@ -164,11 +171,7 @@ func (p Pages[T, Item]) Command() *cobra.Command {
 						limit = defaultPageLimit
 					}
 					o.PerPage = min(limit, maxPageLimit)
-
-					cursor, _ := set.GetString("cursor")
-					var err error
-					o.Page, err = validate.ParsePageCursor(cursor)
-					return err
+					return nil
 				},
 				call: func(ctx context.Context, c *tracker.Client, _ []string) (listPage[T], error) {
 					if all, _ := set.GetBool("all"); all {

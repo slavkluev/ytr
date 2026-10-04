@@ -189,7 +189,7 @@ func TestUserList(t *testing.T) {
 			exchanges: []faketracker.Exchange{userPage(2, 50, 10, users)}, stdout: "100\n200\n",
 		},
 		{
-			name: "Not a page cursor", args: list("--cursor", "abc"), code: ytrerrors.ExitUserError,
+			name: "Not a page cursor", args: list("--cursor", "abc"), signedOut: true, code: ytrerrors.ExitUserError,
 			stderr: []string{"invalid cursor"},
 		},
 		{

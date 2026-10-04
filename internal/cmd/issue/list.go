@@ -139,33 +139,6 @@ func runList(
 		return err
 	}
 
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue list", IssueListFields)
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = IssueListFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, IssueListFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueListFields)
-	}
-
-	client, err := runner.Client(cmd)
-	if err != nil {
-		return err
-	}
-
-	if limit < 1 {
-		limit = defaultLimit
-	}
-	if limit > maxLimit {
-		limit = maxLimit
-	}
-
 	page, err := validate.ParsePageCursor(cursor)
 	if err != nil {
 		return err
@@ -190,6 +163,33 @@ func runList(
 		}
 		order := prefix + orderBy
 		searchReq.Order = &order
+	}
+
+	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
+		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue list", IssueListFields)
+	}
+
+	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+		opts.JSONFields = IssueListFields
+	}
+
+	if opts.HasFieldSelection() {
+		if err = output.ValidateFields(opts.JSONFields, IssueListFields); err != nil {
+			return err
+		}
+		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueListFields)
+	}
+
+	client, err := runner.Client(cmd)
+	if err != nil {
+		return err
+	}
+
+	if limit < 1 {
+		limit = defaultLimit
+	}
+	if limit > maxLimit {
+		limit = maxLimit
 	}
 
 	result, err := fetchIssues(cmd, client.Issues, searchReq, limit, page, all)
