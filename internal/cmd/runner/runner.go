@@ -1,7 +1,8 @@
 // Package runner builds a command from its declaration and applies the policy
 // every such command shares: positional arguments, the request flags and
-// --from-json of a write, auth, the --json field prelude, the JSON, jq, quiet
-// and table, card or confirm-line output, and the mapping of Tracker errors.
+// --from-json of a write, the paging flags of a paged list, auth, the --json
+// field prelude, the JSON, jq, quiet and table, card or confirm-line output,
+// and the mapping of Tracker errors.
 package runner
 
 import (
@@ -61,12 +62,7 @@ func (l List[T, Item]) Command() *cobra.Command {
 
 func (l List[T, Item]) render(w io.Writer, opts *output.Options, _ []string, values []T) error {
 	if opts.IsJSON() {
-		items := make([]map[string]any, len(values))
-		for i, v := range values {
-			items[i] = output.FilterFields(l.Item(v), opts.JSONFields)
-		}
-
-		return printJSON(w, opts, items)
+		return printJSON(w, opts, l.items(opts, values))
 	}
 
 	// Before the empty check, so --quiet on an empty list prints nothing.
@@ -92,6 +88,139 @@ func (l List[T, Item]) render(w io.Writer, opts *output.Options, _ []string, val
 	tbl.Render()
 
 	return nil
+}
+
+func (l List[T, Item]) items(opts *output.Options, values []T) []map[string]any {
+	items := make([]map[string]any, len(values))
+	for i, v := range values {
+		items[i] = output.FilterFields(l.Item(v), opts.JSONFields)
+	}
+
+	return items
+}
+
+const (
+	defaultPageLimit = 50
+	maxPageLimit     = 1000
+)
+
+// Pages declares a command that prints one page of a page-numbered Tracker
+// list, chosen with --limit and --cursor, or every page with --all. Under
+// --json the items come in the {items, pagination} envelope. Item is the flat
+// struct an element becomes under --json; its json tags are the fields the
+// command accepts, in order.
+type Pages[T, Item any] struct {
+	// Long is the description; Command adds the JSON FIELDS section after it.
+	Use, Short, Long, Example string
+
+	// Check, when set, refuses flags that cannot go together, ahead of the
+	// field hint and auth.
+	Check func(*pflag.FlagSet) error
+
+	// Empty is printed in place of a table with no rows.
+	Empty string
+
+	// Page fetches the page o names, and its Response gives the total. All is
+	// the library's iterator from the page o names on; it drops each Response,
+	// so --all can only count the items it yields.
+	Page func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) ([]T, *tracker.Response, error)
+	All  func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) iter.Seq2[T, error]
+
+	Item   func(T) Item
+	Header []string
+	Row    func(*output.Options, T) []string
+	Quiet  func(T) string
+}
+
+// listPage is what a run of a Pages command fetched: the items and the
+// envelope's pagination.
+type listPage[T any] struct {
+	values []T
+	meta   output.PaginationMeta
+}
+
+// Command returns the cobra command p declares.
+func (p Pages[T, Item]) Command() *cobra.Command {
+	fields := ItemFields[Item]()
+
+	cmd := newCommand(help{p.Use, p.Short, p.Long, p.Example}, nil, fields,
+		func(cmd *cobra.Command, args []string) error {
+			set := cmd.Flags()
+			var o tracker.ListOptions
+
+			return run(cmd, args, steps[listPage[T]]{
+				fields: fields,
+				check: func() error {
+					if p.Check != nil {
+						if err := p.Check(set); err != nil {
+							return err
+						}
+					}
+					return validate.ConflictingAllAndCursor(set.Changed("all"), set.Changed("cursor"))
+				},
+				prepare: func() error {
+					limit, _ := set.GetInt("limit")
+					if limit < 1 {
+						limit = defaultPageLimit
+					}
+					o.PerPage = min(limit, maxPageLimit)
+
+					cursor, _ := set.GetString("cursor")
+					var err error
+					o.Page, err = validate.ParsePageCursor(cursor)
+					return err
+				},
+				call: func(ctx context.Context, c *tracker.Client, _ []string) (listPage[T], error) {
+					if all, _ := set.GetBool("all"); all {
+						return p.fetchAll(ctx, c, o)
+					}
+					return p.fetchPage(ctx, c, o)
+				},
+				render: p.render,
+			})
+		})
+
+	cmd.Flags().Int("limit", defaultPageLimit, "Maximum number of results per page (max 1000)")
+	cmd.Flags().String("cursor", "", "Page number for pagination")
+	cmd.Flags().Bool("all", false, "Fetch all pages automatically")
+
+	return cmd
+}
+
+func (p Pages[T, Item]) fetchPage(ctx context.Context, c *tracker.Client, o tracker.ListOptions) (listPage[T], error) {
+	values, resp, err := p.Page(ctx, c, o)
+	if err != nil {
+		return listPage[T]{}, err
+	}
+
+	meta := output.PaginationMeta{HasMore: len(values) == o.PerPage}
+	if meta.HasMore {
+		meta.Cursor = strconv.Itoa(o.Page + 1)
+	}
+	if resp != nil {
+		meta.Total = resp.TotalCount
+	}
+
+	return listPage[T]{values: values, meta: meta}, nil
+}
+
+// fetchAll starts at o, which --cursor cannot move under --all, so at page 1.
+func (p Pages[T, Item]) fetchAll(ctx context.Context, c *tracker.Client, o tracker.ListOptions) (listPage[T], error) {
+	values, err := Collect(p.All(ctx, c, o))
+	if err != nil {
+		return listPage[T]{}, err
+	}
+
+	return listPage[T]{values: values, meta: output.PaginationMeta{Total: len(values)}}, nil
+}
+
+func (p Pages[T, Item]) render(w io.Writer, opts *output.Options, args []string, page listPage[T]) error {
+	list := List[T, Item]{Empty: p.Empty, Item: p.Item, Header: p.Header, Row: p.Row, Quiet: p.Quiet}
+	if !opts.IsJSON() {
+		return list.render(w, opts, args, page.values)
+	}
+
+	return printJSON(w, opts, output.PaginatedResult{Items: list.items(opts, page.values), Pagination: page.meta})
 }
 
 // Get declares a command that fetches one T from Tracker and prints it as a

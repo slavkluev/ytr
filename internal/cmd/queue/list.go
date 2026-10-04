@@ -1,9 +1,8 @@
 package queue
 
 import (
-	"fmt"
-	"io"
-	"strconv"
+	"context"
+	"iter"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
@@ -11,16 +10,7 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/validate"
 )
-
-const (
-	defaultLimit = 50
-	maxLimit     = 1000
-)
-
-// QueueListFields lists the available JSON field names for queue list output.
-var QueueListFields = []string{"key", "name", "lead", "leadId"}
 
 // Raw tracker.Queue fields are pointer types that produce nulls in JSON;
 // this struct uses value types with proper json tags.
@@ -32,19 +22,10 @@ type queueItem struct {
 }
 
 func newListCmd() *cobra.Command {
-	var (
-		limit  int
-		cursor string
-		all    bool
-	)
-
-	cmd := &cobra.Command{
+	return runner.Pages[*tracker.Queue, queueItem]{
 		Use:   "list",
 		Short: "List queues",
-		Long: `List Yandex Tracker queues with pagination.
-
-JSON FIELDS
-  key, name, lead, leadId`,
+		Long:  `List Yandex Tracker queues with pagination.`,
 		Example: `  # List all queues
   ytr queue list
 
@@ -53,202 +34,24 @@ JSON FIELDS
 
   # Get all queue keys
   ytr queue list --all --json key --jq '.items[].key'`,
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(cmd, limit, cursor, all)
+		Empty: "No queues found",
+		Page: func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) (
+			[]*tracker.Queue, *tracker.Response, error,
+		) {
+			return c.Queues.List(ctx, &tracker.QueueListOptions{ListOptions: o})
 		},
-	}
-
-	cmd.Flags().IntVar(&limit, "limit", defaultLimit, "Maximum number of results per page (max 1000)")
-	cmd.Flags().StringVar(&cursor, "cursor", "", "Page number for pagination")
-	cmd.Flags().BoolVar(&all, "all", false, "Fetch all pages automatically")
-
-	runner.SetFields(cmd, QueueListFields)
-
-	return cmd
+		All: func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) iter.Seq2[*tracker.Queue, error] {
+			return c.Queues.ListIter(ctx, &tracker.QueueListOptions{ListOptions: o})
+		},
+		Item:   toQueueItem,
+		Header: []string{"KEY", "NAME", "LEAD"},
+		Row:    queueRow,
+		Quiet:  func(q *tracker.Queue) string { return api.DerefString(q.Key, "") },
+	}.Command()
 }
 
-type queueSearchResult struct {
-	queues     []*tracker.Queue
-	totalCount int
-	hasMore    bool
-	nextCursor string
-}
-
-func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
-	opts := output.FromContext(cmd.Context())
-
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "queue list", QueueListFields)
-	}
-
-	if err := validate.ConflictingAllAndCursor(
-		cmd.Flags().Changed("all"), cmd.Flags().Changed("cursor"),
-	); err != nil {
-		return err
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = QueueListFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, QueueListFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, QueueListFields)
-	}
-
-	client, err := runner.Client(cmd)
-	if err != nil {
-		return err
-	}
-
-	if limit < 1 {
-		limit = defaultLimit
-	}
-	if limit > maxLimit {
-		limit = maxLimit
-	}
-
-	page, err := validate.ParsePageCursor(cursor)
-	if err != nil {
-		return err
-	}
-
-	result, err := fetchQueues(cmd, client.Queues, limit, page, all)
-	if err != nil {
-		return err
-	}
-
-	return renderListOutput(cmd.OutOrStdout(), opts, result)
-}
-
-func fetchQueues(cmd *cobra.Command, lister *tracker.QueuesService, limit, page int,
-	all bool) (*queueSearchResult, error) {
-	if all {
-		return fetchAllQueuePages(cmd, lister, limit)
-	}
-
-	opts := &tracker.QueueListOptions{}
-	opts.Page = page
-	opts.PerPage = limit
-
-	queues, resp, err := lister.List(cmd.Context(), opts)
-	if err != nil {
-		return nil, api.MapAPIError(err)
-	}
-
-	result := &queueSearchResult{queues: queues}
-	if resp != nil {
-		result.totalCount = resp.TotalCount
-	}
-	result.hasMore = len(queues) == limit
-	if result.hasMore {
-		result.nextCursor = strconv.Itoa(page + 1)
-	}
-	return result, nil
-}
-
-func fetchAllQueuePages(cmd *cobra.Command, lister *tracker.QueuesService,
-	limit int) (*queueSearchResult, error) {
-	var allQueues []*tracker.Queue
-	var totalCount int
-
-	currentPage := 1
-	for {
-		opts := &tracker.QueueListOptions{}
-		opts.Page = currentPage
-		opts.PerPage = limit
-
-		queues, resp, err := lister.List(cmd.Context(), opts)
-		if err != nil {
-			return nil, api.MapAPIError(err)
-		}
-
-		allQueues = append(allQueues, queues...)
-		if resp != nil {
-			totalCount = resp.TotalCount
-		}
-
-		if len(queues) < limit {
-			break
-		}
-		currentPage++
-	}
-
-	return &queueSearchResult{queues: allQueues, totalCount: totalCount}, nil
-}
-
-func renderListOutput(w io.Writer, opts *output.Options, result *queueSearchResult) error {
-	if opts.IsJSON() {
-		return renderListJSON(w, opts, result)
-	}
-
-	if opts.Quiet {
-		keys := make([]string, len(result.queues))
-		for i, q := range result.queues {
-			keys[i] = api.DerefString(q.Key, "")
-		}
-		output.PrintQuiet(w, keys...)
-		return nil
-	}
-
-	return renderListTable(w, opts, result.queues)
-}
-
-func renderListJSON(w io.Writer, opts *output.Options, result *queueSearchResult) error {
-	items := make([]queueItem, len(result.queues))
-	for i, q := range result.queues {
-		items[i] = toQueueItem(q)
-	}
-
-	var data any
-	if opts.HasFieldSelection() {
-		filtered := make([]map[string]any, len(items))
-		for i, item := range items {
-			filtered[i] = output.FilterFields(item, opts.JSONFields)
-		}
-		data = output.PaginatedResult{
-			Items: filtered,
-			Pagination: output.PaginationMeta{
-				Cursor: result.nextCursor, HasMore: result.hasMore, Total: result.totalCount,
-			},
-		}
-	} else {
-		data = output.PaginatedResult{
-			Items: items,
-			Pagination: output.PaginationMeta{
-				Cursor: result.nextCursor, HasMore: result.hasMore, Total: result.totalCount,
-			},
-		}
-	}
-
-	if opts.JQFilter != "" {
-		return output.ApplyJQ(w, data, opts.JQFilter)
-	}
-	return opts.PrintJSON(w, data)
-}
-
-func renderListTable(w io.Writer, opts *output.Options, queues []*tracker.Queue) error {
-	if len(queues) == 0 {
-		_, err := fmt.Fprintln(w, "No queues found")
-		return err
-	}
-
-	tbl := opts.NewTable(w)
-	tbl.AddHeader("KEY", "NAME", "LEAD")
-
-	for _, q := range queues {
-		key := api.DerefString(q.Key, "-")
-		name := api.DerefString(q.Name, "-")
-		lead := q.Lead.DisplayOr("-")
-
-		tbl.AddRow(key, name, lead)
-	}
-
-	tbl.Render()
-	return nil
+func queueRow(_ *output.Options, q *tracker.Queue) []string {
+	return []string{api.DerefString(q.Key, "-"), api.DerefString(q.Name, "-"), q.Lead.DisplayOr("-")}
 }
 
 func toQueueItem(q *tracker.Queue) queueItem {
