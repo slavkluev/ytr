@@ -135,6 +135,15 @@ func TestIssueList(t *testing.T) {
 			check:  assertRequestOrder(`page=1&perPage=2`, `page=2&perPage=2`),
 		},
 		{
+			name: "All pages end on a full page", args: list("--all", "--limit", "2", "--quiet"),
+			exchanges: []faketracker.Exchange{
+				issueSearch(1, 2, 4, "["+listedIssue("A-1")+","+listedIssue("A-2")+"]"),
+				issueSearch(2, 2, 4, "["+listedIssue("A-3")+","+listedIssue("A-4")+"]"),
+			},
+			stdout: "A-1\nA-2\nA-3\nA-4\n",
+			check:  assertRequestOrder("page=1&perPage=2", "page=2&perPage=2"),
+		},
+		{
 			name: "All pages as JSON", args: list("--all", "--limit", "2", "--json", "key"),
 			exchanges: []faketracker.Exchange{
 				issueSearch(1, 2, 3, "["+listedIssue("A-1")+","+listedIssue("A-2")+"]"),
