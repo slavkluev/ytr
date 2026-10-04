@@ -10,7 +10,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -107,16 +106,10 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, UserListFields)
 	}
 
-	tokenFlag, _ := cmd.Root().PersistentFlags().GetString("token")
-	orgIDFlag, _ := cmd.Root().PersistentFlags().GetString("org-id")
-	orgTypeFlag, _ := cmd.Root().PersistentFlags().GetString("org-type")
-
-	auth, err := config.ResolveAuth(cmd.Context(), tokenFlag, orgIDFlag, orgTypeFlag)
+	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
-
-	lister := newUserLister(auth)
 
 	if limit < 1 {
 		limit = defaultLimit
@@ -130,7 +123,7 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 		return err
 	}
 
-	result, err := fetchUsers(cmd, lister, limit, page, all)
+	result, err := fetchUsers(cmd, client.Users, limit, page, all)
 	if err != nil {
 		return err
 	}
@@ -138,7 +131,7 @@ func runList(cmd *cobra.Command, limit int, cursor string, all bool) error {
 	return renderListOutput(cmd.OutOrStdout(), opts, result)
 }
 
-func fetchUsers(cmd *cobra.Command, lister userLister, limit, page int,
+func fetchUsers(cmd *cobra.Command, lister *tracker.UsersService, limit, page int,
 	all bool) (*userSearchResult, error) {
 	if all {
 		return fetchAllUserPages(cmd, lister, limit)
@@ -164,7 +157,7 @@ func fetchUsers(cmd *cobra.Command, lister userLister, limit, page int,
 	return result, nil
 }
 
-func fetchAllUserPages(cmd *cobra.Command, lister userLister,
+func fetchAllUserPages(cmd *cobra.Command, lister *tracker.UsersService,
 	limit int) (*userSearchResult, error) {
 	var allUsers []*tracker.User
 	var totalCount int
