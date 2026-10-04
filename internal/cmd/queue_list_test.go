@@ -3,6 +3,7 @@ package cmd
 import (
 	"net/http"
 	"slices"
+	"strconv"
 	"testing"
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
@@ -11,7 +12,17 @@ import (
 )
 
 func queuePage(page, perPage, total int, queues string) faketracker.Exchange {
-	return trackerPage(http.MethodGet, "/v3/queues", page, perPage, total, queues)
+	return countedPage("/v3/queues", page, perPage, total, queues)
+}
+
+// countedPage answers a GET of a paged list the way /v3/queues and /v3/users
+// answer it: trackerPage plus the X-Total-Pages Tracker sends beside
+// X-Total-Count.
+func countedPage(path string, page, perPage, total int, items string) faketracker.Exchange {
+	ex := trackerPage(http.MethodGet, path, page, perPage, total, items)
+	ex.Header.Set("X-Total-Pages", strconv.Itoa((total+perPage-1)/perPage))
+
+	return ex
 }
 
 func listedQueue(key string) string {
@@ -103,6 +114,26 @@ func TestQueueList(t *testing.T) {
 			},
 			stdout: "A\nB\nC\n",
 			check:  assertRequestOrder("page=1&perPage=2", "page=2&perPage=2"),
+		},
+		{
+			name: "All pages as JSON", args: list("--all", "--limit", "2", "--json", "key"),
+			exchanges: []faketracker.Exchange{
+				queuePage(1, 2, 3, "["+listedQueue("A")+","+listedQueue("B")+"]"),
+				queuePage(2, 2, 3, "["+listedQueue("C")+"]"),
+			},
+			json: `{"items": [{"key": "A"}, {"key": "B"}, {"key": "C"}], "pagination": {"hasMore": false, "total": 3}}`,
+		},
+		{
+			name: "A later page fails", args: list("--all", "--limit", "2", "--json", "key"),
+			exchanges: []faketracker.Exchange{
+				queuePage(1, 2, 3, "["+listedQueue("A")+","+listedQueue("B")+"]"),
+				withQuery(
+					trackerError(http.MethodGet, "/v3/queues", http.StatusInternalServerError, "Queues unavailable"),
+					pageQuery(2, 2),
+				),
+			},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"Queues unavailable"`},
+			check: assertOneErrorDocument("Queues unavailable"),
 		},
 		{
 			name: "Empty", args: list(), exchanges: []faketracker.Exchange{empty}, stdout: "No queues found\n",

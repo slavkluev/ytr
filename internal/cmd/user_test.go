@@ -113,7 +113,7 @@ func TestUserGet(t *testing.T) {
 }
 
 func userPage(page, perPage, total int, users string) faketracker.Exchange {
-	return trackerPage(http.MethodGet, "/v3/users", page, perPage, total, users)
+	return countedPage("/v3/users", page, perPage, total, users)
 }
 
 func TestUserList(t *testing.T) {
@@ -199,6 +199,25 @@ func TestUserList(t *testing.T) {
 			},
 			stdout: "100\n200\n300\n",
 			check:  assertRequestOrder("page=1&perPage=2", "page=2&perPage=2"),
+		},
+		{
+			name: "All pages as JSON", args: list("--all", "--limit", "2", "--json", "uid"),
+			exchanges: []faketracker.Exchange{
+				userPage(1, 2, 3, users), userPage(2, 2, 3, `[{"uid": 300, "login": "carol"}]`),
+			},
+			json: `{"items": [{"uid": 100}, {"uid": 200}, {"uid": 300}], "pagination": {"hasMore": false, "total": 3}}`,
+		},
+		{
+			name: "A later page fails", args: list("--all", "--limit", "2", "--json", "uid"),
+			exchanges: []faketracker.Exchange{
+				userPage(1, 2, 3, users),
+				withQuery(
+					trackerError(http.MethodGet, "/v3/users", http.StatusInternalServerError, "Users unavailable"),
+					pageQuery(2, 2),
+				),
+			},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"Users unavailable"`},
+			check: assertOneErrorDocument("Users unavailable"),
 		},
 		{
 			name: "Empty", args: list(), exchanges: []faketracker.Exchange{empty}, stdout: "No users found\n",
