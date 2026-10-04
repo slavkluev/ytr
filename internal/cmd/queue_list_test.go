@@ -12,14 +12,13 @@ import (
 )
 
 func queuePage(page, perPage, total int, queues string) faketracker.Exchange {
-	return countedPage("/v3/queues", page, perPage, total, queues)
+	return countedPage(http.MethodGet, "/v3/queues", page, perPage, total, queues)
 }
 
-// countedPage answers a GET of a paged list the way /v3/queues and /v3/users
-// answer it: trackerPage plus the X-Total-Pages Tracker sends beside
-// X-Total-Count.
-func countedPage(path string, page, perPage, total int, items string) faketracker.Exchange {
-	ex := trackerPage(http.MethodGet, path, page, perPage, total, items)
+// countedPage answers method on a page-numbered list the way Tracker answers
+// one: trackerPage plus the X-Total-Pages it sends beside X-Total-Count.
+func countedPage(method, path string, page, perPage, total int, items string) faketracker.Exchange {
+	ex := trackerPage(method, path, page, perPage, total, items)
 	ex.Header.Set("X-Total-Pages", strconv.Itoa((total+perPage-1)/perPage))
 
 	return ex

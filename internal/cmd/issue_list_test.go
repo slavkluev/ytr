@@ -29,7 +29,7 @@ func pageQuery(page, perPage int) url.Values {
 }
 
 func issueSearch(page, perPage, total int, issues string) faketracker.Exchange {
-	return trackerPage(http.MethodPost, "/v3/issues/_search", page, perPage, total, issues)
+	return countedPage(http.MethodPost, "/v3/issues/_search", page, perPage, total, issues)
 }
 
 // listedIssue is an issue as the search answers it, with an open status, an
@@ -142,6 +142,41 @@ func TestIssueList(t *testing.T) {
 			},
 			json: `{"items": [{"key": "A-1"}, {"key": "A-2"}, {"key": "A-3"}],
 				"pagination": {"hasMore": false, "total": 3}}`,
+		},
+		{
+			name: "A later page fails", args: list("--all", "--limit", "2", "--json", "key"),
+			exchanges: []faketracker.Exchange{
+				issueSearch(1, 2, 3, "["+listedIssue("A-1")+","+listedIssue("A-2")+"]"),
+				withQuery(
+					trackerError(http.MethodPost, "/v3/issues/_search", http.StatusInternalServerError,
+						"Search unavailable"),
+					pageQuery(2, 2),
+				),
+			},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"Search unavailable"`},
+			check: assertOneErrorDocument("Search unavailable"),
+		},
+		{
+			name: "All pages keep the filter and order",
+			args: list("--all", "--limit", "2", "--filter", "queue=PROJ", "--order-by", "updated", "--quiet"),
+			exchanges: []faketracker.Exchange{
+				issueSearch(1, 2, 3, "["+listedIssue("A-1")+","+listedIssue("A-2")+"]"),
+				issueSearch(2, 2, 3, "["+listedIssue("A-3")+"]"),
+			},
+			body:   `{"filter": {"queue": "PROJ"}, "order": "-updated"}`,
+			stdout: "A-1\nA-2\nA-3\n",
+			check:  assertRequestOrder("page=1&perPage=2", "page=2&perPage=2"),
+		},
+		{
+			name: "All pages keep the query",
+			args: list("--all", "--limit", "2", "--query", "Queue: PROJ AND Status: open", "--quiet"),
+			exchanges: []faketracker.Exchange{
+				issueSearch(1, 2, 3, "["+listedIssue("A-1")+","+listedIssue("A-2")+"]"),
+				issueSearch(2, 2, 3, "["+listedIssue("A-3")+"]"),
+			},
+			body:   `{"query": "Queue: PROJ AND Status: open"}`,
+			stdout: "A-1\nA-2\nA-3\n",
+			check:  assertRequestOrder("page=1&perPage=2", "page=2&perPage=2"),
 		},
 		{
 			name: "Empty", args: list("--filter", "queue=PROJ"), exchanges: []faketracker.Exchange{empty},

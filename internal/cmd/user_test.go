@@ -113,7 +113,7 @@ func TestUserGet(t *testing.T) {
 }
 
 func userPage(page, perPage, total int, users string) faketracker.Exchange {
-	return countedPage("/v3/users", page, perPage, total, users)
+	return countedPage(http.MethodGet, "/v3/users", page, perPage, total, users)
 }
 
 func TestUserList(t *testing.T) {
