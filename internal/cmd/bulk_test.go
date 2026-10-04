@@ -404,6 +404,14 @@ func TestBulkStatus(t *testing.T) {
 			name: "Bad arg", args: []string{"bulk", "status", " "}, code: ytrerrors.ExitUserError,
 			stderr: []string{"invalid operation ID: expected a non-empty value"},
 		},
+		{
+			name: "Bad arg before the hint", args: []string{"bulk", "status", " ", "--json="},
+			code: ytrerrors.ExitUserError, stderr: []string{"invalid operation ID: expected a non-empty value"},
+		},
+		{
+			name: "Bad arg signed out", args: []string{"bulk", "status", " "}, signedOut: true,
+			code: ytrerrors.ExitUserError, stderr: []string{"invalid operation ID: expected a non-empty value"},
+		},
 		failureRow(trackerNotFound("/v3/bulkchange/op-1"), status("--json", "id")...),
 	})
 }
