@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"bytes"
 	"encoding/json"
 	"reflect"
 	"slices"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/output"
 )
 
@@ -142,12 +144,22 @@ func sampleChangelogAllTypes() []*tracker.Changelog {
 	}
 }
 
-func assertDocument(t *testing.T, doc any, want string) {
+// changelogDocument is what --json prints for entries, cut to fields, with
+// the pagination page.
+func changelogDocument(
+	t *testing.T, entries []*tracker.Changelog, fields []string, page output.PaginationMeta,
+) []byte {
 	t.Helper()
-	got, err := json.Marshal(doc)
-	if err != nil {
-		t.Fatalf("marshal document: %v", err)
+	var doc bytes.Buffer
+	opts := &output.Options{JSONFields: fields}
+	if err := runner.PrintPage(&doc, opts, normalizeChangelog(entries), page); err != nil {
+		t.Fatalf("print document: %v", err)
 	}
+	return doc.Bytes()
+}
+
+func assertDocument(t *testing.T, got []byte, want string) {
+	t.Helper()
 	var gotValue, wantValue any
 	if err := json.Unmarshal(got, &gotValue); err != nil {
 		t.Fatalf("document is not JSON: %v\n%s", err, got)
@@ -163,7 +175,7 @@ func assertDocument(t *testing.T, doc any, want string) {
 func TestChangelogDocument(t *testing.T) {
 	page := output.PaginationMeta{Cursor: "cl-002", HasMore: true}
 
-	assertDocument(t, changelogDocument(sampleChangelog(), IssueChangelogFields, page), `{
+	assertDocument(t, changelogDocument(t, sampleChangelog(), IssueChangelogFields, page), `{
 	  "items": [
 	    {"date": "2024-03-15T10:00:00Z", "author": "alice", "authorId": "", "type": "",
 	     "fields": [
@@ -181,7 +193,7 @@ func TestChangelogDocument(t *testing.T) {
 func TestChangelogDocumentAllTypes(t *testing.T) {
 	const entry = `"date": "2024-03-15T10:00:00Z", "author": "alice", "authorId": ""`
 
-	assertDocument(t, changelogDocument(sampleChangelogAllTypes(), IssueChangelogFields, output.PaginationMeta{}), `{
+	assertDocument(t, changelogDocument(t, sampleChangelogAllTypes(), IssueChangelogFields, output.PaginationMeta{}), `{
 	  "items": [
 	    {`+entry+`, "type": "IssueCommentAdded", "transport": "front",
 	     "comments": [{"action": "added", "id": "7", "to": "Test comment"}]},
@@ -221,7 +233,7 @@ func TestChangelogDocumentAllTypes(t *testing.T) {
 }
 
 func TestChangelogDocumentEmpty(t *testing.T) {
-	assertDocument(t, changelogDocument(nil, IssueChangelogFields, output.PaginationMeta{}), `{
+	assertDocument(t, changelogDocument(t, nil, IssueChangelogFields, output.PaginationMeta{}), `{
 	  "items": [],
 	  "pagination": {"hasMore": false}
 	}`)
@@ -235,7 +247,7 @@ func TestChangelogNamesakesKeepDistinctAuthorIDs(t *testing.T) {
 	}
 	entries := []*tracker.Changelog{entry("uid-a"), entry("uid-b")}
 
-	assertDocument(t, changelogDocument(entries, []string{"author", "authorId"}, output.PaginationMeta{}), `{
+	assertDocument(t, changelogDocument(t, entries, []string{"author", "authorId"}, output.PaginationMeta{}), `{
 	  "items": [
 	    {"author": "Иван Петров", "authorId": "uid-a"},
 	    {"author": "Иван Петров", "authorId": "uid-b"}
@@ -263,7 +275,7 @@ func TestChangelogFieldSelectionOmitsEmptySections(t *testing.T) {
 		},
 	}
 
-	assertDocument(t, changelogDocument(entries, []string{"date", "links"}, output.PaginationMeta{}), `{
+	assertDocument(t, changelogDocument(t, entries, []string{"date", "links"}, output.PaginationMeta{}), `{
 	  "items": [
 	    {"date": "2026-03-15T10:30:00Z",
 	     "links": [{"to": {"direction": "outward", "issue": "SIG-1", "linkType": "relates"}}]},
@@ -293,7 +305,7 @@ func TestChangelogNilElementsDoNotPanic(t *testing.T) {
 		},
 	}
 
-	assertDocument(t, changelogDocument(entries, IssueChangelogFields, output.PaginationMeta{}), `{
+	assertDocument(t, changelogDocument(t, entries, IssueChangelogFields, output.PaginationMeta{}), `{
 	  "items": [
 	    {"date": "", "author": "", "authorId": "", "type": "IssueWorkflow",
 	     "fields": [{"field": "status", "from": "open", "to": "closed"}]}

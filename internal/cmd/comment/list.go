@@ -2,8 +2,6 @@ package comment
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"time"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
@@ -12,7 +10,6 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/validate"
 )
 
 const (
@@ -35,17 +32,11 @@ type commentItem struct {
 	UpdatedAt string `json:"updatedAt,omitempty"`
 }
 
-// CommentFields are the --json fields of every comment command.
-var CommentFields = runner.ItemFields[commentItem]()
-
 func newListCmd() *cobra.Command {
-	cmd := &cobra.Command{
+	return runner.List[*tracker.Comment, commentItem]{
 		Use:   "list ISSUE-KEY",
 		Short: "List comments on an issue",
-		Long: `List all comments on a Yandex Tracker issue.
-
-JSON FIELDS
-  id, author, authorId, body, createdAt, updatedAt`,
+		Long:  `List all comments on a Yandex Tracker issue.`,
 		Example: `  # List comments on an issue
   ytr comment list PROJ-123
 
@@ -54,145 +45,31 @@ JSON FIELDS
 
   # Extract comment bodies with jq
   ytr comment list PROJ-123 --json body --jq '.[].body'`,
-		Args: cobra.ExactArgs(1),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return validate.ValidateIssueKey(args[0])
+		Args:  []runner.Arg{runner.IssueKey},
+		Empty: "No comments found",
+		Call: func(ctx context.Context, c *tracker.Client, args []string) ([]*tracker.Comment, error) {
+			opts := &tracker.CommentListOptions{PerPage: commentPageSize}
+			return runner.Collect(c.Issues.ListCommentsIter(ctx, args[0], opts))
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(cmd, args[0])
-		},
-	}
-
-	runner.SetFields(cmd, CommentFields)
-
-	return cmd
+		Item:   toCommentItem,
+		Header: []string{"ID", "AUTHOR", "DATE", "BODY"},
+		Row:    row,
+		Quiet:  commentID,
+	}.Command()
 }
 
-func runList(cmd *cobra.Command, issueKey string) error {
-	opts := output.FromContext(cmd.Context())
-
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "comment list", CommentFields)
+func row(opts *output.Options, c *tracker.Comment) []string {
+	date := "-"
+	if c.CreatedAt != nil {
+		date = opts.FormatTime(c.CreatedAt.Time)
 	}
 
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = CommentFields
+	return []string{
+		api.DerefFlexString(c.ID, ""),
+		c.CreatedBy.DisplayOr("-"),
+		date,
+		opts.FitColumn(api.DerefString(c.Text, ""), commentTableReservedWidth, commentMinColumnWidth),
 	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, CommentFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, CommentFields)
-	}
-
-	client, err := runner.Client(cmd)
-	if err != nil {
-		return err
-	}
-
-	comments, err := fetchAllComments(cmd.Context(), client.Issues, issueKey)
-	if err != nil {
-		return err
-	}
-
-	return renderListOutput(cmd.OutOrStdout(), opts, comments)
-}
-
-// fetchAllComments retrieves every comment on an issue by following the
-// comment-ID cursor until an empty page. A short page does not end the list,
-// since Tracker may cap a page below the size asked for. A page whose last ID
-// is empty or repeats the cursor is an error, not the end of the list.
-func fetchAllComments(
-	ctx context.Context,
-	lister *tracker.IssuesService,
-	issueKey string,
-) ([]*tracker.Comment, error) {
-	var all []*tracker.Comment
-	cursor := ""
-
-	for {
-		opts := &tracker.CommentListOptions{ID: cursor, PerPage: commentPageSize}
-		comments, _, err := lister.ListComments(ctx, issueKey, opts)
-		if err != nil {
-			return nil, api.MapAPIError(err)
-		}
-
-		if len(comments) == 0 {
-			break
-		}
-
-		all = append(all, comments...)
-
-		var lastID string
-		if last := comments[len(comments)-1]; last != nil {
-			lastID = api.DerefFlexString(last.ID, "")
-		}
-		// Paging on from such an ID would fetch the same pages forever.
-		if lastID == "" || lastID == cursor {
-			return nil, api.MapAPIError(fmt.Errorf(
-				"tracker: cannot page past cursor %q: the last item of the page has ID %q", cursor, lastID,
-			))
-		}
-		cursor = lastID
-	}
-
-	return all, nil
-}
-
-func renderListOutput(w io.Writer, opts *output.Options, comments []*tracker.Comment) error {
-	if opts.IsJSON() {
-		items := make([]commentItem, len(comments))
-		for i, c := range comments {
-			items[i] = toCommentItem(c)
-		}
-
-		if opts.HasFieldSelection() {
-			filtered := make([]map[string]any, len(items))
-			for i, item := range items {
-				filtered[i] = output.FilterFields(item, opts.JSONFields)
-			}
-			if opts.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, opts.JQFilter)
-			}
-			return opts.PrintJSON(w, filtered)
-		}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(w, items, opts.JQFilter)
-		}
-		return opts.PrintJSON(w, items)
-	}
-
-	if opts.Quiet {
-		ids := make([]string, len(comments))
-		for i, c := range comments {
-			ids[i] = api.DerefFlexString(c.ID, "")
-		}
-		output.PrintQuiet(w, ids...)
-		return nil
-	}
-
-	if len(comments) == 0 {
-		_, err := fmt.Fprintln(w, "No comments found")
-		return err
-	}
-
-	tbl := opts.NewTable(w)
-	tbl.AddHeader("ID", "AUTHOR", "DATE", "BODY")
-
-	for _, c := range comments {
-		id := api.DerefFlexString(c.ID, "")
-		author := c.CreatedBy.DisplayOr("-")
-		date := "-"
-		if c.CreatedAt != nil {
-			date = opts.FormatTime(c.CreatedAt.Time)
-		}
-		body := opts.FitColumn(api.DerefString(c.Text, ""), commentTableReservedWidth, commentMinColumnWidth)
-		tbl.AddRow(id, author, date, body)
-	}
-
-	tbl.Render()
-	return nil
 }
 
 func toCommentItem(c *tracker.Comment) commentItem {

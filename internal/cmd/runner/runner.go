@@ -62,7 +62,7 @@ func (l List[T, Item]) Command() *cobra.Command {
 
 func (l List[T, Item]) render(w io.Writer, opts *output.Options, _ []string, values []T) error {
 	if opts.IsJSON() {
-		return printJSON(w, opts, l.items(opts, values))
+		return printJSON(w, opts, cut(opts, l.items(values)))
 	}
 
 	// Before the empty check, so --quiet on an empty list prints nothing.
@@ -90,10 +90,10 @@ func (l List[T, Item]) render(w io.Writer, opts *output.Options, _ []string, val
 	return nil
 }
 
-func (l List[T, Item]) items(opts *output.Options, values []T) []map[string]any {
-	items := make([]map[string]any, len(values))
+func (l List[T, Item]) items(values []T) []Item {
+	items := make([]Item, len(values))
 	for i, v := range values {
-		items[i] = output.FilterFields(l.Item(v), opts.JSONFields)
+		items[i] = l.Item(v)
 	}
 
 	return items
@@ -218,7 +218,22 @@ func (p Pages[T, Item]) render(w io.Writer, opts *output.Options, args []string,
 		return list.render(w, opts, args, page.values)
 	}
 
-	return printJSON(w, opts, output.PaginatedResult{Items: list.items(opts, page.values), Pagination: page.meta})
+	return PrintPage(w, opts, list.items(page.values), page.meta)
+}
+
+// PrintPage prints the JSON of a page: items in the {items, pagination}
+// envelope, each cut to the --json fields SelectFields left in opts.
+func PrintPage[Item any](w io.Writer, opts *output.Options, items []Item, meta output.PaginationMeta) error {
+	return printJSON(w, opts, output.PaginatedResult{Items: cut(opts, items), Pagination: meta})
+}
+
+func cut[Item any](opts *output.Options, items []Item) []map[string]any {
+	filtered := make([]map[string]any, len(items))
+	for i, item := range items {
+		filtered[i] = output.FilterFields(item, opts.JSONFields)
+	}
+
+	return filtered
 }
 
 // Get declares a command that fetches one T from Tracker and prints it as a
@@ -656,8 +671,8 @@ func run[V any](cmd *cobra.Command, raw []string, s steps[V]) error {
 		}
 	}
 
-	opts := output.FromContext(cmd.Context())
-	if err := selectFields(cmd, opts, s.fields); err != nil {
+	opts, err := SelectFields(cmd, s.fields)
+	if err != nil {
 		return err
 	}
 
@@ -680,12 +695,15 @@ func run[V any](cmd *cobra.Command, raw []string, s steps[V]) error {
 	return s.render(cmd.OutOrStdout(), opts, args, value)
 }
 
-// selectFields leaves opts with the --json fields the run selected, or answers
-// a bare --json= with the field hint.
-func selectFields(cmd *cobra.Command, opts *output.Options, fields []string) error {
+// SelectFields returns the output options of a run of cmd, a command whose
+// --json fields are fields, left with the fields the run selected: every one
+// under a bare --jq. It answers a bare --json= with the field hint instead.
+func SelectFields(cmd *cobra.Command, fields []string) (*output.Options, error) {
+	opts := output.FromContext(cmd.Context())
+
 	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		name := strings.TrimPrefix(cmd.CommandPath(), cmd.Root().Name()+" ")
-		return output.PrintFieldHint(cmd.ErrOrStderr(), name, fields)
+		return nil, output.PrintFieldHint(cmd.ErrOrStderr(), name, fields)
 	}
 
 	if opts.JQFilter != "" && !opts.HasFieldSelection() {
@@ -694,12 +712,12 @@ func selectFields(cmd *cobra.Command, opts *output.Options, fields []string) err
 
 	if opts.HasFieldSelection() {
 		if err := output.ValidateFields(opts.JSONFields, fields); err != nil {
-			return err
+			return nil, err
 		}
 		opts.JSONFields = output.NormalizeFields(opts.JSONFields, fields)
 	}
 
-	return nil
+	return opts, nil
 }
 
 // Client returns the Tracker client a run of cmd sends its requests with,
@@ -718,8 +736,8 @@ func Client(cmd *cobra.Command) (*tracker.Client, error) {
 	return api.NewClient(auth), nil
 }
 
-// The prelude in run leaves every JSON mode with a field selection, so doc is
-// always the filtered view.
+// SelectFields leaves every JSON mode with a field selection, so doc is always
+// the filtered view.
 func printJSON(w io.Writer, opts *output.Options, doc any) error {
 	if opts.JQFilter != "" {
 		return output.ApplyJQ(w, doc, opts.JQFilter)

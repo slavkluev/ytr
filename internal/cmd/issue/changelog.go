@@ -1,7 +1,6 @@
 package issue
 
 import (
-	"context"
 	"fmt"
 	"io"
 
@@ -16,11 +15,8 @@ import (
 
 const defaultLimit = 50
 
-// IssueChangelogFields lists the available JSON field names for changelog output.
-var IssueChangelogFields = []string{
-	"date", "author", "authorId", "type", "transport",
-	"fields", "comments", "links", "attachments", "worklog", "relatedResolutions",
-}
+// IssueChangelogFields are the --json fields of issue changelog.
+var IssueChangelogFields = runner.ItemFields[changelogEntry]()
 
 func newChangelogCmd() *cobra.Command {
 	var (
@@ -93,78 +89,37 @@ func runChangelog(
 		return err
 	}
 
-	opts := output.FromContext(cmd.Context())
-
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue changelog", IssueChangelogFields)
+	opts, err := runner.SelectFields(cmd, IssueChangelogFields)
+	if err != nil {
+		return err
 	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = IssueChangelogFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, IssueChangelogFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueChangelogFields)
-	}
-
-	issueKey := args[0]
 
 	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
 	}
 
-	entries, page, err := fetchChangelogPage(
-		cmd.Context(), client.Issues, issueKey, limit, cursor, all, fieldFilter, typeFilter,
+	query := &tracker.ChangelogOptions{ID: cursor, PerPage: limit, Field: fieldFilter, Type: typeFilter}
+
+	var (
+		entries []*tracker.Changelog
+		page    output.PaginationMeta
 	)
+	if all {
+		entries, err = runner.Collect(client.Issues.GetChangelogIter(cmd.Context(), args[0], query))
+	} else {
+		entries, _, err = client.Issues.GetChangelog(cmd.Context(), args[0], query)
+		page = changelogPagination(entries, limit)
+	}
 	if err != nil {
-		return err
+		return api.MapAPIError(err)
 	}
 
 	if opts.IsJSON() {
-		return renderChangelogJSON(cmd.OutOrStdout(), opts, changelogDocument(entries, opts.JSONFields, page))
+		return runner.PrintPage(cmd.OutOrStdout(), opts, normalizeChangelog(entries), page)
 	}
 
 	return renderChangelogNonJSON(cmd.OutOrStdout(), opts, flattenChangelog(entries))
-}
-
-func fetchChangelogPage(
-	ctx context.Context,
-	getter *tracker.IssuesService,
-	issueKey string,
-	limit int,
-	cursor string,
-	all bool,
-	fieldFilter string,
-	typeFilter string,
-) ([]*tracker.Changelog, output.PaginationMeta, error) {
-	if all {
-		entries, err := fetchAllChangelog(ctx, getter, issueKey, limit, fieldFilter, typeFilter)
-		return entries, output.PaginationMeta{}, err
-	}
-
-	opts := &tracker.ChangelogOptions{
-		ID:      cursor,
-		PerPage: limit,
-		Field:   fieldFilter,
-		Type:    typeFilter,
-	}
-	entries, _, err := getter.GetChangelog(ctx, issueKey, opts)
-	if err != nil {
-		return nil, output.PaginationMeta{}, api.MapAPIError(err)
-	}
-
-	return entries, changelogPagination(entries, limit), nil
-}
-
-func renderChangelogJSON(w io.Writer, opts *output.Options, doc output.PaginatedResult) error {
-	if opts.JQFilter != "" {
-		return output.ApplyJQ(w, doc, opts.JQFilter)
-	}
-	return opts.PrintJSON(w, doc)
 }
 
 func renderChangelogNonJSON(w io.Writer, opts *output.Options, items []changelogItem) error {
@@ -176,51 +131,6 @@ func renderChangelogNonJSON(w io.Writer, opts *output.Options, items []changelog
 	}
 
 	return renderChangelogTable(w, opts, items)
-}
-
-func fetchAllChangelog(
-	ctx context.Context,
-	getter *tracker.IssuesService,
-	issueKey string,
-	limit int,
-	fieldFilter string,
-	typeFilter string,
-) ([]*tracker.Changelog, error) {
-	var all []*tracker.Changelog
-	currentCursor := ""
-
-	for {
-		opts := &tracker.ChangelogOptions{
-			ID:      currentCursor,
-			PerPage: limit,
-			Field:   fieldFilter,
-			Type:    typeFilter,
-		}
-		entries, _, err := getter.GetChangelog(ctx, issueKey, opts)
-		if err != nil {
-			return nil, api.MapAPIError(err)
-		}
-
-		if len(entries) == 0 {
-			break
-		}
-
-		all = append(all, entries...)
-
-		var lastID string
-		if last := entries[len(entries)-1]; last != nil {
-			lastID = api.DerefFlexString(last.ID, "")
-		}
-		// Paging on from such an ID would fetch the same pages forever.
-		if lastID == "" || lastID == currentCursor {
-			return nil, api.MapAPIError(fmt.Errorf(
-				"tracker: cannot page past cursor %q: the last item of the page has ID %q", currentCursor, lastID,
-			))
-		}
-		currentCursor = lastID
-	}
-
-	return all, nil
 }
 
 func renderChangelogTable(w io.Writer, opts *output.Options, items []changelogItem) error {

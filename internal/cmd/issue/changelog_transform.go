@@ -95,19 +95,6 @@ type changelogItem struct {
 	To     string `json:"to"`
 }
 
-func changelogDocument(
-	entries []*tracker.Changelog,
-	fields []string,
-	page output.PaginationMeta,
-) output.PaginatedResult {
-	normalized := normalizeChangelog(entries)
-	items := make([]map[string]any, 0, len(normalized))
-	for _, entry := range normalized {
-		items = append(items, output.FilterFields(entry, fields))
-	}
-	return output.PaginatedResult{Items: items, Pagination: page}
-}
-
 func changelogPagination(entries []*tracker.Changelog, limit int) output.PaginationMeta {
 	if len(entries) != limit {
 		return output.PaginationMeta{}
