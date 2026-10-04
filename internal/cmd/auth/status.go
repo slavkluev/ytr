@@ -6,30 +6,52 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/output"
 )
 
+type statusItem struct {
+	Status      string `json:"status"`
+	User        string `json:"user"`
+	OrgID       string `json:"org_id"`
+	OrgType     string `json:"org_type"`
+	TokenSource string `json:"token_source"`
+}
+
+var statusFields = runner.ItemFields[statusItem]()
+
 func newStatusCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show authentication status",
 		Long: `Show the current authentication state. Validates the token via API call and displays
 the token source, organization, and authenticated user.
 
-Use --jq . to get machine-readable output with fixed structure (no field selection).`,
+JSON FIELDS
+  status, user, org_id, org_type, token_source`,
 		Example: `  # Check auth status
   ytr auth status
 
   # Check auth status as JSON
-  ytr auth status --jq .`,
+  ytr auth status --jq .
+
+  # Get the authenticated user's name
+  ytr auth status --json user --jq .user`,
 		Args: cobra.NoArgs,
 		RunE: runStatus,
 	}
+
+	runner.SetFields(cmd, statusFields)
+
+	return cmd
 }
 
-func runStatus(cmd *cobra.Command, args []string) error {
-	opts := output.FromContext(cmd.Context())
+func runStatus(cmd *cobra.Command, _ []string) error {
+	opts, err := runner.SelectFields(cmd, statusFields)
+	if err != nil {
+		return err
+	}
 
 	tokenFlag := ""
 	orgIDFlag := ""
@@ -50,22 +72,20 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return api.MapAPIError(err)
 	}
 
-	username := user.DisplayOr("unknown")
+	item := statusItem{
+		Status:      "authenticated",
+		User:        user.DisplayOr("unknown"),
+		OrgID:       auth.OrgID,
+		OrgType:     string(auth.OrgType),
+		TokenSource: auth.TokenSource,
+	}
 
-	// No field selection or hints -- fixed-structure JSON.
-	jsonRequested := cmd.Flags().Changed("json") || opts.IsJSON()
-	if jsonRequested {
-		return opts.PrintJSON(cmd.OutOrStdout(), map[string]string{
-			"status":       "authenticated",
-			"user":         username,
-			"org_id":       auth.OrgID,
-			"org_type":     string(auth.OrgType),
-			"token_source": auth.TokenSource,
-		})
+	if opts.IsJSON() {
+		return runner.PrintJSON(cmd, opts, output.FilterFields(item, opts.JSONFields))
 	}
 
 	_, _ = fmt.Fprintf(cmd.ErrOrStderr(),
 		"Authenticated as %s\n  Token source: %s\n  Organization: %s\n  Organization type: %s\n",
-		username, auth.TokenSource, auth.OrgID, auth.OrgType)
+		item.User, item.TokenSource, item.OrgID, item.OrgType)
 	return nil
 }

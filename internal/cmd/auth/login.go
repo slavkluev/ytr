@@ -13,6 +13,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/slavkluev/ytr/internal/api"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/config"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
@@ -224,13 +225,26 @@ func detectOrganization(ctx context.Context, token, orgID string) (config.OrgTyp
 	return "", nil, &orgTypeDetectionError{Failures: failures}
 }
 
+type loginItem struct {
+	Status     string `json:"status"`
+	User       string `json:"user"`
+	OrgID      string `json:"org_id"`
+	OrgType    string `json:"org_type"`
+	ConfigPath string `json:"config_path"`
+}
+
+var loginFields = runner.ItemFields[loginItem]()
+
 func newLoginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Authenticate with Yandex Tracker",
 		Long: `Authenticate with Yandex Tracker interactively. Prompts for token and organization ID,
 detects organization type when needed, validates credentials via API call,
-and saves them to config file.`,
+and saves them to config file.
+
+JSON FIELDS
+  status, user, org_id, org_type, config_path`,
 		Example: `  # Interactive login
 	  ytr auth login
 
@@ -247,11 +261,16 @@ and saves them to config file.`,
 	cmd.Flags().String("org-id", "", "Tracker organization ID")
 	cmd.Flags().String("org-type", "", "Organization type (360 or cloud)")
 
+	runner.SetFields(cmd, loginFields)
+
 	return cmd
 }
 
-func runLogin(cmd *cobra.Command, args []string) error {
-	opts := output.FromContext(cmd.Context())
+func runLogin(cmd *cobra.Command, _ []string) error {
+	opts, err := runner.SelectFields(cmd, loginFields)
+	if err != nil {
+		return err
+	}
 
 	tokenFlag, _ := cmd.Flags().GetString("token")
 	orgIDFlag, _ := cmd.Flags().GetString("org-id")
@@ -277,8 +296,6 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	username := user.DisplayOr("unknown")
-
 	if err := config.Save(cmd.Context(), &config.Config{
 		Token:   token,
 		OrgID:   orgID,
@@ -287,24 +304,24 @@ func runLogin(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
-	// No field selection or hints -- fixed-structure JSON.
 	// Config was just saved successfully, so ConfigFilePath cannot fail.
 	cfgPath, _ := config.ConfigFilePath(cmd.Context())
 
-	jsonRequested := cmd.Flags().Changed("json") || opts.IsJSON()
-	if jsonRequested {
-		return opts.PrintJSON(cmd.OutOrStdout(), map[string]string{
-			"status":      "authenticated",
-			"user":        username,
-			"org_id":      orgID,
-			"org_type":    string(orgType),
-			"config_path": cfgPath,
-		})
+	item := loginItem{
+		Status:     "authenticated",
+		User:       user.DisplayOr("unknown"),
+		OrgID:      orgID,
+		OrgType:    string(orgType),
+		ConfigPath: cfgPath,
+	}
+
+	if opts.IsJSON() {
+		return runner.PrintJSON(cmd, opts, output.FilterFields(item, opts.JSONFields))
 	}
 
 	_, _ = fmt.Fprintf(cmd.ErrOrStderr(),
 		"Authenticated as %s (org: %s, type: %s)\nConfig saved to %s\n",
-		username, orgID, orgType, cfgPath)
+		item.User, item.OrgID, item.OrgType, item.ConfigPath)
 	return nil
 }
 

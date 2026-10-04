@@ -1,4 +1,4 @@
-version 20.0
+version 21.0
 command ytr
 command ytr auth
 command ytr auth login
@@ -66,6 +66,18 @@ command ytr worklog create
 command ytr worklog delete
 command ytr worklog edit
 command ytr worklog list
+field ytr auth login config_path
+field ytr auth login org_id
+field ytr auth login org_type
+field ytr auth login status
+field ytr auth login user
+field ytr auth logout config_path
+field ytr auth logout status
+field ytr auth status org_id
+field ytr auth status org_type
+field ytr auth status status
+field ytr auth status token_source
+field ytr auth status user
 field ytr bulk move createdAt
 field ytr bulk move createdBy
 field ytr bulk move createdById

@@ -114,9 +114,29 @@ func TestAuthLogin(t *testing.T) {
 		{
 			name: "JSON", args: login(slices.Concat(flags, []string{"--org-type", "cloud", "--json", "status"})...),
 			signedOut: true, exchanges: []faketracker.Exchange{myselfAnswer("JSON User")},
-			holds: []string{`"status":"authenticated"`},
+			json:  `{"status": "authenticated"}`,
+			check: assertConfigFile("token: test-token\norg_id: test-org\norg_type: cloud\n"),
+		},
+		{
+			name:      "jq of the whole document",
+			args:      login(slices.Concat(flags, []string{"--org-type", "cloud", "--jq", "."})...),
+			signedOut: true,
+			exchanges: []faketracker.Exchange{myselfAnswer("JSON User")},
+			holds:     []string{`"user":"JSON User"`},
 			check: assertJSONNamesTheConfig(
 				`{"status": "authenticated", "user": "JSON User", "org_id": "test-org", "org_type": "cloud"}`),
+		},
+		{
+			name: "Unknown field before any request", args: login("--token", "T", "--org-id", "O", "--json", "bogus"),
+			signedOut: true, code: ytrerrors.ExitUserError,
+			stderr: []string{`"code":"invalid_field"`, `"invalidField":"bogus"`},
+			check:  assertNoConfigFile,
+		},
+		{
+			name: "Field hint before the token is read", args: login("--org-id", "O", "--json="), signedOut: true,
+			stdin: "tok\n", code: ytrerrors.ExitUserError,
+			stderr: []string{fieldHint("auth login", []string{"status", "user", "org_id", "org_type", "config_path"})},
+			check:  assertNoConfigFile,
 		},
 		{
 			name: "Rejected token", args: login(slices.Concat(flags, []string{"--org-type", "360"})...),
@@ -245,10 +265,25 @@ func TestAuthStatus(t *testing.T) {
 				"token_source": "env"}`,
 		},
 		{
-			name: "From the flags", args: []string{"auth", "status", "--json", "status"},
+			name: "From the flags", args: []string{"auth", "status", "--jq", "."},
 			exchanges: []faketracker.Exchange{myselfAnswer("Flag User")},
 			json: `{"status": "authenticated", "user": "Flag User", "org_id": "test-org", "org_type": "360",
 				"token_source": "flag"}`,
+		},
+		{
+			name: "Fields", args: []string{"auth", "status", "--json", "status"},
+			exchanges: []faketracker.Exchange{myselfAnswer("Flag User")}, json: `{"status": "authenticated"}`,
+		},
+		{
+			name: "jq", args: []string{"auth", "status", "--jq", ".user"},
+			exchanges: []faketracker.Exchange{myselfAnswer("Flag User")}, stdout: "Flag User\n",
+		},
+		{
+			name: "Field hint signed out", args: []string{"auth", "status", "--json="}, signedOut: true,
+			code: ytrerrors.ExitUserError,
+			stderr: []string{
+				fieldHint("auth status", []string{"status", "user", "org_id", "org_type", "token_source"}),
+			},
 		},
 		{
 			name: "Signed out", args: status, signedOut: true, code: ytrerrors.ExitAuthError,
@@ -284,7 +319,17 @@ func TestAuthLogout(t *testing.T) {
 		},
 		{
 			name: "JSON", args: []string{"auth", "logout", "--json", "status"}, config: signedIn,
+			json: `{"status": "logged_out"}`, check: assertConfigFile("{}\n"),
+		},
+		{
+			name: "jq of the whole document", args: []string{"auth", "logout", "--jq", "."}, config: signedIn,
 			holds: []string{`"status":"logged_out"`}, check: assertJSONNamesTheConfig(`{"status": "logged_out"}`),
+		},
+		{
+			name: "Field hint before the config is written", args: []string{"auth", "logout", "--json="},
+			config: signedIn, code: ytrerrors.ExitUserError,
+			stderr: []string{fieldHint("auth logout", []string{"status", "config_path"})},
+			check:  assertConfigFile(signedIn),
 		},
 	})
 }

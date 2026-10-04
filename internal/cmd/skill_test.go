@@ -383,8 +383,9 @@ func TestSkillCheckNamesWhyAnInvocationFails(t *testing.T) {
 			want: `probe: ytr issue list --json key,nosuch: --json: unknown field: "nosuch"; the fields of ytr issue list are`,
 		},
 		{
-			line: "ytr auth status --json key",
-			want: `probe: ytr auth status --json key: --json: unknown field: "key"; the fields of ytr auth status are []`,
+			line: "ytr completion bash --json key",
+			want: `probe: ytr completion bash --json key: --json: unknown field: "key"; ` +
+				`the fields of ytr completion bash are []`,
 		},
 		{line: "ytr issue view K-1 K-2", want: "probe: ytr issue view K-1 K-2: accepts 1 arg(s), received 2"},
 		{
@@ -401,7 +402,7 @@ func TestSkillCheckNamesWhyAnInvocationFails(t *testing.T) {
 			want: "probe: ytr issue list --json=: --json selects no field, so ytr issue list prints its field list",
 		},
 		{line: "ytr issue list --json= --jq .items"},
-		{line: "ytr auth status --json="},
+		{line: "ytr completion bash --json="},
 		{line: "ytr issue list K-1", want: `probe: ytr issue list K-1: unknown command "K-1" for "ytr issue list"`},
 	}
 

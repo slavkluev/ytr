@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "20.0"
+  version: "21.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -29,6 +29,9 @@ ytr auth login --token TOKEN --org-id ORG --org-type 360
 
 # Verify authentication
 ytr auth status
+
+# Who is signed in, as JSON
+ytr auth status --json status,user,org_id
 ```
 
 Authentication precedence:
@@ -41,6 +44,9 @@ Notes:
 
 - For regular commands, flag-based and env-based auth require all three values together.
 - `ytr auth login` is the exception: it can detect the organization type when `--org-type` is omitted.
+- `auth status`, `auth login` and `auth logout` take `--json` fields and `--jq` like any other
+  command. `--json=` lists their fields, and it or an unknown field exits 1 before any request
+  or config change.
 - Config is stored in `~/.config/ytr/config.yaml`.
 
 ## Command Reference

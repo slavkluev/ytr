@@ -92,6 +92,9 @@ func TestJSONCompletionOffersEveryLeafItsFields(t *testing.T) {
 		"user get":         userDetail,
 		"user list":        {"uid", "display", "login", "email"},
 		"user myself":      userDetail,
+		"auth login":       {"status", "user", "org_id", "org_type", "config_path"},
+		"auth logout":      {"status", "config_path"},
+		"auth status":      {"status", "user", "org_id", "org_type", "token_source"},
 		"version":          {"version", "commit", "date", "goVersion", "os", "arch"},
 	}
 

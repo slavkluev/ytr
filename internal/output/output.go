@@ -66,8 +66,7 @@ func (o *Options) HasFieldSelection() bool {
 //
 // jsonFlagChanged must be cmd.Flags().Changed("json"). It is required because
 // `--json=` and "no --json at all" both leave JSONFields empty, so JSONFields
-// alone cannot distinguish them — the same reason the auth commands key off
-// Changed("json").
+// alone cannot distinguish them.
 func (o *Options) WantsFieldHint(jsonFlagChanged bool) bool {
 	return jsonFlagChanged && !o.HasFieldSelection() && o.JQFilter == ""
 }
