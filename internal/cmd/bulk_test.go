@@ -397,6 +397,10 @@ func TestBulkStatus(t *testing.T) {
 			stdout:    `{"status":"FAILED","totalCompletedIssues":3,"totalIssues":10}` + "\n",
 		},
 		{
+			name: "Padded ID", args: []string{"bulk", "status", " op-1 ", "--quiet"},
+			exchanges: []faketracker.Exchange{completed}, stdout: "op-1\n",
+		},
+		{
 			name: "Bad arg", args: []string{"bulk", "status", " "}, code: ytrerrors.ExitUserError,
 			stderr: []string{"invalid operation ID: expected a non-empty value"},
 		},

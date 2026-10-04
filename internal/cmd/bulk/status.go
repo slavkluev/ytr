@@ -30,10 +30,6 @@ JSON FIELDS
   # Get just the operation ID (quiet mode)
   ytr bulk status 593cd211ef7e8a0000000001 --quiet`,
 		Args: cobra.ExactArgs(1),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			_, err := validate.ValidateStringID(args[0], "operation ID")
-			return err
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runStatus(cmd, args[0])
 		},
@@ -44,7 +40,12 @@ JSON FIELDS
 	return cmd
 }
 
-func runStatus(cmd *cobra.Command, operationID string) error {
+func runStatus(cmd *cobra.Command, arg string) error {
+	operationID, err := validate.ValidateStringID(arg, "operation ID")
+	if err != nil {
+		return err
+	}
+
 	opts, err := runner.SelectFields(cmd, BulkStatusFields)
 	if err != nil {
 		return err
