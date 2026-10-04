@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "13.0"
+  version: "14.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -480,11 +480,12 @@ error to stderr -- a single JSON document under `--json` or `--jq`, plain text
 otherwise. This covers a mistyped subcommand, a group named without a
 subcommand (`ytr issue`), `ytr` with no arguments at all, an unknown flag, a
 stray positional argument, a malformed one such as `ytr issue view 123` (not an
-issue key) or an empty one, a `--cursor` of `issue list`, `queue list` or
-`user list` that is not a page number such as `2`, an `issue list --filter`
-without `=`, and an unknown `ytr help` topic. None of them reach Tracker, and
-none print help and exit 0. A bad `--cursor` or `--filter` exits 1 even without
-credentials, since ytr checks it before auth.
+issue key) or an empty one, a `--limit` outside 1 to 1000, a `--cursor` of
+`issue list`, `queue list` or `user list` that is not a page number (`2` is
+one, `abc` is not), an `issue list --filter` without `=`, and an unknown
+`ytr help` topic. None of them reach Tracker, and none print help and exit 0.
+A bad `--limit`, `--cursor` or `--filter` exits 1 even without credentials,
+since ytr checks it before auth.
 
 `--json` is honoured even when it comes after the mistake, so
 `ytr issue list --nosuchflag --json key` still answers with JSON.
@@ -527,7 +528,7 @@ the help text to stdout and exit 0, even on a mistyped command path
 | `--order-asc` | `issue list` | Sort ascending; requires `--order-by` |
 | `--field` | `issue changelog` | Filter changes by field name (case-sensitive) |
 | `--type` | `issue changelog` | Filter by change type (e.g., IssueWorkflow, IssueCommentAdded) |
-| `--limit N` | Paginated list commands | Results per page (default 50, max 1000) |
+| `--limit N` | Paginated list commands | Results per page, 1 to 1000 (default 50); any other value exits 1 |
 | `--all` | Paginated list commands | Fetch all pages automatically |
 | `--cursor` | Paginated list commands | Pagination cursor (pass the `pagination.cursor` value from the previous response) |
 | `--timeout` | Bulk commands | Max wait time (default 5m) |

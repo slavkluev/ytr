@@ -76,6 +76,7 @@ var policies = []policy{
 	{"JSON FIELDS", (*policyTarget).isLeaf, checkJSONFieldsHelp},
 	{"No SEE ALSO", func(*policyTarget) bool { return true }, checkNoSeeAlso},
 	{"All with cursor", appliesAllWithCursor, checkAllWithCursor},
+	{"Limit range", appliesLimitRange, checkLimitRange},
 	{"Tracker 500", (*policyTarget).reachesTracker, checkTrackerFailure},
 	{
 		"Bad argument",
@@ -429,6 +430,29 @@ func checkAllWithCursor(t *testing.T, p *policyTarget) {
 	assertEmpty(t, label+": stdout", got.Stdout)
 	if !strings.Contains(got.Stderr, "cannot combine --all with --cursor") {
 		t.Errorf("%s: stderr = %q, want it to name the conflict", label, got.Stderr)
+	}
+}
+
+func appliesLimitRange(p *policyTarget) bool {
+	return p.inv != nil && p.cmd.Flags().Lookup("limit") != nil
+}
+
+// checkLimitRange wants a --limit outside 1 to 1000 refused instead of sent or
+// changed into another page size. The runs are signed out, so a leaf that
+// checked auth first would exit 3.
+func checkLimitRange(t *testing.T, p *policyTarget) {
+	for _, limit := range []string{"0", "1001"} {
+		argv := slices.Concat(p.inv.args, []string{"--limit", limit})
+		label := commandLine(argv)
+		got := runProbe(t, argv)
+
+		if got.Code != ytrerrors.ExitUserError {
+			t.Errorf("%s: exit = %d, want %d (stderr: %s)", label, got.Code, ytrerrors.ExitUserError, got.Stderr)
+		}
+		assertEmpty(t, label+": stdout", got.Stdout)
+		if want := "invalid limit " + limit + ": expected 1 to 1000"; !strings.Contains(got.Stderr, want) {
+			t.Errorf("%s: stderr = %q, want it to hold %q", label, got.Stderr, want)
+		}
 	}
 }
 

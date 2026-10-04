@@ -99,10 +99,7 @@ func (l List[T, Item]) items(opts *output.Options, values []T) []map[string]any 
 	return items
 }
 
-const (
-	defaultPageLimit = 50
-	maxPageLimit     = 1000
-)
+const defaultPageLimit = 50
 
 // Pages declares a command that prints one page of a page-numbered Tracker
 // list, chosen with --limit and --cursor, or every page with --all. Under
@@ -161,18 +158,15 @@ func (p Pages[T, Item]) Command() *cobra.Command {
 						return err
 					}
 
+					o.PerPage, _ = set.GetInt("limit")
+					if err := validate.ValidatePageLimit(o.PerPage); err != nil {
+						return err
+					}
+
 					cursor, _ := set.GetString("cursor")
 					var err error
 					o.Page, err = validate.ParsePageCursor(cursor)
 					return err
-				},
-				prepare: func() error {
-					limit, _ := set.GetInt("limit")
-					if limit < 1 {
-						limit = defaultPageLimit
-					}
-					o.PerPage = min(limit, maxPageLimit)
-					return nil
 				},
 				call: func(ctx context.Context, c *tracker.Client, _ []string) (listPage[T], error) {
 					if all, _ := set.GetBool("all"); all {

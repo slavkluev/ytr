@@ -109,12 +109,8 @@ func TestIssueList(t *testing.T) {
 			exchanges: []faketracker.Exchange{issueSearch(1, 10, 0, `[]`)}, body: `{}`,
 		},
 		{
-			name: "Limit over the maximum", args: list("--limit", "2000", "--quiet"),
+			name: "Limit at the maximum", args: list("--limit", "1000", "--quiet"),
 			exchanges: []faketracker.Exchange{issueSearch(1, 1000, 0, `[]`)},
-		},
-		{
-			name: "Limit under one", args: list("--limit", "0", "--quiet"),
-			exchanges: []faketracker.Exchange{issueSearch(1, 50, 0, `[]`)},
 		},
 		{
 			name: "Cursor", args: list("--cursor", "3", "--json", "key"),

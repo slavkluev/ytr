@@ -14,10 +14,7 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-const (
-	defaultLimit = 50
-	maxLimit     = 1000
-)
+const defaultLimit = 50
 
 // IssueChangelogFields lists the available JSON field names for changelog output.
 var IssueChangelogFields = []string{
@@ -69,7 +66,7 @@ JSON FIELDS
 
 	cmd.Flags().StringVar(&fieldFilter, "field", "", "Filter changes by field ID (case-sensitive, e.g. storyPoints)")
 	cmd.Flags().StringVar(&typeFilter, "type", "", "Filter by change type (e.g., IssueWorkflow, IssueCommentAdded)")
-	cmd.Flags().IntVar(&limit, "limit", defaultLimit, "Maximum number of changelog entries per page")
+	cmd.Flags().IntVar(&limit, "limit", defaultLimit, "Maximum number of changelog entries per page (max 1000)")
 	cmd.Flags().StringVar(&cursor, "cursor", "", "Cursor ID for pagination (from previous response)")
 	cmd.Flags().BoolVar(&all, "all", false, "Fetch all pages automatically")
 
@@ -87,6 +84,10 @@ func runChangelog(
 	all bool,
 ) error {
 	opts := output.FromContext(cmd.Context())
+
+	if err := validate.ValidatePageLimit(limit); err != nil {
+		return err
+	}
 
 	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
 		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue changelog", IssueChangelogFields)
@@ -114,13 +115,6 @@ func runChangelog(
 	client, err := runner.Client(cmd)
 	if err != nil {
 		return err
-	}
-
-	if limit < 1 {
-		limit = defaultLimit
-	}
-	if limit > maxLimit {
-		limit = maxLimit
 	}
 
 	entries, page, err := fetchChangelogPage(

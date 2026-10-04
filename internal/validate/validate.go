@@ -122,6 +122,21 @@ func ParsePageCursor(cursor string) (int, error) {
 	return page, nil
 }
 
+const maxPageLimit = 1000
+
+// ValidatePageLimit checks that limit, the page size --limit asks for, is
+// from 1 to 1000.
+func ValidatePageLimit(limit int) error {
+	if limit < 1 || limit > maxPageLimit {
+		return errors.NewUserError(
+			fmt.Sprintf("invalid limit %d: expected 1 to %d", limit, maxPageLimit),
+			fmt.Sprintf("Use --limit 1 to %d: it sets the page size, under --all too", maxPageLimit),
+		)
+	}
+
+	return nil
+}
+
 // ConflictingAllAndCursor returns an error when both --all and --cursor were
 // supplied. Fetching every page and requesting one specific page are mutually
 // exclusive. Callers pass cmd.Flags().Changed("all"/"cursor").

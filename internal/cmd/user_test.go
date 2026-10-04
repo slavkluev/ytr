@@ -178,11 +178,8 @@ func TestUserList(t *testing.T) {
 			exchanges: []faketracker.Exchange{userPage(1, 10, 0, `[]`)},
 		},
 		{
-			name: "Limit over the maximum", args: list("--limit", "2000", "--quiet"),
+			name: "Limit at the maximum", args: list("--limit", "1000", "--quiet"),
 			exchanges: []faketracker.Exchange{userPage(1, 1000, 0, `[]`)},
-		},
-		{
-			name: "Limit under one", args: list("--limit", "0", "--quiet"), exchanges: []faketracker.Exchange{empty},
 		},
 		{
 			name: "Cursor", args: list("--cursor", "2", "--quiet"),
