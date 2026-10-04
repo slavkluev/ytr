@@ -207,12 +207,9 @@ func fetchAllChangelog(
 
 		all = append(all, entries...)
 
-		if len(entries) < limit {
-			break
-		}
-
 		lastID := lastChangelogCursorID(entries)
-		if lastID == "" {
+		// Stop on a missing or non-advancing cursor to avoid looping forever.
+		if lastID == "" || lastID == currentCursor {
 			break
 		}
 		currentCursor = lastID

@@ -109,6 +109,16 @@ func TestIssueChangelog(t *testing.T) {
 			json: `{"items": [{"author": "alice"}, {"author": "bob"}], "pagination": {"hasMore": false}}`,
 		},
 		{
+			name: "A short page is not the last", args: changelog("--all", "--limit", "2", "--quiet"),
+			exchanges: []faketracker.Exchange{
+				changelogPage(url.Values{"perPage": {"2"}}, entry("cursor-1", "alice")),
+				changelogPage(url.Values{"perPage": {"2"}, "id": {"cursor-1"}}, entry("cursor-2", "bob")),
+				changelogPage(url.Values{"perPage": {"2"}, "id": {"cursor-2"}}, `[]`),
+			},
+			stdout: "status: open -> closed\nstatus: open -> closed\n",
+			check:  assertRequestOrder("perPage=2", "id=cursor-1&perPage=2", "id=cursor-2&perPage=2"),
+		},
+		{
 			name: "All pages keep the filters",
 			args: changelog("--all", "--limit", "1", "--field", "status", "--type", "IssueWorkflow", "--quiet"),
 			exchanges: []faketracker.Exchange{
@@ -146,9 +156,10 @@ func TestIssueChangelog(t *testing.T) {
 				),
 				changelogPage(url.Values{"perPage": {"2"}, "id": {"cl-001"}},
 					`[{"id": "cl-003", "updatedBy": {"display": "bob"}}]`),
+				changelogPage(url.Values{"perPage": {"2"}, "id": {"cl-003"}}, `[]`),
 			},
 			json:  `{"items": [{"author": "alice"}, {"author": "bob"}], "pagination": {"hasMore": false}}`,
-			check: assertRequestOrder("perPage=2", "id=cl-001&perPage=2"),
+			check: assertRequestOrder("perPage=2", "id=cl-001&perPage=2", "id=cl-003&perPage=2"),
 		},
 		{
 			name: "Not an issue key", args: []string{"issue", "changelog", "123"},

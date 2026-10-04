@@ -21,9 +21,8 @@ const (
 	commentTableReservedWidth = 44
 
 	commentMinColumnWidth = 10
-	// commentPageSize is the per-page count used when auto-paginating comments.
-	// The server default is 50; comment list pages explicitly so all comments
-	// are returned instead of being silently truncated at the first page.
+	// commentPageSize only saves requests where Tracker honours it: the list
+	// pages until an empty page, whatever size each page comes in.
 	commentPageSize = 100
 )
 
@@ -101,8 +100,8 @@ func runList(cmd *cobra.Command, issueKey string) error {
 }
 
 // fetchAllComments retrieves every comment on an issue by following the
-// comment-ID cursor until a short (or empty) page is returned. The Tracker
-// list endpoint caps a single page at the server default (~50).
+// comment-ID cursor until an empty page. A short page does not end the list,
+// since Tracker may cap a page below the size asked for.
 func fetchAllComments(
 	ctx context.Context,
 	lister *tracker.IssuesService,
@@ -123,10 +122,6 @@ func fetchAllComments(
 		}
 
 		all = append(all, comments...)
-
-		if len(comments) < commentPageSize {
-			break
-		}
 
 		lastID := api.DerefFlexString(comments[len(comments)-1].ID, "")
 		// Stop on a missing or non-advancing cursor to avoid looping forever.
