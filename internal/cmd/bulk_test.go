@@ -90,6 +90,24 @@ func TestBulkMove(t *testing.T) {
 			check: assertFirstBody(`{"queue": "TARGET", "issues": ["PROJ-1"]}`),
 		},
 		{
+			name:      "Keys as args are sent once",
+			args:      move("PROJ-1", "PROJ-2", "PROJ-1", "--queue", "TARGET", "--quiet"),
+			exchanges: done,
+			stdout:    "op-1\n",
+			check:     assertFirstBody(`{"queue": "TARGET", "issues": ["PROJ-1", "PROJ-2"]}`),
+		},
+		{
+			name: "Empty queue", args: move("PROJ-1", "--queue", "", "--quiet"), exchanges: done, stdout: "op-1\n",
+			check: assertFirstBody(`{"queue": "", "issues": ["PROJ-1"]}`),
+		},
+		{
+			name:      "JSON keys in another case",
+			args:      move("--from-json", `{"Queue": "T", "Issues": ["PROJ-1"]}`, "--quiet"),
+			exchanges: done,
+			stdout:    "op-1\n",
+			check:     assertFirstBody(`{"queue": "T", "issues": ["PROJ-1"]}`),
+		},
+		{
 			name: "Failed", args: move("PROJ-1", "PROJ-2", "PROJ-3", "--queue", "TARGET", "--quiet"),
 			exchanges: []faketracker.Exchange{started, bulkFailed("3", "1")}, code: ytrerrors.ExitUserError,
 			stderr: []string{
@@ -167,6 +185,11 @@ func TestBulkUpdate(t *testing.T) {
 			check: assertFirstBody(`{"issues": ["PROJ-1", "PROJ-2"], "values": {"a": "b"}}`),
 		},
 		{
+			name: "Empty field value", args: update("PROJ-1", "--field", "a=", "--quiet"),
+			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}, stdout: "op-1\n",
+			check: assertFirstBody(`{"issues": ["PROJ-1"], "values": {"a": ""}}`),
+		},
+		{
 			name: "Failed", args: update("PROJ-1", "PROJ-2", "--field", "a=b", "--json", "id"),
 			exchanges: []faketracker.Exchange{started, bulkFailed("2", "0")}, code: ytrerrors.ExitUserError,
 			stderr: []string{
@@ -213,6 +236,13 @@ func TestBulkTransition(t *testing.T) {
 			name: "Keys on stdin", args: transition("--transition", "close", "--quiet"), stdin: "PROJ-1\nPROJ-2\n",
 			exchanges: done, stdout: "op-1\n",
 			check: assertFirstBody(`{"transition": "close", "issues": ["PROJ-1", "PROJ-2"]}`),
+		},
+		{
+			name:      "Field value holding =",
+			args:      transition("PROJ-1", "--transition", "close", "--field", "k=a=b", "--quiet"),
+			exchanges: done,
+			stdout:    "op-1\n",
+			check:     assertFirstBody(`{"transition": "close", "issues": ["PROJ-1"], "values": {"k": "a=b"}}`),
 		},
 		{
 			name: "JSON body on stdin", args: transition("--from-json", "-", "--quiet"),
