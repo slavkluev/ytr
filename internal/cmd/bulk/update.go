@@ -13,8 +13,11 @@ func newUpdateCmd() *cobra.Command {
 		Short: "Update fields on multiple issues",
 		Long: `Update fields on multiple Yandex Tracker issues in a single bulk operation.
 
-Issue keys can be provided as positional arguments or piped via stdin
-(one per line). The command waits for the operation to complete by default.
+Issues can be given as keys (PROJ-1) or 24-character hexadecimal issue IDs,
+as positional arguments or piped via stdin (one per line). With --from-json,
+the body's "issues" is the only source of issues: issue arguments are refused
+and stdin is not read for issues. The command waits for the operation to
+complete by default.
 
 JSON FIELDS
   id, status, statusText, totalIssues, totalCompletedIssues,

@@ -500,7 +500,9 @@ each exits 1 before any request:
   24-character hexadecimal issue ID, or such a bulk issue, given as an
   argument, on stdin or in the `"issues"` of a bulk `--from-json`.
 - `no issue keys provided`: a bulk `--from-json` body without `"issues"`, or
-  with an empty one.
+  with an empty one, or a bulk command given no key arguments while stdin is a
+  terminal; `no issue keys provided via stdin` when the piped stdin holds no
+  key. The last two exit 1 before auth.
 
 ### Bad invocations
 
