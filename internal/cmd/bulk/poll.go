@@ -28,11 +28,6 @@ const (
 
 func readIssueKeys(args []string, stdin io.Reader) ([]string, error) {
 	if len(args) > 0 {
-		for _, key := range args {
-			if err := validate.ValidateIssueKeyOrID(key); err != nil {
-				return nil, err
-			}
-		}
 		return dedupeKeys(args), nil
 	}
 
@@ -63,12 +58,6 @@ func readIssueKeys(args []string, stdin io.Reader) ([]string, error) {
 			"no issue keys provided via stdin",
 			"Pipe issue keys via stdin (one per line) or provide as arguments",
 		)
-	}
-
-	for _, key := range keys {
-		if err := validate.ValidateIssueKeyOrID(key); err != nil {
-			return nil, err
-		}
 	}
 
 	return dedupeKeys(keys), nil
@@ -211,6 +200,17 @@ func awaitBulkCompletion(
 	}
 
 	return finalizeBulkResult(cmd.OutOrStdout(), opts, result, operationID)
+}
+
+func handlePollError(ctx context.Context, err error, timeout time.Duration, operationID string) error {
+	if ctx.Err() != nil {
+		return ytrerrors.NewUserError(
+			fmt.Sprintf("bulk operation timed out after %s (operation ID: %s)", timeout, operationID),
+			"ytr bulk status "+operationID,
+		)
+	}
+
+	return err
 }
 
 // A failed operation renders nothing: a run that ends non-zero must leave

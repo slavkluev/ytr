@@ -5,7 +5,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
@@ -46,23 +45,9 @@ JSON FIELDS
 }
 
 func runStatus(cmd *cobra.Command, operationID string) error {
-	opts := output.FromContext(cmd.Context())
-
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(
-			cmd.ErrOrStderr(), "bulk status", BulkStatusFields,
-		)
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = BulkStatusFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, BulkStatusFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, BulkStatusFields)
+	opts, err := runner.SelectFields(cmd, BulkStatusFields)
+	if err != nil {
+		return err
 	}
 
 	client, err := runner.Client(cmd)

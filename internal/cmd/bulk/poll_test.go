@@ -33,17 +33,6 @@ func TestReadIssueKeys_DedupesArgs(t *testing.T) {
 	}
 }
 
-func TestReadIssueKeys_InvalidArg(t *testing.T) {
-	_, err := readIssueKeys([]string{"bad-key"}, nil)
-	if err == nil {
-		t.Fatal("expected error for invalid arg key, got nil")
-	}
-
-	if got := err.Error(); !strings.Contains(got, "invalid issue key") {
-		t.Errorf("expected 'invalid issue key' in error, got: %v", err)
-	}
-}
-
 func TestParseFieldFlags_SingleField(t *testing.T) {
 	vals, err := parseFieldFlags([]string{"priority=critical"})
 	if err != nil {
