@@ -84,9 +84,11 @@ func TestClassifyOrgTypeDetectionError(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		classified := classifyOrgTypeDetectionError(c.err)
+
 		var exitErr *ytrerrors.ExitError
-		if !errors.As(classifyOrgTypeDetectionError(c.err), &exitErr) {
-			t.Fatalf("%s: classified as %T, want an ExitError", c.name, exitErr)
+		if !errors.As(classified, &exitErr) {
+			t.Fatalf("%s: classified as %T, want an ExitError", c.name, classified)
 		}
 		if exitErr.Code != c.code || exitErr.Suggestion != c.suggestion {
 			t.Errorf("%s: code %q, suggestion %q, want %q, %q",

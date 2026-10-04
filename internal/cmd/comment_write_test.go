@@ -89,6 +89,11 @@ func TestCommentEdit(t *testing.T) {
 			body:      `{"text": "Fixed in abc123"}`, stdout: "Comment 555 updated on PROJ-1\n",
 		},
 		{
+			name: "JSON body on stdin", args: edit("--from-json", "-"), stdin: `{"text": "Fixed in abc123"}`,
+			exchanges: []faketracker.Exchange{edited},
+			body:      `{"text": "Fixed in abc123"}`, stdout: "Comment 555 updated on PROJ-1\n",
+		},
+		{
 			name:      "JSON body with a key no flag sets",
 			args:      edit("--from-json", `{"text": "x", "summonees": ["uid-b"]}`),
 			exchanges: []faketracker.Exchange{edited},

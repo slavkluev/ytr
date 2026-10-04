@@ -99,16 +99,6 @@ func TestQueueContext(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			// W200 is fetched once, though two issue types follow it.
-			name: "Whole document", args: context("APP"),
-			exchanges: []faketracker.Exchange{queue, w200, components, queueFields, localFields, globalFields},
-			json: `{"key": "APP", "name": "Demo application", "defaultType": "task", "defaultPriority": "normal",
-				"issueTypes": ` + appIssueTypesJSON + `, "statuses": ` + appStatusesJSON + `,
-				"workflows": [` + w200JSON + `], "components": [{"id": "55", "name": "Hotfix"}],
-				"requiredFields": [{"id": "summary"}, {"id": "type", "default": "task"}],
-				"localFields": ` + appLocalFieldsJSON + `, "globalFields": [{"key": "tags", "name": "Теги"}],
-				"incomplete": []}`,
-		},
-		{
 			name: "Parts in order", args: context("APP"),
 			exchanges: []faketracker.Exchange{queue, w200, components, queueFields, localFields, globalFields},
 			stdout: `{"key":"APP","name":"Demo application","defaultType":"task","defaultPriority":"normal",` +
@@ -121,6 +111,13 @@ func TestQueueContext(t *testing.T) {
 				`"localFields":[{"id":"5d0e4f1a2b3c4d5e6f708192--size","key":"size","name":"Размер",` +
 				`"schema":"string","readonly":false,"options":["S","M","L"]}],` +
 				`"globalFields":[{"key":"tags","name":"Теги"}],"incomplete":[]}` + "\n",
+		},
+		{
+			name:      "Queue parts and global fields",
+			args:      context("APP", "--json", "key,name,defaultType,defaultPriority,globalFields,incomplete"),
+			exchanges: []faketracker.Exchange{queue, globalFields},
+			json: `{"key": "APP", "name": "Demo application", "defaultType": "task", "defaultPriority": "normal",
+				"globalFields": [{"key": "tags", "name": "Теги"}], "incomplete": []}`,
 		},
 		{
 			name: "Every workflow of the queue, in order", args: context("APP", "--json", "statuses,workflows"),

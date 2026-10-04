@@ -349,20 +349,21 @@ func TestUnknownFlagPrefixSuggestsTheFullName(t *testing.T) {
 	}
 }
 
-// TestExecuteWiring covers the exported Execute. os.Args, os.Stdout and
-// os.Stderr are wired up there and nowhere else, so nothing else in this suite
-// notices when that wiring breaks.
+// TestExecuteWiring covers the exported Execute. os.Args, os.Stdin, os.Stdout
+// and os.Stderr are wired up there and nowhere else, so nothing else in this
+// suite notices when that wiring breaks.
 func TestExecuteWiring(t *testing.T) {
 	t.Setenv("YTR_CONFIG_DIR", t.TempDir())
 	t.Setenv("NO_COLOR", "")
 	t.Setenv("CLICOLOR_FORCE", "1")
 
-	realArgs, realOut, realErr := os.Args, os.Stdout, os.Stderr
-	t.Cleanup(func() { os.Args, os.Stdout, os.Stderr = realArgs, realOut, realErr })
+	realArgs, realIn, realOut, realErr := os.Args, os.Stdin, os.Stdout, os.Stderr
+	t.Cleanup(func() { os.Args, os.Stdin, os.Stdout, os.Stderr = realArgs, realIn, realOut, realErr })
 
 	cases := []struct {
 		name          string
 		argv          []string
+		stdin         string
 		wantCode      int
 		wantOut       string
 		wantErr       string
@@ -387,11 +388,20 @@ func TestExecuteWiring(t *testing.T) {
 			wantCode:      ytrerrors.ExitUserError,
 			wantErrPrefix: "\x1b[1;31mError\x1b[0m",
 		},
+		// An empty stdin would fail with "no token provided" instead, and the
+		// token is read before login sends any request.
+		{
+			name:     "stdin reaches the command",
+			argv:     []string{"ytr", "auth", "login", "--org-id", "O"},
+			stdin:    "\n",
+			wantCode: ytrerrors.ExitUserError,
+			wantErr:  "empty token from stdin",
+		},
 	}
 
 	for _, c := range cases {
 		stdout, stderr := redirectedStream(t, "stdout"), redirectedStream(t, "stderr")
-		os.Args, os.Stdout, os.Stderr = c.argv, stdout, stderr
+		os.Args, os.Stdin, os.Stdout, os.Stderr = c.argv, streamHolding(t, c.stdin), stdout, stderr
 
 		code := Execute()
 		gotOut, gotErr := streamContents(t, stdout), streamContents(t, stderr)
@@ -425,6 +435,24 @@ func redirectedStream(t *testing.T, name string) *os.File {
 	f, err := os.Create(filepath.Join(t.TempDir(), name))
 	if err != nil {
 		t.Fatalf("creating %s stand-in: %v", name, err)
+	}
+	t.Cleanup(func() { _ = f.Close() })
+
+	return f
+}
+
+// streamHolding returns a file that stands in for stdin and yields content.
+func streamHolding(t *testing.T, content string) *os.File {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "stdin")
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("writing the stdin stand-in: %v", err)
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("opening the stdin stand-in: %v", err)
 	}
 	t.Cleanup(func() { _ = f.Close() })
 

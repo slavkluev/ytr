@@ -85,6 +85,11 @@ func TestBulkMove(t *testing.T) {
 			check: assertFirstBody(`{"queue": "TARGET", "issues": ["PROJ-1"], "moveAllFields": true}`),
 		},
 		{
+			name: "JSON body on stdin", args: move("--from-json", "-", "--quiet"),
+			stdin: `{"queue": "TARGET", "issues": ["PROJ-1"]}`, exchanges: done, stdout: "op-1\n",
+			check: assertFirstBody(`{"queue": "TARGET", "issues": ["PROJ-1"]}`),
+		},
+		{
 			name: "Failed", args: move("PROJ-1", "PROJ-2", "PROJ-3", "--queue", "TARGET", "--quiet"),
 			exchanges: []faketracker.Exchange{started, bulkFailed("3", "1")}, code: ytrerrors.ExitUserError,
 			stderr: []string{
@@ -157,6 +162,11 @@ func TestBulkUpdate(t *testing.T) {
 			check: assertFirstBody(`{"issues": ["PROJ-1"], "values": {"priority": "critical"}}`),
 		},
 		{
+			name: "Keys on stdin", args: update("--field", "a=b", "--quiet"), stdin: "PROJ-1\nPROJ-2\n",
+			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}, stdout: "op-1\n",
+			check: assertFirstBody(`{"issues": ["PROJ-1", "PROJ-2"], "values": {"a": "b"}}`),
+		},
+		{
 			name: "Failed", args: update("PROJ-1", "PROJ-2", "--field", "a=b", "--json", "id"),
 			exchanges: []faketracker.Exchange{started, bulkFailed("2", "0")}, code: ytrerrors.ExitUserError,
 			stderr: []string{
@@ -197,6 +207,16 @@ func TestBulkTransition(t *testing.T) {
 			name: "JSON body", args: transition("--from-json", `{"transition": "close", "issues": ["PROJ-1"]}`,
 				"--json", bulkFields),
 			exchanges: done, json: bulkCompletedJSON,
+			check: assertFirstBody(`{"transition": "close", "issues": ["PROJ-1"]}`),
+		},
+		{
+			name: "Keys on stdin", args: transition("--transition", "close", "--quiet"), stdin: "PROJ-1\nPROJ-2\n",
+			exchanges: done, stdout: "op-1\n",
+			check: assertFirstBody(`{"transition": "close", "issues": ["PROJ-1", "PROJ-2"]}`),
+		},
+		{
+			name: "JSON body on stdin", args: transition("--from-json", "-", "--quiet"),
+			stdin: `{"transition": "close", "issues": ["PROJ-1"]}`, exchanges: done, stdout: "op-1\n",
 			check: assertFirstBody(`{"transition": "close", "issues": ["PROJ-1"]}`),
 		},
 		{

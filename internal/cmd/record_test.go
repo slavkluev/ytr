@@ -33,9 +33,9 @@ var (
 // TestRecordFixtures runs each invocation against the real Tracker and writes
 // what came back as a fixture. It sends real requests, so it runs only under
 // YTR_RECORD=1, and recordFixture lets only read-only commands through.
+//
+//nolint:paralleltest // It rewrites fixtures that parallel tests read, and real requests go one at a time.
 func TestRecordFixtures(t *testing.T) {
-	t.Parallel()
-
 	if os.Getenv("YTR_RECORD") != "1" {
 		t.Skip("set YTR_RECORD=1 to record fixtures from the real Tracker")
 	}
@@ -58,8 +58,6 @@ func TestRecordFixtures(t *testing.T) {
 
 	for _, row := range rows {
 		t.Run(strings.Join(row.args, " "), func(t *testing.T) {
-			t.Parallel()
-
 			path := filepath.Join(fixtureDir, row.fixture)
 			if err := recordFixture(t, http.DefaultTransport, path, secrets, row.args...); err != nil {
 				t.Fatal(err)

@@ -13,12 +13,12 @@ import (
 	"testing"
 )
 
-// Request is what Fake received: what Tracker would see of a request, less
-// its headers.
+// Request is what Fake received: what Tracker would see of a request.
 type Request struct {
 	Method string
 	Path   string
 	Query  url.Values
+	Header http.Header
 	Body   string
 }
 
@@ -93,6 +93,7 @@ func (f *Fake) RoundTrip(req *http.Request) (*http.Response, error) {
 		Method: req.Method,
 		Path:   req.URL.EscapedPath(),
 		Query:  req.URL.Query(),
+		Header: req.Header.Clone(),
 		Body:   string(body),
 	}
 

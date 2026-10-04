@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -18,6 +19,29 @@ func myselfAnswer(display string) faketracker.Exchange {
 
 func myselfError(status int, message string) faketracker.Exchange {
 	return trackerError(http.MethodGet, "/v3/myself", status, message)
+}
+
+// assertSignIns wants the run's requests to sign in with token as orgID, the
+// first through the 360 header and the second, when there is one, through the
+// cloud header: the order org-type detection tries them in.
+func assertSignIns(token, orgID string) func(*testing.T, cliResult) {
+	return func(t *testing.T, res cliResult) {
+		t.Helper()
+
+		headers := []struct{ set, unset string }{{"X-Org-Id", "X-Cloud-Org-Id"}, {"X-Cloud-Org-Id", "X-Org-Id"}}
+		for i, req := range res.Requests {
+			if i >= len(headers) {
+				t.Fatalf("requests = %+v, want at most %d sign-ins", res.Requests, len(headers))
+			}
+			if got := req.Header.Get(headers[i].set); got != orgID || req.Header.Get(headers[i].unset) != "" {
+				t.Errorf("request %d carries %s %q and %s %q, want only %s %q", i+1, headers[i].set, got,
+					headers[i].unset, req.Header.Get(headers[i].unset), headers[i].set, orgID)
+			}
+			if got := req.Header.Get("Authorization"); got != "OAuth "+token {
+				t.Errorf("request %d carries Authorization %q, want the token %q", i+1, got, token)
+			}
+		}
+	}
 }
 
 // assertConfigFile wants the run's config.yaml to hold exactly want.
@@ -61,8 +85,11 @@ func assertJSONNamesTheConfig(want string) func(*testing.T, cliResult) {
 	return func(t *testing.T, res cliResult) {
 		t.Helper()
 
-		path := `"config_path": "` + filepath.Join(res.ConfigDir, "config.yaml") + `"`
-		assertSameJSONAs(t, "stdout", res.Stdout, want[:len(want)-1]+", "+path+"}")
+		path, err := json.Marshal(filepath.Join(res.ConfigDir, "config.yaml"))
+		if err != nil {
+			t.Fatalf("encoding the config path: %v", err)
+		}
+		assertSameJSONAs(t, "stdout", res.Stdout, want[:len(want)-1]+`, "config_path": `+string(path)+"}")
 	}
 }
 
@@ -103,13 +130,21 @@ func TestAuthLogin(t *testing.T) {
 				myselfError(http.StatusForbidden, "No access to organization"), myselfAnswer("Piped User"),
 			},
 			stderr: []string{"Authenticated as Piped User (org: O, type: cloud)\n"},
-			check:  assertConfigFile("token: tok\norg_id: O\norg_type: cloud\n"),
+			check: func(t *testing.T, res cliResult) {
+				t.Helper()
+				assertSignIns("tok", "O")(t, res)
+				assertConfigFile("token: tok\norg_id: O\norg_type: cloud\n")(t, res)
+			},
 		},
 		{
 			name: "Detection tries 360 first", args: login(flags...), signedOut: true,
 			exchanges: []faketracker.Exchange{myselfAnswer("360 User")},
 			stderr:    []string{"Authenticated as 360 User (org: test-org, type: 360)\n"},
-			check:     assertConfigFile("token: test-token\norg_id: test-org\norg_type: \"360\"\n"),
+			check: func(t *testing.T, res cliResult) {
+				t.Helper()
+				assertSignIns("test-token", "test-org")(t, res)
+				assertConfigFile("token: test-token\norg_id: test-org\norg_type: \"360\"\n")(t, res)
+			},
 		},
 		{
 			name: "Detection denied by both", args: login(flags...), signedOut: true,
@@ -124,7 +159,11 @@ func TestAuthLogin(t *testing.T) {
 					"cloud: GET https://api.tracker.yandex.net/v3/myself: 403 [cloud access denied] map[]\n" +
 					"Check your token and access to the Tracker organization\n",
 			},
-			check: assertNoConfigFile,
+			check: func(t *testing.T, res cliResult) {
+				t.Helper()
+				assertSignIns("test-token", "test-org")(t, res)
+				assertNoConfigFile(t, res)
+			},
 		},
 		{
 			name: "Detection fails differently", args: login(flags...), signedOut: true,
@@ -133,6 +172,7 @@ func TestAuthLogin(t *testing.T) {
 				myselfError(http.StatusNotFound, "cloud not found"),
 			},
 			code: ytrerrors.ExitUserError, stderr: []string{"\nRetry with --org-type 360 or --org-type cloud\n"},
+			check: assertSignIns("test-token", "test-org"),
 		},
 		{
 			name: "Detection fails on both servers", args: login(flags...), signedOut: true,
@@ -141,6 +181,7 @@ func TestAuthLogin(t *testing.T) {
 				myselfError(http.StatusBadGateway, "cloud unavailable"),
 			},
 			code: ytrerrors.ExitUserError, stderr: []string{"\nRetry later\n"},
+			check: assertSignIns("test-token", "test-org"),
 		},
 		{
 			name: "Detection refused as a bad request", args: login(flags...), signedOut: true,
@@ -149,6 +190,7 @@ func TestAuthLogin(t *testing.T) {
 				myselfError(http.StatusBadRequest, "cloud invalid request"),
 			},
 			code: ytrerrors.ExitUserError, stderr: []string{"\nReview the reported Tracker error details and retry\n"},
+			check: assertSignIns("test-token", "test-org"),
 		},
 		{
 			name: "Empty piped token", args: login("--org-id", "O"), signedOut: true, stdin: "\n",

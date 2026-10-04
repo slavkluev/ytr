@@ -591,6 +591,9 @@ func TestResolveAuthReadsOnlyTheEnvironmentItsContextCarries(t *testing.T) {
 	}
 
 	delete(env, "YTR_TOKEN")
+	t.Setenv("YTR_TOKEN", "processtoken")
+	t.Setenv("YTR_ORG_ID", "processorg")
+	t.Setenv("YTR_ORG_TYPE", "360")
 	if _, err := config.ResolveAuth(ctx, "", "", ""); err == nil {
 		t.Error("ResolveAuth() succeeded without a token in the context's env, want the process env ignored")
 	}
