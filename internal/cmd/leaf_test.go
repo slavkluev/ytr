@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"reflect"
 	"regexp"
 	"slices"
@@ -129,6 +130,13 @@ func trackerGET(path, body string) faketracker.Exchange {
 	}
 }
 
+// withQuery is ex answering only a request that carries query.
+func withQuery(ex faketracker.Exchange, query url.Values) faketracker.Exchange {
+	ex.Query = query
+
+	return ex
+}
+
 // trackerTime formats t the way Tracker sends a timestamp.
 func trackerTime(t time.Time) string {
 	return t.Format("2006-01-02T15:04:05.000-0700")
@@ -165,15 +173,34 @@ func trackerNotFound(path string) faketracker.Exchange {
 // trackerNotFoundOn answers method on path with a 404 and Tracker's error body
 // carrying message.
 func trackerNotFoundOn(method, path, message string) faketracker.Exchange {
+	return trackerError(method, path, http.StatusNotFound, message)
+}
+
+// trackerError answers method on path with status and Tracker's error body
+// carrying message.
+func trackerError(method, path string, status int, message string) faketracker.Exchange {
 	body, _ := json.Marshal(
 		map[string]any{
 			"errorMessages": []string{message},
 			"errors":        map[string]string{},
-			"statusCode":    http.StatusNotFound,
+			"statusCode":    status,
 		},
 	)
 
-	return trackerWrite(method, path, http.StatusNotFound, string(body))
+	return trackerWrite(method, path, status, string(body))
+}
+
+// assertOneErrorDocument wants stderr to be exactly one JSON error document
+// carrying message.
+func assertOneErrorDocument(message string) func(*testing.T, cliResult) {
+	return func(t *testing.T, res cliResult) {
+		t.Helper()
+
+		doc := decodeOneJSONErrorCoded(t, "stderr", res.Stderr, ytrerrors.CodeUserError)
+		if doc.Message != message {
+			t.Errorf("message = %q, want the server's text %q", doc.Message, message)
+		}
+	}
 }
 
 // notFoundRow asks for one JSON field of what path answers with a 404, and
