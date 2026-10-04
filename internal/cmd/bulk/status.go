@@ -61,5 +61,5 @@ func runStatus(cmd *cobra.Command, arg string) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderBulkOutput(cmd.OutOrStdout(), opts, bc)
+	return renderBulkOutput(cmd, opts, bc)
 }

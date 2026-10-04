@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
+	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/output"
@@ -151,8 +152,10 @@ func changelogDocument(
 ) []byte {
 	t.Helper()
 	var doc bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&doc)
 	opts := &output.Options{JSONFields: fields}
-	if err := runner.PrintPage(&doc, opts, normalizeChangelog(entries), page); err != nil {
+	if err := runner.PrintPage(cmd, opts, normalizeChangelog(entries), page); err != nil {
 		t.Fatalf("print document: %v", err)
 	}
 	return doc.Bytes()

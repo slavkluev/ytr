@@ -116,10 +116,12 @@ func runChangelog(
 	}
 
 	if opts.IsJSON() {
-		return runner.PrintPage(cmd.OutOrStdout(), opts, normalizeChangelog(entries), page)
+		return runner.PrintPage(cmd, opts, normalizeChangelog(entries), page)
 	}
 
-	return renderChangelogNonJSON(cmd.OutOrStdout(), opts, flattenChangelog(entries))
+	return runner.PrintText(cmd, func(w io.Writer) error {
+		return renderChangelogNonJSON(w, opts, flattenChangelog(entries))
+	})
 }
 
 func renderChangelogNonJSON(w io.Writer, opts *output.Options, items []changelogItem) error {

@@ -2,7 +2,6 @@ package queue
 
 import (
 	"context"
-	"io"
 	"sync"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
@@ -105,24 +104,16 @@ func newContextCmd() *cobra.Command {
 }
 
 func runContext(cmd *cobra.Command, queueKey string) error {
-	opts := output.FromContext(cmd.Context())
-
-	if opts.Quiet {
+	if output.FromContext(cmd.Context()).Quiet {
 		return errors.NewUserError(
 			"queue context does not support --quiet: its document is always JSON",
 			"Run without --quiet: ytr queue context "+queueKey,
 		)
 	}
 
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "queue context", QueueContextFields)
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, QueueContextFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, QueueContextFields)
+	opts, err := runner.SelectFields(cmd, QueueContextFields)
+	if err != nil {
+		return err
 	}
 
 	client, err := runner.Client(cmd)
@@ -139,7 +130,7 @@ func runContext(cmd *cobra.Command, queueKey string) error {
 
 	results := fetchParts(cmd.Context(), client, queueKey, workflowIDs(q), wantedParts(opts.JSONFields))
 
-	return renderContext(cmd.OutOrStdout(), opts, contextDocument(q, queueKey, results, opts.JSONFields))
+	return runner.PrintJSON(cmd, opts, contextDocument(q, queueKey, results, opts.JSONFields))
 }
 
 // Each request runs in its own goroutine and writes only its own fields, which are
@@ -202,11 +193,4 @@ func fetchWorkflows(
 		workflows = append(workflows, wf)
 	}
 	return workflows, "", nil
-}
-
-func renderContext(w io.Writer, opts *output.Options, doc any) error {
-	if opts.JQFilter != "" {
-		return output.ApplyJQ(w, doc, opts.JQFilter)
-	}
-	return opts.PrintJSON(w, doc)
 }

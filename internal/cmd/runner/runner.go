@@ -218,12 +218,17 @@ func (p Pages[T, Item]) render(w io.Writer, opts *output.Options, args []string,
 		return list.render(w, opts, args, page.values)
 	}
 
-	return PrintPage(w, opts, list.items(page.values), page.meta)
+	return printPage(w, opts, list.items(page.values), page.meta)
 }
 
-// PrintPage prints the JSON of a page: items in the {items, pagination}
-// envelope, each cut to the --json fields SelectFields left in opts.
-func PrintPage[Item any](w io.Writer, opts *output.Options, items []Item, meta output.PaginationMeta) error {
+// PrintPage prints the JSON of a page to cmd's output: items in the
+// {items, pagination} envelope, each cut to the --json fields SelectFields left
+// in opts.
+func PrintPage[Item any](cmd *cobra.Command, opts *output.Options, items []Item, meta output.PaginationMeta) error {
+	return printPage(cmd.OutOrStdout(), opts, items, meta)
+}
+
+func printPage[Item any](w io.Writer, opts *output.Options, items []Item, meta output.PaginationMeta) error {
 	return printJSON(w, opts, output.PaginatedResult{Items: cut(opts, items), Pagination: meta})
 }
 
@@ -740,6 +745,18 @@ func Client(cmd *cobra.Command) (*tracker.Client, error) {
 	}
 
 	return api.NewClient(auth), nil
+}
+
+// PrintJSON prints doc, cut beforehand to the fields SelectFields left in
+// opts, to cmd's output: through --jq when given, otherwise as JSON.
+func PrintJSON(cmd *cobra.Command, opts *output.Options, doc any) error {
+	return printJSON(cmd.OutOrStdout(), opts, doc)
+}
+
+// PrintText hands text cmd's output, for what a procedural leaf prints
+// outside --json once nothing is left that can fail.
+func PrintText(cmd *cobra.Command, text func(io.Writer) error) error {
+	return text(cmd.OutOrStdout())
 }
 
 // SelectFields leaves every JSON mode with a field selection, so doc is always

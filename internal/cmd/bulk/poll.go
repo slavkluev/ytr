@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
+	"github.com/slavkluev/ytr/internal/cmd/runner"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
@@ -199,7 +200,7 @@ func awaitBulkCompletion(
 		return handlePollError(ctx, err, timeout, operationID)
 	}
 
-	return finalizeBulkResult(cmd.OutOrStdout(), opts, result, operationID)
+	return finalizeBulkResult(cmd, opts, result, operationID)
 }
 
 func handlePollError(ctx context.Context, err error, timeout time.Duration, operationID string) error {
@@ -219,7 +220,7 @@ func handlePollError(ctx context.Context, err error, timeout time.Duration, oper
 // in the error instead, and reach stderr with it. `bulk status` is a query and
 // calls renderBulkOutput directly, so it still reports a FAILED operation as a
 // document at exit 0.
-func finalizeBulkResult(w io.Writer, opts *output.Options, bc *tracker.BulkChange, operationID string) error {
+func finalizeBulkResult(cmd *cobra.Command, opts *output.Options, bc *tracker.BulkChange, operationID string) error {
 	if api.DerefString(bc.Status, "") == bulkStatusFail {
 		return ytrerrors.NewBulkFailedError(
 			operationID,
@@ -229,40 +230,31 @@ func finalizeBulkResult(w io.Writer, opts *output.Options, bc *tracker.BulkChang
 		)
 	}
 
-	return renderBulkOutput(w, opts, bc)
+	return renderBulkOutput(cmd, opts, bc)
 }
 
-func renderBulkOutput(w io.Writer, opts *output.Options, bc *tracker.BulkChange) error {
+func renderBulkOutput(cmd *cobra.Command, opts *output.Options, bc *tracker.BulkChange) error {
 	if opts.IsJSON() {
-		item := toBulkChangeDetail(bc)
-		if opts.HasFieldSelection() {
-			filtered := output.FilterFields(item, opts.JSONFields)
-			if opts.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, opts.JQFilter)
-			}
-			return opts.PrintJSON(w, filtered)
-		}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(w, item, opts.JQFilter)
-		}
-		return opts.PrintJSON(w, item)
+		return runner.PrintJSON(cmd, opts, output.FilterFields(toBulkChangeDetail(bc), opts.JSONFields))
 	}
 
-	if opts.Quiet {
-		output.PrintQuiet(w, api.DerefFlexString(bc.ID, ""))
+	return runner.PrintText(cmd, func(w io.Writer) error {
+		if opts.Quiet {
+			output.PrintQuiet(w, api.DerefFlexString(bc.ID, ""))
+			return nil
+		}
+
+		tbl := opts.NewTable(w)
+		tbl.AddHeader("ID", "STATUS", "TOTAL", "DONE", "PERCENT")
+		tbl.AddRow(
+			api.DerefFlexString(bc.ID, "-"),
+			api.DerefString(bc.Status, "-"),
+			strconv.Itoa(api.DerefInt(bc.TotalIssues, 0)),
+			strconv.Itoa(api.DerefInt(bc.TotalCompletedIssues, 0)),
+			fmt.Sprintf("%d%%", api.DerefInt(bc.ExecutionIssuePercent, 0)),
+		)
+		tbl.Render()
+
 		return nil
-	}
-
-	tbl := opts.NewTable(w)
-	tbl.AddHeader("ID", "STATUS", "TOTAL", "DONE", "PERCENT")
-	tbl.AddRow(
-		api.DerefFlexString(bc.ID, "-"),
-		api.DerefString(bc.Status, "-"),
-		strconv.Itoa(api.DerefInt(bc.TotalIssues, 0)),
-		strconv.Itoa(api.DerefInt(bc.TotalCompletedIssues, 0)),
-		fmt.Sprintf("%d%%", api.DerefInt(bc.ExecutionIssuePercent, 0)),
-	)
-	tbl.Render()
-
-	return nil
+	})
 }

@@ -3,6 +3,7 @@ package version
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/cobra"
 
@@ -43,50 +44,28 @@ JSON FIELDS
 }
 
 func runVersion(cmd *cobra.Command, _ []string) error {
-	opts := output.FromContext(cmd.Context())
+	opts, err := runner.SelectFields(cmd, VersionFields)
+	if err != nil {
+		return err
+	}
 
 	info := ver.Get()
 
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "version", VersionFields)
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = VersionFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, VersionFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, VersionFields)
-	}
-
 	if opts.IsJSON() {
-		if opts.HasFieldSelection() {
-			filtered := output.FilterFields(info, opts.JSONFields)
-			if opts.JQFilter != "" {
-				return output.ApplyJQ(cmd.OutOrStdout(), filtered, opts.JQFilter)
-			}
-			return opts.PrintJSON(cmd.OutOrStdout(), filtered)
-		}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(cmd.OutOrStdout(), info, opts.JQFilter)
-		}
-		return opts.PrintJSON(cmd.OutOrStdout(), info)
+		return runner.PrintJSON(cmd, opts, output.FilterFields(info, opts.JSONFields))
 	}
 
-	w := cmd.OutOrStdout()
+	return runner.PrintText(cmd, func(w io.Writer) error {
+		if opts.Quiet {
+			output.PrintQuiet(w, info.Version)
+			return nil
+		}
 
-	if opts.Quiet {
-		output.PrintQuiet(w, info.Version)
+		_, _ = fmt.Fprintf(w, "ytr version %s\n", info.Version)
+		_, _ = fmt.Fprintf(w, "commit: %s\n", info.Commit)
+		_, _ = fmt.Fprintf(w, "date: %s\n", info.Date)
+		_, _ = fmt.Fprintf(w, "go: %s\n", info.GoVersion)
+		_, _ = fmt.Fprintf(w, "os/arch: %s/%s\n", info.OS, info.Arch)
 		return nil
-	}
-
-	_, _ = fmt.Fprintf(w, "ytr version %s\n", info.Version)
-	_, _ = fmt.Fprintf(w, "commit: %s\n", info.Commit)
-	_, _ = fmt.Fprintf(w, "date: %s\n", info.Date)
-	_, _ = fmt.Fprintf(w, "go: %s\n", info.GoVersion)
-	_, _ = fmt.Fprintf(w, "os/arch: %s/%s\n", info.OS, info.Arch)
-	return nil
+	})
 }
