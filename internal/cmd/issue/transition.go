@@ -1,8 +1,8 @@
 package issue
 
 import (
+	"context"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
@@ -11,31 +11,25 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/errors"
-	"github.com/slavkluev/ytr/internal/output"
-	"github.com/slavkluev/ytr/internal/validate"
 )
 
-// IssueTransitionFields lists the available JSON field names for issue transition output.
-var IssueTransitionFields = []string{"key", "transition"}
+// transitionRequest holds --to, which names the transition to execute rather
+// than going to Tracker as a body.
+type transitionRequest struct {
+	To *string `json:"to,omitempty"`
+}
 
 type transitionResult struct {
 	Key        string `json:"key"`
 	Transition string `json:"transition"`
 }
 
-var transitionBody = validate.Body{Flags: []validate.BodyFlag{{Name: "to", Key: "to"}}, Required: []string{"to"}}
-
 func newTransitionCmd() *cobra.Command {
-	var toFlag string
-
-	cmd := &cobra.Command{
+	return runner.Write[transitionRequest, transitionResult, transitionResult]{
 		Use:   "transition ISSUE-KEY",
 		Short: "Transition issue status",
 		Long: `Transition a Yandex Tracker issue to a new status. Uses a two-step flow:
-fetches available transitions, matches the target by key or display name, then executes.
-
-JSON FIELDS
-  key, transition`,
+fetches available transitions, matches the target by key or display name, then executes.`,
 		Example: `  # Transition by display name
   ytr issue transition PROJ-123 --to "In Progress"
 
@@ -44,66 +38,42 @@ JSON FIELDS
 
   # Get result as JSON
   ytr issue transition PROJ-123 --to "Done" --json key,transition`,
-		Args: cobra.ExactArgs(1),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := validate.ValidateIssueKey(args[0]); err != nil {
-				return err
-			}
-			return transitionBody.CheckFlags(cmd.Flags().Changed)
+		Args:     []runner.Arg{runner.IssueKey},
+		Flags:    []runner.Flag{runner.Text("to", "Target status key or display name (required)")},
+		Required: []string{"to"},
+		Call:     executeTransition,
+		Item:     func(result transitionResult) transitionResult { return result },
+		Quiet:    func(result transitionResult) string { return result.Key },
+		Confirm: func(_ []string, result transitionResult) string {
+			return fmt.Sprintf("%s transitioned to %s", result.Key, result.Transition)
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTransition(cmd, args[0], toFlag)
-		},
-	}
-
-	cmd.Flags().StringVar(&toFlag, "to", "", "Target status key or display name (required)")
-
-	runner.SetFields(cmd, IssueTransitionFields)
-
-	return cmd
+	}.Command()
 }
 
-func runTransition(cmd *cobra.Command, issueKey, toFlag string) error {
-	opts := output.FromContext(cmd.Context())
+func executeTransition(
+	ctx context.Context, c *tracker.Client, args []string, req *transitionRequest,
+) (transitionResult, error) {
+	issueKey, to := args[0], api.DerefString(req.To, "")
 
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
-		return output.PrintFieldHint(cmd.ErrOrStderr(), "issue transition", IssueTransitionFields)
-	}
-
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
-		opts.JSONFields = IssueTransitionFields
-	}
-
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, IssueTransitionFields); err != nil {
-			return err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, IssueTransitionFields)
-	}
-
-	client, err := runner.Client(cmd)
+	transitions, _, err := c.Issues.GetTransitions(ctx, issueKey)
 	if err != nil {
-		return err
+		return transitionResult{}, err
 	}
 
-	transitions, _, err := client.Issues.GetTransitions(cmd.Context(), issueKey)
-	if err != nil {
-		return api.MapAPIError(err)
-	}
-
-	matched := matchTransition(transitions, toFlag)
-
+	matched := matchTransition(transitions, to)
 	if matched == nil {
-		return buildTransitionError(issueKey, toFlag, transitions)
+		return transitionResult{}, buildTransitionError(issueKey, to, transitions)
 	}
 
-	_, _, err = client.Issues.ExecuteTransition(cmd.Context(), issueKey, api.DerefFlexString(matched.ID, ""), nil)
+	_, _, err = c.Issues.ExecuteTransition(ctx, issueKey, api.DerefFlexString(matched.ID, ""), nil)
 	if err != nil {
-		return api.MapAPIError(err)
+		return transitionResult{}, err
 	}
 
-	targetDisplay := api.DerefString(matched.To.Display, api.DerefString(matched.To.Key, toFlag))
-	return renderTransitionOutput(cmd.OutOrStdout(), opts, issueKey, targetDisplay)
+	return transitionResult{
+		Key:        issueKey,
+		Transition: api.DerefString(matched.To.Display, api.DerefString(matched.To.Key, to)),
+	}, nil
 }
 
 func matchTransition(transitions []*tracker.Transition, toFlag string) *tracker.Transition {
@@ -120,34 +90,6 @@ func matchTransition(transitions []*tracker.Transition, toFlag string) *tracker.
 	}
 
 	return nil
-}
-
-func renderTransitionOutput(w io.Writer, opts *output.Options, issueKey, targetDisplay string) error {
-	if opts.IsJSON() {
-		result := transitionResult{
-			Key:        issueKey,
-			Transition: targetDisplay,
-		}
-		if opts.HasFieldSelection() {
-			filtered := output.FilterFields(result, opts.JSONFields)
-			if opts.JQFilter != "" {
-				return output.ApplyJQ(w, filtered, opts.JQFilter)
-			}
-			return opts.PrintJSON(w, filtered)
-		}
-		if opts.JQFilter != "" {
-			return output.ApplyJQ(w, result, opts.JQFilter)
-		}
-		return opts.PrintJSON(w, result)
-	}
-
-	if opts.Quiet {
-		output.PrintQuiet(w, issueKey)
-		return nil
-	}
-
-	_, err := fmt.Fprintf(w, "%s transitioned to %s\n", issueKey, targetDisplay)
-	return err
 }
 
 func buildTransitionError(issueKey, toFlag string, transitions []*tracker.Transition) error {

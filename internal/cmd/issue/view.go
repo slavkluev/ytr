@@ -28,9 +28,6 @@ type issueDetail struct {
 	Description string `json:"description,omitempty"`
 }
 
-// IssueDetailFields are the --json fields of issue view, create and update.
-var IssueDetailFields = runner.ItemFields[issueDetail]()
-
 func toIssueDetail(issue *tracker.Issue) issueDetail {
 	detail := issueDetail{
 		Key:        api.DerefString(issue.Key, ""),
@@ -79,8 +76,12 @@ func newViewCmd() *cobra.Command {
 		},
 		Item:   toIssueDetail,
 		Detail: issueCard,
-		Quiet:  func(issue *tracker.Issue) string { return api.DerefString(issue.Key, "") },
+		Quiet:  issueKey,
 	}.Command()
+}
+
+func issueKey(issue *tracker.Issue) string {
+	return api.DerefString(issue.Key, "")
 }
 
 func issueCard(d *output.DetailPrinter, opts *output.Options, issue *tracker.Issue) {

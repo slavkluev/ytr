@@ -278,7 +278,8 @@ func (g Get[T, Item]) render(w io.Writer, opts *output.Options, _ []string, valu
 }
 
 // Write declares a command that sends Tracker a Req, built from its request
-// flags or given whole by --from-json, and prints the T Tracker answers with.
+// flags or given whole by --from-json, and prints the T Tracker answers with:
+// as a card of labeled rows when Detail is set, otherwise in the Confirm line.
 // Item is the flat struct T becomes under --json; its json tags are the fields
 // the command accepts, in order.
 type Write[Req, T, Item any] struct {
@@ -302,6 +303,7 @@ type Write[Req, T, Item any] struct {
 	Call    func(ctx context.Context, c *tracker.Client, args []string, req *Req) (T, error)
 	Item    func(T) Item
 	Quiet   func(T) string
+	Detail  func(*output.DetailPrinter, *output.Options, T)
 	Confirm func(args []string, value T) string
 }
 
@@ -352,6 +354,10 @@ func (w Write[Req, T, Item]) Command() *cobra.Command {
 }
 
 func (w Write[Req, T, Item]) render(out io.Writer, opts *output.Options, args []string, value T) error {
+	if w.Detail != nil {
+		return Get[T, Item]{Item: w.Item, Detail: w.Detail, Quiet: w.Quiet}.render(out, opts, args, value)
+	}
+
 	if opts.IsJSON() {
 		return printJSON(out, opts, output.FilterFields(w.Item(value), opts.JSONFields))
 	}
