@@ -69,7 +69,7 @@ func TestComponentCreate(t *testing.T) {
 		},
 		helpRow(
 			"component create",
-			"Provide --name and --queue for required fields, or --from-json for full JSON input.\n\n"+
+			"Each flag is shorthand\nfor the body key of the same name, and --assign-auto for \"assignAuto\".\n\n"+
 				"JSON FIELDS\n  id, name, queue, lead, leadId, description, assignAuto\n",
 		),
 	})
@@ -126,7 +126,7 @@ func TestComponentEdit(t *testing.T) {
 		},
 		failureRow(trackerNotFoundOn(http.MethodPatch, path, "Component not found"),
 			edit("--name", "x")...),
-		helpRow("component edit", "Provide one or more flags to update, or --from-json for full JSON input.\n\n"+
+		helpRow("component edit", "for the body key of the same name, and --assign-auto for \"assignAuto\".\n\n"+
 			"JSON FIELDS\n  id, name, queue, lead, leadId, description, assignAuto\n"),
 	})
 }

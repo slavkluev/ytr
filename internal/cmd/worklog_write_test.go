@@ -91,7 +91,7 @@ func TestWorklogCreate(t *testing.T) {
 				worklogFields...)),
 		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
 			create(required...)...),
-		helpRow("worklog create", "Tracker requires both duration and start time when creating a worklog.\n\n"+
+		helpRow("worklog create", "Each flag is shorthand\nfor the body key of the same name.\n\n"+
 			"JSON FIELDS\n  id, author, authorId, duration, start, comment\n"),
 	})
 }
@@ -165,7 +165,7 @@ func TestWorklogEdit(t *testing.T) {
 		},
 		failureRow(trackerNotFoundOn(http.MethodPatch, path, "Worklog not found"),
 			edit("--comment", "x")...),
-		helpRow("worklog edit", "Provide one or more flags to update, or --from-json for full JSON input.\n\n"+
+		helpRow("worklog edit", "Each flag is shorthand\nfor the body key of the same name.\n\n"+
 			"JSON FIELDS\n  id, author, authorId, duration, start, comment\n"),
 	})
 }

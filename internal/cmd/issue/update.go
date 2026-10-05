@@ -13,15 +13,18 @@ func newUpdateCmd() *cobra.Command {
 	return runner.Write[tracker.IssueRequest, *tracker.Issue, issueDetail]{
 		Use:   "update ISSUE-KEY",
 		Short: "Update an issue",
-		Long:  `Update an existing Yandex Tracker issue. Only changed fields are sent to the API.`,
+		Long: `Update an existing Yandex Tracker issue. Only changed fields are sent to the API.
+
+--from-json takes the request body as one JSON object. Each flag is shorthand
+for the body key of the same name.`,
 		Example: `  # Update issue summary
-  ytr issue update PROJ-123 --summary "Updated title"
+  ytr issue update PROJ-123 --from-json '{"summary":"Updated title"}'
 
   # Change priority and assignee
-  ytr issue update PROJ-123 --priority critical --assignee jane
+  ytr issue update PROJ-123 --from-json '{"priority":"critical","assignee":"jane"}'
 
-  # Update from JSON
-  ytr issue update PROJ-123 --from-json '{"summary": "New title"}'`,
+  # Update from a JSON file
+  ytr issue update PROJ-123 --from-json @update.json`,
 		Args: []runner.Arg{runner.IssueKey},
 		Flags: []runner.Flag{
 			textFlag("summary", "New issue summary"),
@@ -31,8 +34,7 @@ func newUpdateCmd() *cobra.Command {
 			runner.Text("assignee", "New assignee user ID"),
 			runner.Text("parent", "New parent issue key"),
 		},
-		FromJSON: issueFromJSON,
-		Update:   true,
+		Update: true,
 		Call: func(
 			ctx context.Context, c *tracker.Client, args []string, req *tracker.IssueRequest,
 		) (*tracker.Issue, error) {

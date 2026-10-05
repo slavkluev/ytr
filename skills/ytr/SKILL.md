@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "26.0"
+  version: "26.1"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -59,9 +59,9 @@ Notes:
 | `ytr issue list` | List issues | `--query`, `--filter`, `--order-by`, `--order-asc`, `--limit`, `--all`, `--cursor` |
 | `ytr issue view ISSUE-KEY` | View issue details | |
 | `ytr issue update ISSUE-KEY` | Update an issue | `--summary`, `--description`, `--type`, `--priority`, `--assignee`, `--parent`, `--from-json` |
-| `ytr issue transition ISSUE-KEY` | Transition issue status | `--to` |
+| `ytr issue transition ISSUE-KEY` | Transition issue status | `--to`, `--from-json` |
 | `ytr issue changelog ISSUE-KEY` | Show issue change history | `--field`, `--type`, `--limit`, `--cursor`, `--all` |
-| `ytr comment create ISSUE-KEY` | Add comment to issue | `--body` |
+| `ytr comment create ISSUE-KEY` | Add comment to issue | `--body`, `--from-json` |
 | `ytr comment edit ISSUE-KEY COMMENT-ID` | Edit a comment | `--body`, `--from-json` |
 | `ytr comment delete ISSUE-KEY COMMENT-ID` | Delete a comment | |
 | `ytr comment list ISSUE-KEY` | List comments on an issue | |
@@ -176,38 +176,41 @@ ytr issue list --filter queue=PROJ --order-by createdAt --order-asc
 
 ```bash
 # Create an issue and print its key
-ytr issue create --queue PROJ --summary "Implement login" --json key --jq '.key'
+ytr issue create --from-json '{"queue":"PROJ","summary":"Implement login"}' --json key --jq '.key'
 
 # List issues in a queue
 ytr issue list --filter queue=PROJ --json key,summary,status
 
 # Transition to in-progress
-ytr issue transition PROJ-123 --to "In Progress"
+ytr issue transition PROJ-123 --from-json '{"to":"inProgress"}'
 
 # Check how the issue moved through statuses
 ytr issue changelog PROJ-123 --field status --json date,type,fields
 
 # Add a comment
-ytr comment create PROJ-123 --body "Started implementation"
+ytr comment create PROJ-123 --from-json '{"text":"Started implementation"}'
+
+# Add a comment whose body is in a file
+ytr comment create PROJ-123 --from-json @comment.json
 
 # Log time spent
-ytr worklog create PROJ-123 --duration PT2H --start 2026-03-30T10:00:00Z --comment "Backend work"
+ytr worklog create PROJ-123 --from-json '{"start":"2026-03-30T10:00:00Z","duration":"PT2H","comment":"Backend work"}'
 
 # Add a checklist item
-ytr checklist create PROJ-123 --text "Write unit tests"
+ytr checklist create PROJ-123 --from-json '{"text":"Write unit tests"}'
 ```
 
 ### Bulk Operations
 
 ```bash
 # Move multiple issues to another queue
-ytr bulk move PROJ-1 PROJ-2 PROJ-3 --queue TARGET
+ytr bulk move --from-json '{"queue":"TARGET","issues":["PROJ-1","PROJ-2","PROJ-3"]}'
 
-# Bulk update via stdin pipe
-printf 'PROJ-1\nPROJ-2\n' | ytr bulk update --field priority=critical
+# Bulk update with a body built from a search and piped in
+ytr issue list --filter queue=PROJ --all --jq '{issues:[.items[].key],values:{priority:"critical"}}' | ytr bulk update --from-json -
 
 # Bulk transition with a shorter wait; keep --timeout well under your tool's own timeout
-ytr bulk transition PROJ-1 PROJ-2 --transition close --timeout 30s
+ytr bulk transition --from-json '{"transition":"close","issues":["PROJ-1","PROJ-2"]}' --timeout 30s
 
 # Check bulk operation status
 ytr bulk status 6543210abcdef
@@ -236,7 +239,7 @@ change; the document's `status` says whether it has finished:
   later.
 
 ```bash
-ytr bulk move PROJ-1 PROJ-2 --queue TARGET --json id,status,suggestion
+ytr bulk move --from-json '{"queue":"TARGET","issues":["PROJ-1","PROJ-2"]}' --json id,status,suggestion
 # {"id":"6543210abcdef","status":"CREATED","suggestion":"ytr bulk status 6543210abcdef"}
 ```
 
@@ -246,7 +249,7 @@ and `totalCompletedIssues`, so it still says how much of the change landed.
 The `suggestion` is a runnable `ytr bulk status <operationId>`:
 
 ```bash
-ytr bulk move PROJ-1 PROJ-2 --queue TARGET --json id,status
+ytr bulk move --from-json '{"queue":"TARGET","issues":["PROJ-1","PROJ-2"]}' --json id,status
 # stdout: (empty)
 # stderr: {"code":"bulk_failed","message":"bulk operation 6543210abcdef failed: ... (1 of 2 issues completed)",
 #          "operationId":"6543210abcdef","statusText":"...","totalIssues":2,"totalCompletedIssues":1,
@@ -283,16 +286,16 @@ ytr issue changelog PROJ-123 --all
 ### Sub-resources
 
 ```bash
-# Create a link between issues; --issue takes the other issue's key or its
+# Create a link between issues; "issue" takes the other issue's key or its
 # 24-character ID, such as 4ff3e8dae4b0e2ac00000001
-ytr link create PROJ-123 --type "relates" --issue PROJ-456
+ytr link create PROJ-123 --from-json '{"relationship":"relates","issue":"PROJ-456"}'
 
 # List links on an issue
 ytr link list PROJ-123 --json id,type,issue
 
 # Add and manage checklist items
-ytr checklist create PROJ-123 --text "Review PR"
-ytr checklist edit PROJ-123 42 --checked
+ytr checklist create PROJ-123 --from-json '{"text":"Review PR"}'
+ytr checklist edit PROJ-123 42 --from-json '{"checked":true}'
 ```
 
 ### Discovery
@@ -463,8 +466,8 @@ body has no field for. The JSON error lists every offending key in
 `invalidFields` and the accepted ones in `validFields`. Local queue fields are
 among the rejected keys: the API supports them, `--from-json` does not yet.
 
-Every create, edit and update command words its flag errors the same way, and
-each exits 1 before any request:
+Every create, edit, update and transition command, and `bulk move`, words its
+flag errors the same way, and each exits 1 before any request:
 
 - `cannot combine --from-json with --summary, --type`: a request flag next to
   `--from-json`, naming the flags you set. Pass the request one way or the other.
@@ -472,10 +475,10 @@ each exits 1 before any request:
   `cannot combine --from-json with issue keys`.
 - `missing --name, --queue`: a create without a required flag, or a
   `--from-json` without the matching key (here `"name"`, `"queue"`); the
-  suggestion names the keys. `comment create --body`,
-  `issue transition --to`, `bulk move --queue`, `bulk update --field` (key
-  `"values"`, which needs at least one field) and `bulk transition --transition`
-  are required the same way.
+  suggestion names the keys. `comment create --body` (key `"text"`),
+  `issue transition --to` (key `"to"`), `bulk move --queue`,
+  `bulk update --field` (key `"values"`, which needs at least one field) and
+  `bulk transition --transition` are required the same way.
 - `nothing to update`: an edit or `issue update` with no request flag, or with a
   `--from-json` object that sets no key, such as `'{}'` or `'{"text": null}'`.
 - `control character U+0000 at position 1 in summary`: a character below
@@ -543,7 +546,7 @@ the help text to stdout and exit 0, even on a mistyped command path
 | `--token` | Global auth override | Override auth token |
 | `--org-id` | Global auth override | Override organization ID |
 | `--org-type` | Global auth override | Override organization type: `360` or `cloud` |
-| `--from-json` | Selected create/edit/bulk commands | Raw JSON input (inline, `@file`, or `-` for stdin); keys the request body has no field for are rejected, not dropped; cannot be combined with the command's request flags, nor with a bulk command's issue key arguments, and stdin is not read for bulk keys; a create or bulk command needs its required keys and an edit at least one key; a bulk body needs a non-empty `"issues"`; a key's value must pass its flag's check |
+| `--from-json` | Every create, edit, update and transition command, and `bulk move` | The request body as one JSON object (inline, `@file`, or `-` for stdin), whose keys the command's request flags are shorthand for; keys the request body has no field for are rejected, not dropped; cannot be combined with the command's request flags, nor with a bulk command's issue key arguments, and stdin is not read for bulk keys; a create or bulk command needs its required keys and an edit at least one key; a bulk body needs a non-empty `"issues"`; a key's value must pass its flag's check |
 | `--query` | `issue list` | Search using Tracker query language; mutually exclusive with `--filter` and `--order-by` |
 | `--filter k=v` | `issue list` | Filter by field (repeatable); mutually exclusive with `--query` |
 | `--order-by` | `issue list` | Sort by field (descending by default); cannot be used with `--query` |

@@ -9,8 +9,12 @@ import (
 	"github.com/slavkluev/ytr/internal/errors"
 )
 
-// FromJSONFlag is the flag that gives a write command's request body whole.
-const FromJSONFlag = "from-json"
+// FromJSONFlag is the flag that gives a write command's request body whole,
+// and FromJSONUsage its help on every command that takes it.
+const (
+	FromJSONFlag  = "from-json"
+	FromJSONUsage = "Full JSON request body (inline, @file, or - for stdin)"
+)
 
 // Body is how a write command takes its request body: each of Flags sets one
 // key, or --from-json gives the whole body.
@@ -21,9 +25,6 @@ type Body struct {
 	// Required are the keys the body cannot go without, in either form. Each
 	// is the Key of one of Flags.
 	Required []string
-
-	// FromJSON is whether the command takes --from-json.
-	FromJSON bool
 
 	// Update makes a body that sets no key an error.
 	Update bool
@@ -50,7 +51,7 @@ func (b Body) CheckFlags(changed func(name string) bool) error {
 		}
 	}
 
-	if b.FromJSON && changed(FromJSONFlag) {
+	if changed(FromJSONFlag) {
 		if len(set) > 0 {
 			return errors.NewUserError(
 				"cannot combine --from-json with "+strings.Join(set, ", "),
@@ -131,21 +132,16 @@ func (b Body) missing(absent func(BodyFlag) bool) error {
 		}
 	}
 
-	switch {
-	case len(flags) == 0:
+	var suggestion string
+	switch len(flags) {
+	case 0:
 		return nil
-	case len(flags) == 1 && b.FromJSON:
-		return missingError(flags, "Pass it as a flag, or as the key "+keys[0]+" in --from-json")
-	case len(flags) == 1:
-		return missingError(flags, "Pass it as a flag")
-	case b.FromJSON:
-		return missingError(flags, "Pass them as flags, or as the keys "+strings.Join(keys, ", ")+" in --from-json")
+	case 1:
+		suggestion = "Pass it as a flag, or as the key " + keys[0] + " in --from-json"
 	default:
-		return missingError(flags, "Pass them as flags")
+		suggestion = "Pass them as flags, or as the keys " + strings.Join(keys, ", ") + " in --from-json"
 	}
-}
 
-func missingError(flags []string, suggestion string) error {
 	return errors.NewUserError("missing "+strings.Join(flags, ", "), suggestion)
 }
 
@@ -159,9 +155,9 @@ func (b Body) nothingToUpdate() error {
 	if len(names) == 1 {
 		suggestion = "Pass " + names[0]
 	}
-	if b.FromJSON {
-		suggestion += ", or a --from-json object with at least one key"
-	}
 
-	return errors.NewUserError("nothing to update", suggestion)
+	return errors.NewUserError(
+		"nothing to update",
+		suggestion+", or a --from-json object with at least one key",
+	)
 }

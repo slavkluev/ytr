@@ -36,7 +36,7 @@ func (c change[Req]) command(cmd *cobra.Command) *cobra.Command {
 	cmd.RunE = c.run
 
 	cmd.Flags().StringArray(fieldFlag.Name, nil, "Field to update (key=value, repeatable)")
-	cmd.Flags().String(validate.FromJSONFlag, "", "Full JSON request body (inline, @file, or - for stdin)")
+	cmd.Flags().String(validate.FromJSONFlag, "", validate.FromJSONUsage)
 	cmd.Flags().Duration("timeout", defaultTimeout, "Maximum time to wait for the operation to finish")
 
 	runner.SetFields(cmd, BulkStatusFields)

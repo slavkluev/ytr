@@ -236,10 +236,6 @@ type Write[Req, T, Item any] struct {
 	// Flags are in the order errors name them.
 	Flags []Flag
 
-	// FromJSON is the help of --from-json; without it the command takes no
-	// --from-json.
-	FromJSON string
-
 	// Required are the body keys a create cannot go without, whichever way the
 	// body comes. Update instead makes a body that sets no key an error.
 	Required []string
@@ -252,7 +248,7 @@ type Write[Req, T, Item any] struct {
 // Command returns the cobra command w declares.
 func (w Write[Req, T, Item]) Command() *cobra.Command {
 	fields := ItemFields[Item]()
-	body := validate.Body{Required: w.Required, FromJSON: w.FromJSON != "", Update: w.Update}
+	body := validate.Body{Required: w.Required, Update: w.Update}
 	for _, f := range w.Flags {
 		body.Flags = append(body.Flags, validate.BodyFlag{Name: f.name, Key: f.key, Check: f.check})
 	}
@@ -279,9 +275,7 @@ func (w Write[Req, T, Item]) Command() *cobra.Command {
 	for _, f := range w.Flags {
 		f.define(cmd.Flags())
 	}
-	if w.FromJSON != "" {
-		cmd.Flags().String(validate.FromJSONFlag, "", w.FromJSON)
-	}
+	cmd.Flags().String(validate.FromJSONFlag, "", validate.FromJSONUsage)
 
 	return cmd
 }

@@ -15,19 +15,16 @@ func newEditCmd() *cobra.Command {
 		Short: "Edit a component",
 		Long: `Edit an existing project component in Yandex Tracker.
 
-Provide one or more flags to update, or --from-json for full JSON input.`,
+--from-json takes the request body as one JSON object. Each flag is shorthand
+for the body key of the same name, and --assign-auto for "assignAuto".`,
 		Example: `  # Update component name
-  ytr component edit 42 --name "New Name"
+  ytr component edit 42 --from-json '{"name":"New Name"}'
 
   # Update multiple fields
-  ytr component edit 42 --name "Backend" --lead 12345 --assign-auto
-
-  # Update via JSON
-  ytr component edit 42 --from-json '{"name":"Backend","description":"Updated"}'`,
-		Args:     []runner.Arg{runner.NumericID("component ID")},
-		Flags:    componentFlags("Component name", "Queue key"),
-		FromJSON: `JSON input: inline '{"name":"..."}', @file, or - for stdin`,
-		Update:   true,
+  ytr component edit 42 --from-json '{"name":"Backend","lead":"12345","assignAuto":true}'`,
+		Args:   []runner.Arg{runner.NumericID("component ID")},
+		Flags:  componentFlags("Component name", "Queue key"),
+		Update: true,
 		Call: func(
 			ctx context.Context, c *tracker.Client, args []string, req *tracker.ComponentRequest,
 		) (*tracker.Component, error) {

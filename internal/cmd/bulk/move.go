@@ -23,24 +23,28 @@ exits 0 with the status Tracker last reported, and suggestion is the
 ytr bulk status command that checks it again. Running the command again would
 start a second operation.
 
+--from-json takes the request body as one JSON object. --queue is shorthand
+for its "queue" key, --field for one entry of "values", and the issue arguments
+for "issues".
+
 JSON FIELDS
   id, status, statusText, totalIssues, totalCompletedIssues,
   executionIssuePercent, executionChunkPercent, createdBy, createdById, createdAt,
   suggestion`,
 		Example: `  # Move issues to another queue
-  ytr bulk move PROJ-1 PROJ-2 PROJ-3 --queue TARGET
-
-  # Move via stdin pipe
-  ytr issue list --jq '.items[].key' | ytr bulk move --queue TARGET
+  ytr bulk move --from-json '{"queue":"TARGET","issues":["PROJ-1","PROJ-2","PROJ-3"]}'
 
   # Move with field updates
-  ytr bulk move PROJ-1 PROJ-2 --queue TARGET --field priority=critical
+  ytr bulk move --from-json '{"queue":"TARGET","issues":["PROJ-1","PROJ-2"],"values":{"priority":"critical"}}'
 
-  # Move via JSON (advanced options like moveAllFields)
-  ytr bulk move --from-json '{"queue":"TARGET","issues":["PROJ-1"],"moveAllFields":true}'`,
+  # Move with every field kept, which no flag sets
+  ytr bulk move --from-json '{"queue":"TARGET","issues":["PROJ-1"],"moveAllFields":true}'
+
+  # Build the body from a search and pipe it in
+  ytr issue list --filter queue=PROJ --all --jq '{queue:"TARGET",issues:[.items[].key]}' | ytr bulk move --from-json -`,
 	})
 
-	cmd.Flags().String("queue", "", "Target queue key (required unless --from-json)")
+	cmd.Flags().String("queue", "", "Target queue key (required)")
 
 	return cmd
 }
@@ -49,7 +53,6 @@ var moveChange = change[tracker.BulkMoveRequest]{
 	body: validate.Body{
 		Flags:    []validate.BodyFlag{{Name: "queue", Key: "queue"}, fieldFlag},
 		Required: []string{"queue"},
-		FromJSON: true,
 	},
 	issues: func(req *tracker.BulkMoveRequest) []string { return req.Issues },
 	start:  (*tracker.BulkChangeService).Move,

@@ -13,6 +13,7 @@ import (
 
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/output"
+	"github.com/slavkluev/ytr/internal/validate"
 )
 
 const skillPath = "../../skills/ytr/SKILL.md"
@@ -183,6 +184,96 @@ func invocationError(words []string) error {
 	return nil
 }
 
+// documentedWrite is a ytr command on a documented line whose leaf takes
+// --from-json.
+type documentedWrite struct {
+	where string
+
+	// args are the words after ytr.
+	args []string
+
+	// body is what the command gives --from-json, when passed says it gives it.
+	body   string
+	passed bool
+}
+
+// documentedWrites returns the ytr commands on lines that select a leaf taking
+// --from-json. A line documented as rejected teaches no form, and one that
+// does not parse is invocationProblems' to report.
+func documentedWrites(lines []documentedLine) []documentedWrite {
+	var writes []documentedWrite
+
+	for _, line := range lines {
+		commands, err := shellCommands(line.text)
+		if err != nil || line.rejected {
+			continue
+		}
+
+		for _, words := range commands {
+			if words[0] != "ytr" {
+				continue
+			}
+
+			cmd, rest, err := newRootCmd(&output.Options{}).Find(words[1:])
+			if err != nil || cmd.Flags().Lookup(validate.FromJSONFlag) == nil || cmd.ParseFlags(rest) != nil {
+				continue
+			}
+
+			body, _ := cmd.Flags().GetString(validate.FromJSONFlag)
+			writes = append(writes, documentedWrite{
+				where: line.where, args: words[1:], body: body, passed: cmd.Flags().Changed(validate.FromJSONFlag),
+			})
+		}
+	}
+
+	return writes
+}
+
+// flagFormWrites returns one problem per write on lines that does not pass
+// --from-json, with the number of writes it checked.
+func flagFormWrites(lines []documentedLine) ([]string, int) {
+	writes := documentedWrites(lines)
+
+	var problems []string
+	for _, write := range writes {
+		if !write.passed {
+			problems = append(problems, fmt.Sprintf("%s: %s gives the body as flags; write it as --from-json",
+				write.where, commandLine(write.args)))
+		}
+	}
+
+	return problems, len(writes)
+}
+
+// unsentBodies runs every write on lines that gives --from-json its body
+// inline, signed in against a Tracker that fails every request, and returns
+// one problem per write that sends none: its body or the flags beside it were
+// refused. It also returns the number of writes it ran. A body on stdin or in
+// a file is not on the line to run.
+func unsentBodies(t *testing.T, lines []documentedLine) ([]string, int) {
+	t.Helper()
+
+	var (
+		problems []string
+		ran      int
+	)
+
+	for _, write := range documentedWrites(lines) {
+		if !write.passed || write.body == "-" || strings.HasPrefix(write.body, "@") {
+			continue
+		}
+		ran++
+
+		argv := slices.Concat(withoutOutputFlags(write.args), []string{"--jq", "."})
+		if got := runSignedIn(t, failingTracker(t), argv...); len(got.Requests) == 0 {
+			problems = append(problems, fmt.Sprintf("%s: %s sends no request: exit %d, %s",
+				write.where, commandLine(write.args), got.Code, strings.TrimSpace(got.Stderr)))
+		}
+	}
+
+	return problems, ran
+}
+
 // commandRow is a SKILL.md table line whose first cell is `ytr …`.
 type commandRow struct {
 	where string
@@ -339,6 +430,153 @@ func TestExampleInvocationsRunAsWritten(t *testing.T) {
 
 	for _, problem := range problems {
 		t.Error(problem)
+	}
+}
+
+func TestSkillWritesPassFromJSON(t *testing.T) {
+	t.Parallel()
+
+	problems, checked := flagFormWrites(skillCodeLines(readSkill(t)))
+	if checked == 0 {
+		t.Fatal("found no write in SKILL.md's code blocks, so the check is not reaching them")
+	}
+
+	for _, problem := range problems {
+		t.Error(problem)
+	}
+}
+
+func TestExampleWritesPassFromJSON(t *testing.T) {
+	t.Parallel()
+
+	problems, checked := flagFormWrites(exampleLines(newRootCmd(&output.Options{})))
+	if checked == 0 {
+		t.Fatal("found no write in any Example, so the check is not reaching them")
+	}
+
+	for _, problem := range problems {
+		t.Error(problem)
+	}
+}
+
+func TestDocumentedJSONBodiesReachTracker(t *testing.T) {
+	t.Parallel()
+
+	lines := slices.Concat(skillCodeLines(readSkill(t)), exampleLines(newRootCmd(&output.Options{})))
+
+	problems, ran := unsentBodies(t, lines)
+	if ran == 0 {
+		t.Fatal("found no inline --from-json body in SKILL.md or any Example, so the check is not reaching them")
+	}
+
+	for _, problem := range problems {
+		t.Error(problem)
+	}
+}
+
+func TestBodyCheckNamesTheBodyTrackerNeverGets(t *testing.T) {
+	t.Parallel()
+
+	rows := []struct {
+		line string
+		ran  int
+		want string
+	}{
+		{line: `ytr comment create PROJ-1 --from-json '{"text":"x"}' --json id`, ran: 1},
+		{line: "ytr comment create PROJ-1 --from-json @body.json"},
+		{line: "ytr issue list --all --jq '{issues:[.items[].key]}' | ytr bulk update --from-json -"},
+		{line: "ytr comment create PROJ-1 --body x"},
+		{
+			line: `ytr comment create PROJ-1 --body x --from-json '{}'`, ran: 1,
+			want: "probe: ytr comment create PROJ-1 --body x --from-json '{}' sends no request: exit 1, " +
+				`{"code":"user_error","message":"cannot combine --from-json with --body"`,
+		},
+		{
+			line: `ytr comment create PROJ-1 --from-json '{"body":"x"}'`, ran: 1,
+			want: `sends no request: exit 1, {"code":"invalid_field"`,
+		},
+		{
+			line: `ytr issue create --from-json '{"queue":"PROJ"}'`, ran: 1,
+			want: `sends no request: exit 1, {"code":"user_error","message":"missing --summary"`,
+		},
+		{
+			line: `ytr issue update PROJ-1 --from-json '{"summary":'`, ran: 1,
+			want: `sends no request: exit 1, {"code":"user_error","message":"invalid JSON input`,
+		},
+	}
+
+	for _, row := range rows {
+		t.Run(row.line, func(t *testing.T) {
+			t.Parallel()
+
+			problems, ran := unsentBodies(t, []documentedLine{{where: "probe", text: row.line}})
+
+			if ran != row.ran {
+				t.Errorf("ran = %d, want %d", ran, row.ran)
+			}
+
+			switch {
+			case row.want == "" && len(problems) > 0:
+				t.Errorf("problems = %q, want none", problems)
+			case row.want != "" && (len(problems) != 1 || !strings.Contains(problems[0], row.want)):
+				t.Errorf("problems = %q, want one containing %q", problems, row.want)
+			}
+		})
+	}
+}
+
+func TestWriteFormCheckNamesTheFlagForm(t *testing.T) {
+	t.Parallel()
+
+	rows := []struct {
+		line     string
+		rejected bool
+		checked  int
+		want     string
+	}{
+		{line: `ytr comment create K-1 --from-json '{"text":"x"}'`, checked: 1},
+		{line: "ytr comment create K-1 --from-json @body.json --json id", checked: 1},
+		{
+			line:    "ytr comment create K-1 --body x",
+			checked: 1,
+			want:    "probe: ytr comment create K-1 --body x gives the body as flags; write it as --from-json",
+		},
+		{
+			line:    "ytr issue transition K-1 --to open",
+			checked: 1,
+			want:    "probe: ytr issue transition K-1 --to open gives the body as flags; write it as --from-json",
+		},
+		{
+			line:    "ytr issue list --jq '.items[].key' | ytr bulk update --field a=b",
+			checked: 1,
+			want:    "probe: ytr bulk update --field a=b gives the body as flags; write it as --from-json",
+		},
+		{line: "ytr issue list --jq '{issues:[.items[].key]}' | ytr bulk update --from-json -", checked: 1},
+		{line: "ytr comment create K-1 --body x", rejected: true},
+		{line: "ytr comment delete K-1 5"},
+		{line: "ytr issue view K-1"},
+	}
+
+	for _, row := range rows {
+		t.Run(row.line, func(t *testing.T) {
+			t.Parallel()
+
+			problems, checked := flagFormWrites(
+				[]documentedLine{{where: "probe", text: row.line, rejected: row.rejected}},
+			)
+
+			if checked != row.checked {
+				t.Errorf("checked = %d, want %d", checked, row.checked)
+			}
+
+			var want []string
+			if row.want != "" {
+				want = []string{row.want}
+			}
+			if !slices.Equal(problems, want) {
+				t.Errorf("problems = %q, want %q", problems, want)
+			}
+		})
 	}
 }
 

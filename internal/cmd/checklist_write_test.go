@@ -86,7 +86,7 @@ func TestChecklistCreate(t *testing.T) {
 		},
 		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
 			create("--text", "x")...),
-		helpRow("checklist create", "Deadline is supported only via --from-json (not as a separate flag).\n\n"+
+		helpRow("checklist create", "for the body key of the same name; \"deadline\" has no flag.\n\n"+
 			"JSON FIELDS\n  id, text, checked, assignee, assigneeId\n"),
 	})
 }
@@ -165,7 +165,7 @@ func TestChecklistEdit(t *testing.T) {
 		failureRow(
 			trackerNotFoundOn(http.MethodPatch, path, "Checklist item not found"),
 			edit("--checked")...),
-		helpRow("checklist edit", "Use --checked to mark an item as done, --checked=false to unmark it.\n\n"+
+		helpRow("checklist edit", "Set \"checked\" to true to mark an item as done, to false to unmark it.\n\n"+
 			"JSON FIELDS\n  id, text, checked, assignee, assigneeId\n"),
 	})
 }

@@ -23,24 +23,25 @@ exits 0 with the status Tracker last reported, and suggestion is the
 ytr bulk status command that checks it again. Running the command again would
 start a second operation.
 
+--from-json takes the request body as one JSON object. --transition is
+shorthand for its "transition" key, --field for one entry of "values", and the
+issue arguments for "issues".
+
 JSON FIELDS
   id, status, statusText, totalIssues, totalCompletedIssues,
   executionIssuePercent, executionChunkPercent, createdBy, createdById, createdAt,
   suggestion`,
 		Example: `  # Transition issues to resolved
-  ytr bulk transition PROJ-1 PROJ-2 --transition close
+  ytr bulk transition --from-json '{"transition":"close","issues":["PROJ-1","PROJ-2"]}'
 
   # Transition with field updates
-  ytr bulk transition PROJ-1 --transition close --field resolution=fixed
+  ytr bulk transition --from-json '{"transition":"close","issues":["PROJ-1"],"values":{"resolution":"fixed"}}'
 
-  # Transition via stdin pipe
-  ytr issue list --jq '.items[].key' | ytr bulk transition --transition close
-
-  # Transition via JSON
-  ytr bulk transition --from-json '{"transition":"close","issues":["PROJ-1"]}'`,
+  # Build the body from a search and pipe it in
+  ytr issue list --filter queue=PROJ --all --jq '{transition:"close",issues:[.items[].key]}' | ytr bulk transition --from-json -`,
 	})
 
-	cmd.Flags().String("transition", "", "Transition ID or key (required unless --from-json)")
+	cmd.Flags().String("transition", "", "Transition ID or key (required)")
 
 	return cmd
 }
@@ -49,7 +50,6 @@ var transitionChange = change[tracker.BulkTransitionRequest]{
 	body: validate.Body{
 		Flags:    []validate.BodyFlag{{Name: "transition", Key: "transition"}, fieldFlag},
 		Required: []string{"transition"},
-		FromJSON: true,
 	},
 	issues: func(req *tracker.BulkTransitionRequest) []string { return req.Issues },
 	start:  (*tracker.BulkChangeService).Transition,

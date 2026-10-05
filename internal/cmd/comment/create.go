@@ -14,12 +14,21 @@ func newCreateCmd() *cobra.Command {
 	return runner.Write[tracker.CommentRequest, *tracker.Comment, commentItem]{
 		Use:   "create ISSUE-KEY",
 		Short: "Add comment to issue",
-		Long:  `Create a new comment on a Yandex Tracker issue.`,
+		Long: `Create a new comment on a Yandex Tracker issue.
+
+--from-json takes the request body as one JSON object. --body is shorthand for
+its "text" key.`,
 		Example: `  # Add a comment
-  ytr comment create PROJ-123 --body "Fixed in commit abc123"
+  ytr comment create PROJ-123 --from-json '{"text":"Fixed in commit abc123"}'
+
+  # Add a comment that summons a user
+  ytr comment create PROJ-123 --from-json '{"text":"Please review","summonees":["uid-a"]}'
+
+  # Add a comment whose body is in a file
+  ytr comment create PROJ-123 --from-json @comment.json
 
   # Add a comment and print only its ID
-  ytr comment create PROJ-123 --body "Done" --json id --jq '.id'`,
+  ytr comment create PROJ-123 --from-json '{"text":"Done"}' --json id --jq '.id'`,
 		Args:     []runner.Arg{runner.IssueKey},
 		Flags:    []runner.Flag{bodyFlag("Comment text (required)")},
 		Required: []string{"text"},

@@ -13,8 +13,8 @@ import (
 	"github.com/slavkluev/ytr/internal/errors"
 )
 
-// transitionRequest holds --to, which names the transition to execute rather
-// than going to Tracker as a body.
+// transitionRequest is the body --to and --from-json give, which names the
+// transition to execute rather than going to Tracker as a body.
 type transitionRequest struct {
 	To *string `json:"to,omitempty"`
 }
@@ -29,15 +29,18 @@ func newTransitionCmd() *cobra.Command {
 		Use:   "transition ISSUE-KEY",
 		Short: "Transition issue status",
 		Long: `Transition a Yandex Tracker issue to a new status. Uses a two-step flow:
-fetches available transitions, matches the target by key or display name, then executes.`,
-		Example: `  # Transition by display name
-  ytr issue transition PROJ-123 --to "In Progress"
+fetches available transitions, matches the target by key or display name, then executes.
 
-  # Transition by status key
-  ytr issue transition PROJ-123 --to inProgress
+--from-json takes the body {"to": "<status key or display name>"}, which has
+no other key. --to is shorthand for it.`,
+		Example: `  # Transition by status key
+  ytr issue transition PROJ-123 --from-json '{"to":"inProgress"}'
+
+  # Transition by display name
+  ytr issue transition PROJ-123 --from-json '{"to":"In Progress"}'
 
   # Only the issue key and transition
-  ytr issue transition PROJ-123 --to "Done" --json key,transition`,
+  ytr issue transition PROJ-123 --from-json '{"to":"Done"}' --json key,transition`,
 		Args:     []runner.Arg{runner.IssueKey},
 		Flags:    []runner.Flag{runner.Text("to", "Target status key or display name (required)")},
 		Required: []string{"to"},

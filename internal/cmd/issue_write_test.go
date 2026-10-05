@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -237,6 +239,10 @@ func TestIssueTransition(t *testing.T) {
 		return slices.Concat([]string{"issue", "transition", "PROJ-123"}, extra)
 	}
 	both := []faketracker.Exchange{transitions, executed}
+	bodyFile := filepath.Join(t.TempDir(), "transition.json")
+	if err := os.WriteFile(bodyFile, []byte(`{"to": "inProgress"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
 
 	runLeafRows(t, []leafRow{
 		{
@@ -250,6 +256,26 @@ func TestIssueTransition(t *testing.T) {
 		{
 			name: "By display name in another case", args: transition("--to", "in progress"), exchanges: both,
 			json: `{"key": "PROJ-123", "transition": "In Progress"}`,
+		},
+		{
+			name: "JSON body", args: transition("--from-json", `{"to": "inProgress"}`), exchanges: both,
+			json: `{"key": "PROJ-123", "transition": "In Progress"}`,
+		},
+		{
+			name: "JSON body on stdin", args: transition("--from-json", "-"), stdin: `{"to": "In Progress"}`,
+			exchanges: both, json: `{"key": "PROJ-123", "transition": "In Progress"}`,
+		},
+		{
+			name: "JSON body from a file", args: transition("--from-json", "@"+bodyFile), exchanges: both,
+			json: `{"key": "PROJ-123", "transition": "In Progress"}`,
+		},
+		{
+			name: "Unknown key",
+			args: transition("--from-json", `{"to": "closed", "resolution": "fixed"}`),
+			code: ytrerrors.ExitUserError,
+			stderr: []string{
+				`"code":"invalid_field"`, `"invalidFields":["resolution"]`, `"validFields":["to"]`,
+			},
 		},
 		{
 			name: "JSON", args: transition("--to", "inProgress", "--json", "key"), exchanges: both,

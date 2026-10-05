@@ -16,25 +16,25 @@ func newEditCmd() *cobra.Command {
 		Short: "Edit a checklist item",
 		Long: `Edit an existing checklist item on a Yandex Tracker issue.
 
-Deadline is supported only via --from-json (not as a separate flag).
+--from-json takes the request body as one JSON object. Each flag is shorthand
+for the body key of the same name; "deadline" has no flag.
 
-Use --checked to mark an item as done, --checked=false to unmark it.`,
+Set "checked" to true to mark an item as done, to false to unmark it.`,
 		Example: `  # Update checklist item text
-  ytr checklist edit PROJ-123 item-1 --text "Updated text"
+  ytr checklist edit PROJ-123 item-1 --from-json '{"text":"Updated text"}'
 
   # Mark item as checked
-  ytr checklist edit PROJ-123 item-1 --checked
+  ytr checklist edit PROJ-123 item-1 --from-json '{"checked":true}'
 
   # Unmark item
-  ytr checklist edit PROJ-123 item-1 --checked=false`,
+  ytr checklist edit PROJ-123 item-1 --from-json '{"checked":false}'`,
 		Args: []runner.Arg{runner.IssueKey, runner.StringID("checklist item ID")},
 		Flags: []runner.Flag{
 			runner.Text("text", "Checklist item text"),
 			runner.Bool("checked", "Mark item as checked (--checked=false to unmark)"),
 			runner.Text("assignee", "Assignee user ID"),
 		},
-		FromJSON: `JSON input: inline '{"text":"..."}', @file, or - for stdin`,
-		Update:   true,
+		Update: true,
 		Call: func(
 			ctx context.Context, c *tracker.Client, args []string, req *tracker.ChecklistItemRequest,
 		) (checklistItem, error) {

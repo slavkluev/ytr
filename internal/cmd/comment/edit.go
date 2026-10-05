@@ -15,19 +15,16 @@ func newEditCmd() *cobra.Command {
 		Short: "Edit a comment",
 		Long: `Edit an existing comment on a Yandex Tracker issue.
 
-Provide the updated text via --body or full JSON via --from-json.`,
+--from-json takes the request body as one JSON object. --body is shorthand for
+its "text" key.`,
 		Example: `  # Edit comment body
-  ytr comment edit PROJ-123 42 --body "Updated text"
-
-  # Edit via JSON input
-  ytr comment edit PROJ-123 42 --from-json '{"text": "new body"}'
+  ytr comment edit PROJ-123 42 --from-json '{"text":"Updated text"}'
 
   # Edit and keep only the ID and body
-  ytr comment edit PROJ-123 42 --body "Fixed" --json id,body`,
-		Args:     []runner.Arg{runner.IssueKey, runner.NumericID("comment ID")},
-		Flags:    []runner.Flag{bodyFlag("Updated comment text")},
-		FromJSON: `JSON input: inline '{"text":"..."}', @file, or - for stdin`,
-		Update:   true,
+  ytr comment edit PROJ-123 42 --from-json '{"text":"Fixed"}' --json id,body`,
+		Args:   []runner.Arg{runner.IssueKey, runner.NumericID("comment ID")},
+		Flags:  []runner.Flag{bodyFlag("Updated comment text")},
+		Update: true,
 		Call: func(
 			ctx context.Context, c *tracker.Client, args []string, req *tracker.CommentRequest,
 		) (*tracker.Comment, error) {

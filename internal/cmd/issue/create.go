@@ -10,34 +10,34 @@ import (
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
-const issueFromJSON = "JSON input: inline string, @file, or - for stdin"
-
 func newCreateCmd() *cobra.Command {
 	return runner.Write[tracker.IssueRequest, *tracker.Issue, issueDetail]{
 		Use:   "create",
 		Short: "Create an issue",
-		Long:  `Create a new Yandex Tracker issue with flags or raw JSON input.`,
+		Long: `Create a new Yandex Tracker issue.
+
+--from-json takes the request body as one JSON object. Each flag is shorthand
+for the body key of the same name.`,
 		Example: `  # Create a simple issue
-  ytr issue create --queue PROJ --summary "Fix login bug"
+  ytr issue create --from-json '{"queue":"PROJ","summary":"Fix login bug"}'
 
-  # Create with all fields
-  ytr issue create --queue PROJ --summary "Add feature" --type task --priority normal --assignee john
+  # Create with more fields
+  ytr issue create --from-json '{"queue":"PROJ","summary":"Add feature","type":"task","assignee":"john"}'
 
-  # Create from JSON file
+  # Create from a JSON file
   ytr issue create --from-json @issue.json
 
   # Create and get the new key
-  ytr issue create --queue PROJ --summary "Bug" --json key --jq '.key'`,
+  ytr issue create --from-json '{"queue":"PROJ","summary":"Bug"}' --json key --jq '.key'`,
 		Flags: []runner.Flag{
-			runner.Text("queue", "Queue key (required unless --from-json)"),
-			textFlag("summary", "Issue summary (required unless --from-json)"),
+			runner.Text("queue", "Queue key (required)"),
+			textFlag("summary", "Issue summary (required)"),
 			textFlag("description", "Issue description"),
 			runner.Text("type", "Issue type key"),
 			runner.Text("priority", "Priority key"),
 			runner.Text("assignee", "Assignee user ID"),
 			runner.Text("parent", "Parent issue key"),
 		},
-		FromJSON: issueFromJSON,
 		Required: []string{"queue", "summary"},
 		Call: func(
 			ctx context.Context, c *tracker.Client, _ []string, req *tracker.IssueRequest,

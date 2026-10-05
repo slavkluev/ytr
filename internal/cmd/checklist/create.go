@@ -16,21 +16,21 @@ func newCreateCmd() *cobra.Command {
 		Short: "Add checklist item to issue",
 		Long: `Create a new checklist item on a Yandex Tracker issue.
 
-Deadline is supported only via --from-json (not as a separate flag).`,
+--from-json takes the request body as one JSON object. Each flag is shorthand
+for the body key of the same name; "deadline" has no flag.`,
 		Example: `  # Create a checklist item
-  ytr checklist create PROJ-123 --text "Review PR"
+  ytr checklist create PROJ-123 --from-json '{"text":"Review PR"}'
 
   # Create with assignee
-  ytr checklist create PROJ-123 --text "Deploy" --assignee 12345
+  ytr checklist create PROJ-123 --from-json '{"text":"Deploy","assignee":"12345"}'
 
-  # Create via JSON (supports deadline)
+  # Create with a deadline
   ytr checklist create PROJ-123 --from-json '{"text":"Review","deadline":{"date":"2026-04-01T00:00:00Z"}}'`,
 		Args: []runner.Arg{runner.IssueKey},
 		Flags: []runner.Flag{
 			runner.Text("text", "Checklist item text (required)"),
 			runner.Text("assignee", "Assignee user ID"),
 		},
-		FromJSON: `JSON input: inline '{"text":"..."}', @file, or - for stdin`,
 		Required: []string{"text"},
 		Call: func(
 			ctx context.Context, c *tracker.Client, args []string, req *tracker.ChecklistItemRequest,

@@ -20,8 +20,8 @@ const bothSuggestion = "Pass the request as flags or as --from-json, not both"
 
 // TestWriteChecksShareOneWording runs the conflict, missing and
 // nothing-to-update checks of every write leaf: each names the flags in the
-// order the leaf declares them, a conflict names only the flags that were set,
-// and a leaf without --from-json leaves it out of the suggestion.
+// order the leaf declares them, and a conflict names only the flags that were
+// set.
 func TestWriteChecksShareOneWording(t *testing.T) {
 	t.Parallel()
 
@@ -32,6 +32,10 @@ func TestWriteChecksShareOneWording(t *testing.T) {
 			message: "cannot combine --from-json with --summary, --type"},
 		{args: []string{"issue", "update", "PROJ-1", "--parent", "PROJ-2", "--from-json", `{}`},
 			message: "cannot combine --from-json with --parent"},
+		{args: []string{"issue", "transition", "PROJ-1", "--to", "x", "--from-json", `{}`},
+			message: "cannot combine --from-json with --to"},
+		{args: []string{"comment", "create", "PROJ-1", "--body", "x", "--from-json", `{}`},
+			message: "cannot combine --from-json with --body"},
 		{args: []string{"comment", "edit", "PROJ-1", "555", "--body", "x", "--from-json", `{}`},
 			message: "cannot combine --from-json with --body"},
 		{args: []string{"worklog", "create", "PROJ-1", "--comment", "x", "--duration", "PT1H", "--from-json", `{}`},
@@ -76,12 +80,24 @@ func TestWriteChecksShareOneWording(t *testing.T) {
 			suggestion: `Pass it as a flag, or as the key "queue" in --from-json`,
 		},
 		{
-			args:    []string{"issue", "transition", "PROJ-1"},
-			message: "missing --to", suggestion: "Pass it as a flag",
+			args:       []string{"issue", "transition", "PROJ-1"},
+			message:    "missing --to",
+			suggestion: `Pass it as a flag, or as the key "to" in --from-json`,
 		},
 		{
-			args:    []string{"comment", "create", "PROJ-1"},
-			message: "missing --body", suggestion: "Pass it as a flag",
+			args:       []string{"issue", "transition", "PROJ-1", "--from-json", `{}`},
+			message:    "missing --to",
+			suggestion: `Pass it as a flag, or as the key "to" in --from-json`,
+		},
+		{
+			args:       []string{"comment", "create", "PROJ-1"},
+			message:    "missing --body",
+			suggestion: `Pass it as a flag, or as the key "text" in --from-json`,
+		},
+		{
+			args:       []string{"comment", "create", "PROJ-1", "--from-json", `{"summonees": ["uid-a"]}`},
+			message:    "missing --body",
+			suggestion: `Pass it as a flag, or as the key "text" in --from-json`,
 		},
 		{
 			args:       []string{"worklog", "create", "PROJ-1"},

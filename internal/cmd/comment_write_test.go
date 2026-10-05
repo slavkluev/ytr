@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -26,10 +28,28 @@ func TestCommentCreate(t *testing.T) {
 		return slices.Concat([]string{"comment", "create", "PROJ-1"}, extra)
 	}
 
+	const summoning = `{"text": "Done", "summonees": ["uid-a"]}`
+	bodyFile := filepath.Join(t.TempDir(), "comment.json")
+	if err := os.WriteFile(bodyFile, []byte(summoning), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
 	runLeafRows(t, []leafRow{
 		{
 			name: "Flag body", args: create("--body", "Fixed in abc123"), exchanges: []faketracker.Exchange{created},
 			body: `{"text": "Fixed in abc123"}`, json: commentItemJSON,
+		},
+		{
+			name: "JSON body", args: create("--from-json", summoning), exchanges: []faketracker.Exchange{created},
+			body: summoning, json: commentItemJSON,
+		},
+		{
+			name: "JSON body on stdin", args: create("--from-json", "-"), stdin: summoning,
+			exchanges: []faketracker.Exchange{created}, body: summoning, json: commentItemJSON,
+		},
+		{
+			name: "JSON body from a file", args: create("--from-json", "@"+bodyFile),
+			exchanges: []faketracker.Exchange{created}, body: summoning, json: commentItemJSON,
 		},
 		{
 			name: "JSON", args: create("--body", "Fixed in abc123", "--json", "id,body"),
@@ -49,6 +69,19 @@ func TestCommentCreate(t *testing.T) {
 			stderr: []string{`"message":"control character U+0000 at position 5 in body"`},
 		},
 		{
+			name: "Bad value in JSON", args: create("--from-json", `{"text": "a\u0000b"}`),
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{`"message":"control character U+0000 at position 1 in body"`},
+		},
+		{
+			name: "Unknown key", args: create("--from-json", `{"text": "hi", "bogus": 1}`),
+			code: ytrerrors.ExitUserError,
+			stderr: []string{
+				`"code":"invalid_field"`, `"invalidFields":["bogus"]`,
+				`"validFields":["attachmentIds","maillistSummonees","markupType","summonees","text"]`,
+			},
+		},
+		{
 			name:   "Bad arg",
 			args:   []string{"comment", "create", "bad-key", "--body", "x"},
 			code:   ytrerrors.ExitUserError,
@@ -60,6 +93,8 @@ func TestCommentCreate(t *testing.T) {
 		},
 		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
 			create("--body", "x")...),
+		helpRow("comment create", "--body is shorthand for\nits \"text\" key.\n\n"+
+			"JSON FIELDS\n  id, author, authorId, body, createdAt, updatedAt\n"),
 	})
 }
 

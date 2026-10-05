@@ -15,23 +15,20 @@ func newEditCmd() *cobra.Command {
 		Short: "Edit a worklog",
 		Long: `Edit an existing worklog on a Yandex Tracker issue.
 
-Provide one or more flags to update, or --from-json for full JSON input.`,
+--from-json takes the request body as one JSON object. Each flag is shorthand
+for the body key of the same name.`,
 		Example: `  # Update duration
-  ytr worklog edit PROJ-123 abc123 --duration PT2H
+  ytr worklog edit PROJ-123 abc123 --from-json '{"duration":"PT2H"}'
 
   # Update comment
-  ytr worklog edit PROJ-123 abc123 --comment "Updated notes"
-
-  # Update via JSON
-  ytr worklog edit PROJ-123 abc123 --from-json '{"duration":"PT3H"}'`,
+  ytr worklog edit PROJ-123 abc123 --from-json '{"comment":"Updated notes"}'`,
 		Args: []runner.Arg{runner.IssueKey, runner.StringID("worklog ID")},
 		Flags: []runner.Flag{
 			runner.Duration("duration", "Duration in ISO 8601 format (e.g., PT1H30M)"),
 			runner.Text("comment", "Worklog comment"),
 			runner.Time("start", "Start time in RFC 3339 format"),
 		},
-		FromJSON: `JSON input: inline '{"duration":"PT1H"}', @file, or - for stdin`,
-		Update:   true,
+		Update: true,
 		Call: func(
 			ctx context.Context, c *tracker.Client, args []string, req *tracker.WorklogRequest,
 		) (*tracker.Worklog, error) {

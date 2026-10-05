@@ -15,17 +15,14 @@ func newCreateCmd() *cobra.Command {
 		Short: "Create a component",
 		Long: `Create a new project component in Yandex Tracker.
 
-Provide --name and --queue for required fields, or --from-json for full JSON input.`,
+--from-json takes the request body as one JSON object. Each flag is shorthand
+for the body key of the same name, and --assign-auto for "assignAuto".`,
 		Example: `  # Create a simple component
-  ytr component create --name "Backend" --queue PROJ
+  ytr component create --from-json '{"name":"Backend","queue":"PROJ"}'
 
   # Create with all fields
-  ytr component create --name "Backend" --queue PROJ --description "Backend services" --lead 12345 --assign-auto
-
-  # Create via JSON
-  ytr component create --from-json '{"name":"Backend","queue":"PROJ"}'`,
+  ytr component create --from-json '{"name":"Backend","queue":"PROJ","description":"Backend services","lead":"12345","assignAuto":true}'`,
 		Flags:    componentFlags("Component name (required)", "Queue key (required)"),
-		FromJSON: `JSON input: inline '{"name":"...","queue":"..."}', @file, or - for stdin`,
 		Required: []string{"name", "queue"},
 		Call: func(
 			ctx context.Context, c *tracker.Client, _ []string, req *tracker.ComponentRequest,

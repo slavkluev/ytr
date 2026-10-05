@@ -91,7 +91,7 @@ func TestLinkCreate(t *testing.T) {
 			create("--type", "relates", "--issue", "PROJ-2")...),
 		helpRow(
 			"link create",
-			"Provide --type and --issue for individual flags, or --from-json for full JSON input.\n\n"+
+			"--type is shorthand for\nits \"relationship\" key and --issue for its \"issue\" key.\n\n"+
 				"JSON FIELDS\n  id, type, issue, summary\n",
 		),
 	})

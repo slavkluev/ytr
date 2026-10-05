@@ -227,6 +227,12 @@ func TestBulkUpdate(t *testing.T) {
 
 	runLeafRows(t, []leafRow{
 		{
+			name: "Bad key", args: update("bad-key", "--field", "a=b"), code: ytrerrors.ExitUserError,
+			stderr: []string{
+				`"message":"invalid issue key or ID \"bad-key\": expected QUEUE-123 or a 24-character hexadecimal ID`,
+			},
+		},
+		{
 			name: "Fields", args: update("PROJ-1", "--field", "priority=critical", "--field", "assignee=user1"),
 			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}, json: bulkCompletedJSON,
 			check: assertFirstBody(`{"issues": ["PROJ-1"], "values": {"priority": "critical", "assignee": "user1"}}`),
@@ -332,6 +338,12 @@ func TestBulkTransition(t *testing.T) {
 	transition := func(extra ...string) []string { return slices.Concat([]string{"bulk", "transition"}, extra) }
 
 	runLeafRows(t, []leafRow{
+		{
+			name: "Bad key", args: transition("bad-key", "--transition", "close"), code: ytrerrors.ExitUserError,
+			stderr: []string{
+				`"message":"invalid issue key or ID \"bad-key\": expected QUEUE-123 or a 24-character hexadecimal ID`,
+			},
+		},
 		{
 			name: "Flags", args: transition("PROJ-1", "PROJ-2", "--transition", "close", "--field", "resolution=fixed"),
 			exchanges: done, json: bulkCompletedJSON,

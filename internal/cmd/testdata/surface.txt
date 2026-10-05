@@ -1,4 +1,4 @@
-version 26.0
+version 26.1
 command ytr
 command ytr auth
 command ytr auth login
@@ -393,6 +393,7 @@ flag ytr checklist edit --checked bool
 flag ytr checklist edit --from-json string
 flag ytr checklist edit --text string
 flag ytr comment create --body string
+flag ytr comment create --from-json string
 flag ytr comment edit --body string
 flag ytr comment edit --from-json string
 flag ytr component create --assign-auto bool
@@ -429,6 +430,7 @@ flag ytr issue list --limit int
 flag ytr issue list --order-asc bool
 flag ytr issue list --order-by string
 flag ytr issue list --query string
+flag ytr issue transition --from-json string
 flag ytr issue transition --to string
 flag ytr issue update --assignee string
 flag ytr issue update --description string
