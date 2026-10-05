@@ -46,20 +46,20 @@ func TestCommentCreate(t *testing.T) {
 		},
 		{
 			name: "Bad value", args: create("--body", "hello\x00world"), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 5 in body\n"},
+			stderr: []string{`"message":"control character U+0000 at position 5 in body"`},
 		},
 		{
 			name:   "Bad arg",
 			args:   []string{"comment", "create", "bad-key", "--body", "x"},
 			code:   ytrerrors.ExitUserError,
-			stderr: []string{`invalid issue key "bad-key": expected format QUEUE-123`},
+			stderr: []string{`"message":"invalid issue key \"bad-key\": expected format QUEUE-123"`},
 		},
 		{
 			name: "Extra arg", args: []string{"comment", "create", "PROJ-1", "PROJ-2", "--body", "x"},
 			code: ytrerrors.ExitUserError, stderr: []string{"accepts 1 arg(s), received 2"},
 		},
 		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
-			create("--body", "x", "--json", "id")...),
+			create("--body", "x")...),
 	})
 }
 
@@ -107,39 +107,41 @@ func TestCommentEdit(t *testing.T) {
 		},
 		{
 			name: "Bad value", args: edit("--body", "hello\x00world"), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 5 in body\n"},
+			stderr: []string{`"message":"control character U+0000 at position 5 in body"`},
 		},
 		{
 			name: "Bad value signed out", args: edit("--body", "a\x00"), signedOut: true, code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 1 in body\n"},
+			stderr: []string{`"message":"control character U+0000 at position 1 in body"`},
 		},
 		{
 			name: "Bad value in JSON", args: edit("--from-json", `{"text": "a\u0000"}`), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 1 in body\n"},
+			stderr: []string{`"message":"control character U+0000 at position 1 in body"`},
 		},
 		{
-			name: "Unknown key", args: edit("--from-json", `{"text": "hi", "bogus": 1}`, "--json", "id"),
+			name: "Unknown key", args: edit("--from-json", `{"text": "hi", "bogus": 1}`),
 			code:   ytrerrors.ExitUserError,
 			stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
 		},
 		{
 			name: "Malformed JSON", args: edit("--from-json", `{"text":`), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: invalid JSON input: unexpected end of JSON input\n"},
+			stderr: []string{`"message":"invalid JSON input: unexpected end of JSON input"`},
 		},
 		{
 			name: "Unreadable JSON file", args: edit("--from-json", "@"+t.TempDir()+"/missing.json"),
-			code: ytrerrors.ExitUserError, stderr: []string{"Error: failed to read JSON input: open "},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"failed to read JSON input: open `},
 		},
 		{
-			name: "Bad arg", args: []string{"comment", "edit", "PROJ-1", "abc", "--body", "x"},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid comment ID "abc": expected a positive integer`},
+			name:   "Bad arg",
+			args:   []string{"comment", "edit", "PROJ-1", "abc", "--body", "x"},
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{`"message":"invalid comment ID \"abc\": expected a positive integer"`},
 		},
 		{
 			name: "Bad issue key", args: []string{"comment", "edit", "bad", "555", "--body", "x"},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"bad\"`},
 		},
 		failureRow(trackerNotFoundOn(http.MethodPatch, path, "Comment not found"),
-			edit("--body", "x", "--json", "id")...),
+			edit("--body", "x")...),
 	})
 }
 
@@ -157,14 +159,14 @@ func TestCommentDelete(t *testing.T) {
 		},
 		{
 			name: "Bad arg", args: []string{"comment", "delete", "PROJ-1", "abc"}, code: ytrerrors.ExitUserError,
-			stderr: []string{`invalid comment ID "abc": expected a positive integer`},
+			stderr: []string{`"message":"invalid comment ID \"abc\": expected a positive integer"`},
 		},
 		{
 			name: "Bad issue key", args: []string{"comment", "delete", "bad", "555"}, code: ytrerrors.ExitUserError,
-			stderr: []string{`invalid issue key "bad"`},
+			stderr: []string{`invalid issue key \"bad\"`},
 		},
 		failureRow(trackerNotFoundOn(http.MethodDelete, path, "Comment not found"),
-			slices.Concat(args, []string{"--json", "id"})...),
+			args...),
 		helpRow("comment delete", "Delete a comment from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n"),
 	}))
 }

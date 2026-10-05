@@ -1,7 +1,6 @@
 package errors_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -187,36 +186,22 @@ func TestErrorsAs(t *testing.T) {
 	}
 }
 
-func TestPrintHuman(t *testing.T) {
-	var buf bytes.Buffer
-	err := &ytrerrors.ExitError{
-		ExitCode:   3,
-		Code:       "auth_error",
-		Message:    "not authenticated",
-		Suggestion: "Run: ytr auth login",
+func TestNewNoFieldsError(t *testing.T) {
+	err := ytrerrors.NewNoFieldsError([]string{"a", "b"})
+
+	if err.ExitCode != ytrerrors.ExitUserError {
+		t.Errorf("ExitCode = %d, want %d", err.ExitCode, ytrerrors.ExitUserError)
 	}
 
-	ytrerrors.PrintHuman(&buf, err)
-
-	want := "Error: not authenticated\nRun: ytr auth login\n"
-	if got := buf.String(); got != want {
-		t.Errorf("PrintHuman() = %q, want %q", got, want)
-	}
-}
-
-func TestPrintHuman_NoSuggestion(t *testing.T) {
-	var buf bytes.Buffer
-	err := &ytrerrors.ExitError{
-		ExitCode: 1,
-		Code:     "user_error",
-		Message:  "bad input",
+	data, jsonErr := err.JSONError()
+	if jsonErr != nil {
+		t.Fatalf("JSONError() returned error: %v", jsonErr)
 	}
 
-	ytrerrors.PrintHuman(&buf, err)
-
-	want := "Error: bad input\n"
-	if got := buf.String(); got != want {
-		t.Errorf("PrintHuman() = %q, want %q", got, want)
+	want := `{"code":"invalid_field","message":"no fields specified",` +
+		`"validFields":["a","b"],"suggestion":"Valid fields: a, b"}`
+	if string(data) != want {
+		t.Errorf("JSONError() = %s, want %s", data, want)
 	}
 }
 

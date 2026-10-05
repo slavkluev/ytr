@@ -142,7 +142,7 @@ func TestIssueList(t *testing.T) {
 				"pagination": {"hasMore": false, "total": 3}}`,
 		},
 		{
-			name: "A later page fails", args: list("--all", "--limit", "2", "--json", "key"),
+			name: "A later page fails", args: list("--all", "--limit", "2"),
 			exchanges: []faketracker.Exchange{
 				issueSearch(1, 2, 3, "["+listedIssue("A-1")+","+listedIssue("A-2")+"]"),
 				withQuery(
@@ -224,36 +224,36 @@ func TestIssueList(t *testing.T) {
 			name: "Not a filter", args: list("--filter", "noequalssign"), signedOut: true,
 			code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: invalid filter format \"noequalssign\": expected key=value\n" +
-					"Use --filter key=value (e.g., --filter priority=critical)\n",
+				`"message":"invalid filter format \"noequalssign\": expected key=value",` +
+					`"suggestion":"Use --filter key=value (e.g., --filter priority=critical)"`,
 			},
 		},
 		{
 			name: "Query with filter", args: list("--query", "Queue: PROJ", "--filter", "priority=critical"),
 			code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: cannot combine --query with --filter\n" +
-					"Use --query for Tracker query language, or --filter for structured search, but not both\n",
+				`"message":"cannot combine --query with --filter",` +
+					`"suggestion":"Use --query for Tracker query language, or --filter for structured search, but not both"`,
 			},
 		},
 		{
 			name: "Order with query", args: list("--query", "Queue: PROJ", "--order-by", "updated"),
 			code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: --order-by cannot be used with --query\n" +
-					"Include sorting in the query string: '\"Sort By\": fieldName ASC'\n",
+				`"message":"--order-by cannot be used with --query",` +
+					`"suggestion":"Include sorting in the query string: '\"Sort By\": fieldName ASC'"`,
 			},
 		},
 		{
 			name: "Ascending without an order", args: list("--order-asc"), code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: --order-asc requires --order-by\n" +
-					"Use --order-by to specify the sort field (e.g., --order-by updated --order-asc)\n",
+				`"message":"--order-asc requires --order-by",` +
+					`"suggestion":"Use --order-by to specify the sort field (e.g., --order-by updated --order-asc)"`,
 			},
 		},
 		{
 			name: "Conflict before the hint", args: list("--order-asc", "--json="), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: --order-asc requires --order-by\n"},
+			stderr: []string{`"message":"--order-asc requires --order-by"`},
 		},
 		{
 			name: "Long summary whole", args: list("--json", "summary,status"), exchanges: []faketracker.Exchange{long},
@@ -261,8 +261,8 @@ func TestIssueList(t *testing.T) {
 				"pagination": {"hasMore": false, "total": 1}}`,
 		},
 		{
-			name: "Signed out", args: list(), signedOut: true, code: ytrerrors.ExitAuthError,
-			stderr: []string{"Error: not authenticated\n"},
+			name: "Signed out", args: list("--filter", "queue=Q"), signedOut: true, code: ytrerrors.ExitAuthError,
+			stderr: []string{`{"code":"auth_error","message":"not authenticated",`},
 		},
 	})
 }

@@ -140,11 +140,6 @@ func Execute() int {
 	return execute(context.Background(), os.Args[1:], os.Stdin, stdout, stderr)
 }
 
-// The arguments reach the renderer as well as cobra, because a failed
-// invocation can hide the output mode it asked for: pflag stops at the first
-// flag it does not know, so a --json placed after the mistake never lands in
-// the options IsJSON reads.
-//
 // Debug diagnostics share errOut with the error document, so a caller reading
 // stderr sees them in the order they happened.
 func execute(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) int {
@@ -163,7 +158,7 @@ func execute(ctx context.Context, args []string, in io.Reader, out, errOut io.Wr
 
 	err := root.ExecuteContext(output.NewContext(ctx, &opts))
 
-	return opts.HandleInvocationError(errOut, err, args)
+	return opts.HandleInvocationError(errOut, err)
 }
 
 // RootCmd returns a freshly built root command whose context carries the

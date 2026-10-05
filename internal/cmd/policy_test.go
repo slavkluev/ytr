@@ -45,10 +45,9 @@ type policyTarget struct {
 	fields []string
 
 	// inv is the invocation of a leaf's Example, when one invokes the leaf, and
-	// example what it did signed in with --jq . against failingTracker.
-	inv        *invocation
-	example    cliResult
-	runExample []string
+	// example what it did signed in against failingTracker.
+	inv     *invocation
+	example cliResult
 }
 
 func (p *policyTarget) label() string { return p.cmd.CommandPath() }
@@ -146,8 +145,7 @@ func newPolicyTarget(t *testing.T, cmd *cobra.Command) (*policyTarget, bool) {
 
 	if inv, ok := exampleInvocation(cmd); ok {
 		target.inv = &inv
-		target.runExample = slices.Concat(inv.args, []string{"--jq", "."})
-		target.example = runSignedIn(t, failingTracker(t), target.runExample...)
+		target.example = runSignedIn(t, failingTracker(t), inv.args...)
 	}
 
 	return target, true
@@ -293,24 +291,19 @@ func checkArgCounts(t *testing.T, p *policyTarget) {
 	}
 }
 
-// checkDebugForms runs every bad invocation of the command under --debug, with
-// --json read before the mistake and with --json reachable only by re-reading
-// the raw arguments because the mistake stopped flag parsing.
+// checkDebugForms runs every bad invocation of the command under --debug, whose
+// lines share stderr with the error document.
 func checkDebugForms(t *testing.T, p *policyTarget) {
 	for _, mistake := range badInvocations(p.cmd) {
-		for _, argv := range [][]string{
-			slices.Concat(p.path, []string{"--debug", "--json", "key"}, mistake),
-			slices.Concat(p.path, []string{"--debug"}, mistake, []string{"--json", "key"}),
-		} {
-			label := commandLine(argv)
-			got := runProbe(t, argv)
+		argv := slices.Concat(p.path, []string{"--debug"}, mistake)
+		label := commandLine(argv)
+		got := runProbe(t, argv)
 
-			if got.Code != ytrerrors.ExitUserError {
-				t.Errorf("%s: exit = %d, want %d (stderr: %s)", label, got.Code, ytrerrors.ExitUserError, got.Stderr)
-			}
-			assertEmpty(t, label+": stdout", got.Stdout)
-			decodeOneJSONError(t, label, withoutDebugLines(got.Stderr))
+		if got.Code != ytrerrors.ExitUserError {
+			t.Errorf("%s: exit = %d, want %d (stderr: %s)", label, got.Code, ytrerrors.ExitUserError, got.Stderr)
 		}
+		assertEmpty(t, label+": stdout", got.Stdout)
+		decodeOneJSONError(t, label, withoutDebugLines(got.Stderr))
 	}
 }
 
@@ -331,10 +324,12 @@ func checkExample(t *testing.T, p *policyTarget) {
 
 	if len(p.example.Requests) == 0 && p.example.Code != ytrerrors.ExitSuccess {
 		t.Errorf("%s: its Example, run as %s, fails before reaching Tracker: exit %d, %s",
-			p.label(), commandLine(p.runExample), p.example.Code, p.example.Stderr)
+			p.label(), commandLine(p.inv.args), p.example.Code, p.example.Stderr)
 	}
 }
 
+// checkFieldHint wants a --json that names no field refused with the fields
+// the command has, in order, so the caller can pick from the document alone.
 func checkFieldHint(t *testing.T, p *policyTarget) {
 	argv := slices.Concat(p.inv.args, []string{"--json="})
 	label := commandLine(argv)
@@ -344,8 +339,16 @@ func checkFieldHint(t *testing.T, p *policyTarget) {
 		t.Errorf("%s: exit = %d, want %d", label, got.Code, ytrerrors.ExitUserError)
 	}
 	assertEmpty(t, label+": stdout", got.Stdout)
-	if want := fieldHint(strings.Join(p.path, " "), p.fields); got.Stderr != want {
-		t.Errorf("%s: stderr = %q,\nwant %q", label, got.Stderr, want)
+
+	doc := decodeOneJSONErrorCoded(t, label, got.Stderr, ytrerrors.CodeInvalidField)
+	if doc.Message != "no fields specified" {
+		t.Errorf("%s: message = %q, want %q", label, doc.Message, "no fields specified")
+	}
+	if !slices.Equal(doc.ValidFields, p.fields) {
+		t.Errorf("%s: validFields = %q, want %q", label, doc.ValidFields, p.fields)
+	}
+	if want := "Valid fields: " + strings.Join(p.fields, ", "); doc.Suggestion != want {
+		t.Errorf("%s: suggestion = %q, want %q", label, doc.Suggestion, want)
 	}
 }
 
@@ -428,8 +431,8 @@ func checkAllWithCursor(t *testing.T, p *policyTarget) {
 		t.Errorf("%s: exit = %d, want %d (stderr: %s)", label, got.Code, ytrerrors.ExitUserError, got.Stderr)
 	}
 	assertEmpty(t, label+": stdout", got.Stdout)
-	if !strings.Contains(got.Stderr, "cannot combine --all with --cursor") {
-		t.Errorf("%s: stderr = %q, want it to name the conflict", label, got.Stderr)
+	if doc := decodeOneJSONError(t, label, got.Stderr); doc.Message != "cannot combine --all with --cursor" {
+		t.Errorf("%s: message = %q, want it to name the conflict", label, doc.Message)
 	}
 }
 
@@ -450,8 +453,9 @@ func checkLimitRange(t *testing.T, p *policyTarget) {
 			t.Errorf("%s: exit = %d, want %d (stderr: %s)", label, got.Code, ytrerrors.ExitUserError, got.Stderr)
 		}
 		assertEmpty(t, label+": stdout", got.Stdout)
-		if want := "invalid limit " + limit + ": expected 1 to 1000"; !strings.Contains(got.Stderr, want) {
-			t.Errorf("%s: stderr = %q, want it to hold %q", label, got.Stderr, want)
+		doc := decodeOneJSONError(t, label, got.Stderr)
+		if want := "invalid limit " + limit + ": expected 1 to 1000"; doc.Message != want {
+			t.Errorf("%s: message = %q, want %q", label, doc.Message, want)
 		}
 	}
 }
@@ -460,12 +464,12 @@ func checkLimitRange(t *testing.T, p *policyTarget) {
 // stderr as one JSON document carrying the server's text and nothing else,
 // with or without --debug lines beside it.
 func checkTrackerFailure(t *testing.T, p *policyTarget) {
-	debugArgs := slices.Concat(p.runExample, []string{"--debug"})
+	debugArgs := slices.Concat(p.inv.args, []string{"--debug"})
 	runs := []struct {
 		args []string
 		res  cliResult
 	}{
-		{p.runExample, p.example},
+		{p.inv.args, p.example},
 		{debugArgs, runSignedIn(t, failingTracker(t), debugArgs...)},
 	}
 
@@ -489,7 +493,7 @@ func checkTrackerFailure(t *testing.T, p *policyTarget) {
 // sending a request, whichever validator it declares.
 func checkBadArgument(t *testing.T, p *policyTarget) {
 	for _, i := range p.inv.positional {
-		argv := slices.Clone(p.runExample)
+		argv := slices.Clone(p.inv.args)
 		argv[i] = ""
 		label := commandLine(argv)
 
@@ -544,8 +548,8 @@ func exampleInvocation(leaf *cobra.Command) (invocation, bool) {
 	return invocation{}, false
 }
 
-// withoutOutputFlags drops --json and --jq with their values, which each
-// property sets for itself.
+// withoutOutputFlags drops --json and --jq with their values: a property that
+// needs one sets it for itself, and every other runs the leaf with neither.
 func withoutOutputFlags(args []string) []string {
 	var kept []string
 	for i := 0; i < len(args); i++ {
@@ -646,22 +650,21 @@ func runProbe(t *testing.T, argv []string) cliResult {
 
 // errorDocument is the JSON error shape a failed invocation must produce.
 type errorDocument struct {
-	Code         string `json:"code"`
-	Message      string `json:"message"`
-	Suggestion   string `json:"suggestion"`
-	InvalidField string `json:"invalidField"`
+	Code         string   `json:"code"`
+	Message      string   `json:"message"`
+	Suggestion   string   `json:"suggestion"`
+	InvalidField string   `json:"invalidField"`
+	ValidFields  []string `json:"validFields"`
 }
 
-// assertRejected runs argv with a --json field selection appended after whatever
-// it gets wrong, and fails unless the contract held: exit 1, nothing on stdout,
-// and exactly one JSON error document on stderr. Appending --json last is what
-// proves it is honoured even when the mistake stopped flag parsing first.
+// assertRejected runs argv as given, with no output flag, and fails unless the
+// contract held: exit 1, nothing on stdout, and exactly one JSON error document
+// on stderr.
 func assertRejected(t *testing.T, argv []string) errorDocument {
 	t.Helper()
 
-	probe := slices.Concat(argv, []string{"--json", "key"})
-	label := commandLine(probe)
-	got := runProbe(t, probe)
+	label := commandLine(argv)
+	got := runProbe(t, argv)
 
 	if got.Code != ytrerrors.ExitUserError {
 		t.Errorf("%s: exit = %d, want %d (stderr: %s)", label, got.Code, ytrerrors.ExitUserError, got.Stderr)
@@ -684,27 +687,38 @@ func decodeOneJSONError(t *testing.T, label, stderr string) errorDocument {
 func decodeOneJSONErrorCoded(t *testing.T, label, stderr, code string) errorDocument {
 	t.Helper()
 
-	var doc errorDocument
-
-	trimmed := strings.TrimSuffix(stderr, "\n")
-	if trimmed == "" || strings.Contains(trimmed, "\n") {
-		t.Errorf("%s: stderr = %q, want exactly one JSON document", label, stderr)
-		return doc
-	}
-
-	if err := json.Unmarshal([]byte(trimmed), &doc); err != nil {
-		t.Errorf("%s: stderr is not a JSON document (%v): %q", label, err, stderr)
-		return doc
-	}
-
-	if doc.Code != code {
+	doc, ok := decodeErrorDocument(t, label, stderr)
+	if ok && doc.Code != code {
 		t.Errorf("%s: code = %q, want %q", label, doc.Code, code)
-	}
-	if doc.Message == "" {
-		t.Errorf("%s: message is empty", label)
 	}
 
 	return doc
+}
+
+// decodeErrorDocument fails unless stderr is exactly one line holding a JSON
+// object with a code and a message, and reports whether it is.
+func decodeErrorDocument(t *testing.T, label, stderr string) (errorDocument, bool) {
+	t.Helper()
+
+	var doc errorDocument
+
+	line, rest, terminated := strings.Cut(stderr, "\n")
+	if !terminated || line == "" || rest != "" {
+		t.Errorf("%s: stderr = %q, want exactly one line holding a JSON document", label, stderr)
+		return doc, false
+	}
+
+	if err := json.Unmarshal([]byte(line), &doc); err != nil {
+		t.Errorf("%s: stderr is not a JSON error document (%v): %q", label, err, stderr)
+		return doc, false
+	}
+
+	if doc.Code == "" || doc.Message == "" {
+		t.Errorf("%s: stderr = %q, want a code and a message", label, stderr)
+		return doc, false
+	}
+
+	return doc, true
 }
 
 // withoutDebugLines drops the diagnostics --debug writes to stderr, leaving

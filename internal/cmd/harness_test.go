@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"maps"
 	"os"
 	"path/filepath"
@@ -9,8 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/config"
+	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
 )
 
@@ -67,6 +71,9 @@ func runSignedOut(t *testing.T, fake *faketracker.Fake, args ...string) cliResul
 // in.env. Both reach the run through its context, never the process, so no
 // credential or config comes from the developer's machine, a command that
 // writes config never touches theirs, and parallel runs share no file.
+//
+// Every harness run passes through here, so this is where each one is held to
+// assertOneDocument.
 func runAgainst(t *testing.T, in cliInput, fake *faketracker.Fake, argv []string) cliResult {
 	t.Helper()
 
@@ -91,7 +98,59 @@ func runAgainst(t *testing.T, in cliInput, fake *faketracker.Fake, argv []string
 	var out, errOut bytes.Buffer
 	code := execute(ctx, argv, strings.NewReader(in.stdin), &out, &errOut)
 
-	return cliResult{
+	res := cliResult{
 		Code: code, Stdout: out.String(), Stderr: errOut.String(), Requests: fake.Requests(), ConfigDir: dir,
 	}
+	assertOneDocument(t, argv, res)
+
+	return res
+}
+
+// assertOneDocument fails t unless stdout and stderr of the run of argv, read
+// together without the --debug lines, are exactly one JSON document: the error
+// document on stderr after a failure, the result on stdout after a success. A
+// caller that captures both streams merged can then parse whatever it got.
+//
+// A successful run that asked for text prints text instead; see asksForText.
+func assertOneDocument(t *testing.T, argv []string, res cliResult) {
+	t.Helper()
+
+	label := commandLine(argv)
+	stderr := withoutDebugLines(res.Stderr)
+
+	if res.Code != ytrerrors.ExitSuccess {
+		assertEmpty(t, label+": stdout of a failed run", res.Stdout)
+		decodeErrorDocument(t, label, stderr)
+
+		return
+	}
+
+	if asksForText(argv) {
+		return
+	}
+
+	assertEmpty(t, label+": stderr of a successful run", stderr)
+	if strings.Count(res.Stdout, "\n") != 1 || !strings.HasSuffix(res.Stdout, "\n") ||
+		!json.Valid([]byte(res.Stdout)) {
+		t.Errorf("%s: stdout = %q, want exactly one line of JSON", label, res.Stdout)
+	}
+}
+
+// asksForText reports whether argv asks for one of the outputs that stay text
+// when the run succeeds: help, a completion script, the completions cobra's
+// hidden __complete prints, or a --jq stream.
+func asksForText(argv []string) bool {
+	command := ""
+	for _, arg := range argv {
+		switch {
+		case arg == "--":
+			return false
+		case arg == "--help", arg == "-h", arg == "--jq", strings.HasPrefix(arg, "--jq="):
+			return true
+		case command == "" && !strings.HasPrefix(arg, "-"):
+			command = arg
+		}
+	}
+
+	return slices.Contains([]string{"help", "completion", cobra.ShellCompRequestCmd}, command)
 }

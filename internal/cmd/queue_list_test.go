@@ -109,7 +109,7 @@ func TestQueueList(t *testing.T) {
 			json: `{"items": [{"key": "A"}, {"key": "B"}, {"key": "C"}], "pagination": {"hasMore": false, "total": 3}}`,
 		},
 		{
-			name: "A later page fails", args: list("--all", "--limit", "2", "--json", "key"),
+			name: "A later page fails", args: list("--all", "--limit", "2"),
 			exchanges: []faketracker.Exchange{
 				queuePage(1, 2, 3, "["+listedQueue("A")+","+listedQueue("B")+"]"),
 				withQuery(
@@ -125,6 +125,6 @@ func TestQueueList(t *testing.T) {
 			json: `{"items": [], "pagination": {"hasMore": false}}`,
 		},
 		failureRow(withQuery(trackerNotFound("/v3/queues"), pageQuery(1, 50)),
-			list("--json", "key")...),
+			list()...),
 	})
 }

@@ -17,7 +17,8 @@ func TestUnknownSubcommandUnderGroup(t *testing.T) {
 
 	got := runProbe(t, []string{"issue", "lst"})
 
-	want := "Error: unknown command \"lst\" for \"ytr issue\"\nDid you mean: ytr issue list\n"
+	want := `{"code":"user_error","message":"unknown command \"lst\" for \"ytr issue\"",` +
+		`"suggestion":"Did you mean: ytr issue list"}` + "\n"
 	if got.Stderr != want {
 		t.Errorf("stderr = %q, want %q", got.Stderr, want)
 	}
@@ -29,28 +30,14 @@ func TestUnknownSubcommandUnderGroup(t *testing.T) {
 	}
 }
 
-func TestUnknownSubcommandUnderGroupJSON(t *testing.T) {
-	t.Parallel()
-
-	got := runProbe(t, []string{"issue", "lst", "--json", "key"})
-
-	want := `{"code":"user_error","message":"unknown command \"lst\" for \"ytr issue\"",` +
-		`"suggestion":"Did you mean: ytr issue list"}` + "\n"
-	if got.Stderr != want {
-		t.Errorf("stderr = %q, want %q", got.Stderr, want)
-	}
-	if got.Stdout != "" {
-		t.Errorf("stdout = %q, want empty", got.Stdout)
-	}
-}
-
 func TestBareGroupNamesItsSubcommands(t *testing.T) {
 	t.Parallel()
 
 	got := runProbe(t, []string{"issue"})
 
-	want := "Error: \"ytr issue\" needs a subcommand: changelog, create, list, transition, update, view\n" +
-		"Run \"ytr issue --help\" for details.\n"
+	want := `{"code":"user_error",` +
+		`"message":"\"ytr issue\" needs a subcommand: changelog, create, list, transition, update, view",` +
+		`"suggestion":"Run \"ytr issue --help\" for details."}` + "\n"
 	if got.Stderr != want {
 		t.Errorf("stderr = %q, want %q", got.Stderr, want)
 	}
@@ -69,9 +56,9 @@ func TestBareRootNamesItsSubcommands(t *testing.T) {
 
 	// Pinned in full, not by Contains: the list has to be the one `ytr --help`
 	// advertises, down to `help`, which cobra's IsAvailableCommand leaves out.
-	want := "Error: \"ytr\" needs a subcommand: auth, bulk, checklist, comment, completion, component, " +
-		"field, help, issue, issuetype, link, priority, queue, resolution, status, user, version, worklog\n" +
-		"Run \"ytr --help\" for details.\n"
+	want := `{"code":"user_error","message":"\"ytr\" needs a subcommand: auth, bulk, checklist, comment, ` +
+		`completion, component, field, help, issue, issuetype, link, priority, queue, resolution, status, user, ` +
+		`version, worklog","suggestion":"Run \"ytr --help\" for details."}` + "\n"
 	if got.Stderr != want {
 		t.Errorf("stderr = %q, want %q", got.Stderr, want)
 	}
@@ -92,33 +79,15 @@ func TestBareRootListsEverythingHelpAdvertises(t *testing.T) {
 	failure := runProbe(t, nil)
 	help := runProbe(t, []string{"--help"})
 
-	_, listed, found := strings.Cut(failure.Stderr, "needs a subcommand: ")
+	_, listed, found := strings.Cut(decodeOneJSONError(t, "ytr", failure.Stderr).Message, "needs a subcommand: ")
 	if !found {
 		t.Fatalf("stderr = %q, want it to list the subcommands", failure.Stderr)
 	}
-	listed, _, _ = strings.Cut(listed, "\n")
 
 	for _, name := range strings.Split(listed, ", ") {
 		if !strings.Contains(help.Stdout, "\n  "+name+" ") {
 			t.Errorf("bare ytr lists %q but ytr --help does not advertise it", name)
 		}
-	}
-}
-
-func TestUnknownFlagBeforeJSONStillRendersJSON(t *testing.T) {
-	t.Parallel()
-
-	got := runProbe(t, []string{"issue", "list", "--nosuchflag", "--json", "key"})
-
-	doc := decodeOneJSONError(t, "ytr issue list --nosuchflag --json key", got.Stderr)
-	if doc.Message != "unknown flag: --nosuchflag" {
-		t.Errorf("message = %q, want %q", doc.Message, "unknown flag: --nosuchflag")
-	}
-	if doc.Suggestion != "Run \"ytr issue list --help\" for details." {
-		t.Errorf("suggestion = %q, want the command's --help", doc.Suggestion)
-	}
-	if got.Stdout != "" {
-		t.Errorf("stdout = %q, want empty", got.Stdout)
 	}
 }
 
@@ -133,28 +102,45 @@ func TestQuietIsAnUnknownFlag(t *testing.T) {
 		t.Errorf("exit = %d, want %d", got.Code, ytrerrors.ExitUserError)
 	}
 	assertEmpty(t, "stdout", got.Stdout)
-	if want := "Error: unknown flag: --quiet\n"; !strings.HasPrefix(got.Stderr, want) {
-		t.Errorf("stderr = %q, want it to start with %q", got.Stderr, want)
+	if doc := decodeOneJSONError(t, "ytr issue list --quiet", got.Stderr); doc.Message != "unknown flag: --quiet" {
+		t.Errorf("message = %q, want %q", doc.Message, "unknown flag: --quiet")
 	}
 }
 
 func TestUnknownFlagNamesTheClosestFlag(t *testing.T) {
 	t.Parallel()
 
-	got := runProbe(t, []string{"issue", "list", "--limitt", "5", "--json", "key"})
+	got := runProbe(t, []string{"issue", "list", "--limitt", "5"})
 
-	doc := decodeOneJSONError(t, "ytr issue list --limitt 5 --json key", got.Stderr)
+	doc := decodeOneJSONError(t, "ytr issue list --limitt 5", got.Stderr)
+	if doc.Message != "unknown flag: --limitt" {
+		t.Errorf("message = %q, want %q", doc.Message, "unknown flag: --limitt")
+	}
 	if doc.Suggestion != "Did you mean: --limit" {
 		t.Errorf("suggestion = %q, want %q", doc.Suggestion, "Did you mean: --limit")
+	}
+}
+
+func TestUnknownFlagWithNoCloseFlagPointsAtHelp(t *testing.T) {
+	t.Parallel()
+
+	got := runProbe(t, []string{"issue", "list", "--nosuchflag"})
+
+	doc := decodeOneJSONError(t, "ytr issue list --nosuchflag", got.Stderr)
+	if doc.Message != "unknown flag: --nosuchflag" {
+		t.Errorf("message = %q, want %q", doc.Message, "unknown flag: --nosuchflag")
+	}
+	if want := `Run "ytr issue list --help" for details.`; doc.Suggestion != want {
+		t.Errorf("suggestion = %q, want %q", doc.Suggestion, want)
 	}
 }
 
 func TestRootLevelTypoKeepsDidYouMean(t *testing.T) {
 	t.Parallel()
 
-	got := runProbe(t, []string{"isue", "list", "--json", "key"})
+	got := runProbe(t, []string{"isue", "list"})
 
-	doc := decodeOneJSONError(t, "ytr isue list --json key", got.Stderr)
+	doc := decodeOneJSONError(t, "ytr isue list", got.Stderr)
 	if doc.Message != `unknown command "isue" for "ytr"` {
 		t.Errorf("message = %q, want it to name the unknown command", doc.Message)
 	}
@@ -175,7 +161,8 @@ func TestUnknownHelpTopicFails(t *testing.T) {
 	if got.Stdout != "" {
 		t.Errorf("stdout = %q, want empty", got.Stdout)
 	}
-	want := "Error: unknown command \"isue\" for \"ytr\"\nDid you mean: ytr issue\n"
+	want := `{"code":"user_error","message":"unknown command \"isue\" for \"ytr\"",` +
+		`"suggestion":"Did you mean: ytr issue"}` + "\n"
 	if got.Stderr != want {
 		t.Errorf("stderr = %q, want %q", got.Stderr, want)
 	}
@@ -189,8 +176,9 @@ func TestUnknownHelpSubtopicFails(t *testing.T) {
 	if got.Code != ytrerrors.ExitUserError {
 		t.Errorf("exit = %d, want %d (stderr: %s)", got.Code, ytrerrors.ExitUserError, got.Stderr)
 	}
-	if !strings.Contains(got.Stderr, "Did you mean: ytr issue list") {
-		t.Errorf("stderr = %q, want it to suggest ytr issue list", got.Stderr)
+	doc := decodeOneJSONError(t, "ytr help issue lst", got.Stderr)
+	if doc.Suggestion != "Did you mean: ytr issue list" {
+		t.Errorf("suggestion = %q, want %q", doc.Suggestion, "Did you mean: ytr issue list")
 	}
 }
 
@@ -345,9 +333,9 @@ func TestUnknownShorthandFlagSuggestion(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		got := runProbe(t, []string{"issue", "list", c.shorthand, "--json", "key"})
+		got := runProbe(t, []string{"issue", "list", c.shorthand})
 
-		doc := decodeOneJSONError(t, "ytr issue list "+c.shorthand+" --json key", got.Stderr)
+		doc := decodeOneJSONError(t, "ytr issue list "+c.shorthand, got.Stderr)
 		if doc.Suggestion != c.want {
 			t.Errorf("%s: suggestion = %q, want %q", c.shorthand, doc.Suggestion, c.want)
 		}
@@ -357,9 +345,9 @@ func TestUnknownShorthandFlagSuggestion(t *testing.T) {
 func TestUnknownFlagPrefixSuggestsTheFullName(t *testing.T) {
 	t.Parallel()
 
-	got := runProbe(t, []string{"issue", "list", "--al", "--json", "key"})
+	got := runProbe(t, []string{"issue", "list", "--al"})
 
-	doc := decodeOneJSONError(t, "ytr issue list --al --json key", got.Stderr)
+	doc := decodeOneJSONError(t, "ytr issue list --al", got.Stderr)
 	if doc.Suggestion != "Did you mean: --all" {
 		t.Errorf("suggestion = %q, want %q", doc.Suggestion, "Did you mean: --all")
 	}
@@ -375,13 +363,12 @@ func TestExecuteWiring(t *testing.T) {
 	t.Cleanup(func() { os.Args, os.Stdin, os.Stdout, os.Stderr = realArgs, realIn, realOut, realErr })
 
 	cases := []struct {
-		name          string
-		argv          []string
-		stdin         string
-		wantCode      int
-		wantOut       string
-		wantErr       string
-		wantErrPrefix string
+		name     string
+		argv     []string
+		stdin    string
+		wantCode int
+		wantOut  string
+		wantErr  string
 	}{
 		// version needs no credentials, so the good invocation stays offline.
 		{
@@ -392,15 +379,9 @@ func TestExecuteWiring(t *testing.T) {
 		},
 		{
 			name:     "bad invocation",
-			argv:     []string{"ytr", "vershon", "--json", "version"},
+			argv:     []string{"ytr", "vershon"},
 			wantCode: ytrerrors.ExitUserError,
-			wantErr:  `"code":"user_error"`,
-		},
-		{
-			name:          "bad invocation without an output flag",
-			argv:          []string{"ytr", "vershon"},
-			wantCode:      ytrerrors.ExitUserError,
-			wantErrPrefix: "Error: unknown command \"vershon\" for \"ytr\"\n",
+			wantErr:  `{"code":"user_error","message":"unknown command \"vershon\" for \"ytr\"",`,
 		},
 		// An empty stdin would fail with "no token provided" instead, and the
 		// token is read before login sends any request.
@@ -419,6 +400,7 @@ func TestExecuteWiring(t *testing.T) {
 
 		code := Execute()
 		gotOut, gotErr := streamContents(t, stdout), streamContents(t, stderr)
+		assertOneDocument(t, c.argv[1:], cliResult{Code: code, Stdout: gotOut, Stderr: gotErr})
 
 		if code != c.wantCode {
 			t.Errorf("%s: Execute() = %d, want %d (stdout %q, stderr %q)",
@@ -430,14 +412,11 @@ func TestExecuteWiring(t *testing.T) {
 		if c.wantOut != "" && !strings.Contains(gotOut, c.wantOut) {
 			t.Errorf("%s: stdout = %q, want it to contain %q", c.name, gotOut, c.wantOut)
 		}
-		if c.wantErr == "" && c.wantErrPrefix == "" && gotErr != "" {
+		if c.wantErr == "" && gotErr != "" {
 			t.Errorf("%s: stderr = %q, want empty", c.name, gotErr)
 		}
 		if c.wantErr != "" && !strings.Contains(gotErr, c.wantErr) {
 			t.Errorf("%s: stderr = %q, want it to contain %q", c.name, gotErr, c.wantErr)
-		}
-		if !strings.HasPrefix(gotErr, c.wantErrPrefix) {
-			t.Errorf("%s: stderr = %q, want it to start with %q", c.name, gotErr, c.wantErrPrefix)
 		}
 	}
 }
@@ -490,9 +469,9 @@ func TestSuggestionKeepsTheRemainingArguments(t *testing.T) {
 
 	// Dropping PROJ-1 would suggest a command that fails with
 	// "accepts 1 arg(s), received 0" when run as printed.
-	got := runProbe(t, []string{"issue", "vew", "PROJ-1", "--json", "key"})
+	got := runProbe(t, []string{"issue", "vew", "PROJ-1"})
 
-	doc := decodeOneJSONError(t, "ytr issue vew PROJ-1 --json key", got.Stderr)
+	doc := decodeOneJSONError(t, "ytr issue vew PROJ-1", got.Stderr)
 	if doc.Suggestion != "Did you mean: ytr issue view PROJ-1" {
 		t.Errorf("suggestion = %q, want %q", doc.Suggestion, "Did you mean: ytr issue view PROJ-1")
 	}
@@ -501,9 +480,9 @@ func TestSuggestionKeepsTheRemainingArguments(t *testing.T) {
 func TestMistypedHelpCommandIsSuggested(t *testing.T) {
 	t.Parallel()
 
-	got := runProbe(t, []string{"hel", "--json", "key"})
+	got := runProbe(t, []string{"hel"})
 
-	doc := decodeOneJSONError(t, "ytr hel --json key", got.Stderr)
+	doc := decodeOneJSONError(t, "ytr hel", got.Stderr)
 	if doc.Suggestion != "Did you mean: ytr help" {
 		t.Errorf("suggestion = %q, want %q", doc.Suggestion, "Did you mean: ytr help")
 	}

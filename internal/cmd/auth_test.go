@@ -124,13 +124,13 @@ func TestAuthLogin(t *testing.T) {
 		{
 			name: "Field hint before any request", args: login("--org-id", "O", "--json="), signedOut: true,
 			stdin: "tok\n", code: ytrerrors.ExitUserError,
-			stderr: []string{fieldHint("auth login", []string{"status", "user", "org_id", "org_type", "config_path"})},
+			stderr: []string{noFieldsDocument([]string{"status", "user", "org_id", "org_type", "config_path"})},
 			check:  assertNoConfigFile,
 		},
 		{
 			name: "Rejected token", args: login(slices.Concat(flags, []string{"--org-type", "360"})...),
 			signedOut: true, exchanges: []faketracker.Exchange{myselfError(http.StatusForbidden, "Token expired")},
-			code: ytrerrors.ExitAuthError, stderr: []string{"Error: Token expired\n"},
+			code: ytrerrors.ExitAuthError, stderr: []string{`"message":"Token expired"`},
 			check: assertNoConfigFile,
 		},
 		{
@@ -165,10 +165,10 @@ func TestAuthLogin(t *testing.T) {
 			},
 			code: ytrerrors.ExitAuthError,
 			stderr: []string{
-				"Error: failed to detect organization type: " +
-					"360: GET https://api.tracker.yandex.net/v3/myself: 403 [360 access denied] map[]; " +
-					"cloud: GET https://api.tracker.yandex.net/v3/myself: 403 [cloud access denied] map[]\n" +
-					"Check your token and access to the Tracker organization\n",
+				`"message":"failed to detect organization type: ` +
+					`360: GET https://api.tracker.yandex.net/v3/myself: 403 [360 access denied] map[]; ` +
+					`cloud: GET https://api.tracker.yandex.net/v3/myself: 403 [cloud access denied] map[]",` +
+					`"suggestion":"Check your token and access to the Tracker organization"`,
 			},
 			check: func(t *testing.T, res cliResult) {
 				t.Helper()
@@ -177,13 +177,16 @@ func TestAuthLogin(t *testing.T) {
 			},
 		},
 		{
-			name: "Detection fails differently", args: login(flags...), signedOut: true,
+			name:      "Detection fails differently",
+			args:      login(flags...),
+			signedOut: true,
 			exchanges: []faketracker.Exchange{
 				myselfError(http.StatusForbidden, "360 access denied"),
 				myselfError(http.StatusNotFound, "cloud not found"),
 			},
-			code: ytrerrors.ExitUserError, stderr: []string{"\nRetry with --org-type 360 or --org-type cloud\n"},
-			check: assertSignIns("test-token", "test-org"),
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{`"suggestion":"Retry with --org-type 360 or --org-type cloud"`},
+			check:  assertSignIns("test-token", "test-org"),
 		},
 		{
 			name: "Detection fails on both servers", args: login(flags...), signedOut: true,
@@ -191,37 +194,56 @@ func TestAuthLogin(t *testing.T) {
 				myselfError(http.StatusInternalServerError, "360 unavailable"),
 				myselfError(http.StatusBadGateway, "cloud unavailable"),
 			},
-			code: ytrerrors.ExitUserError, stderr: []string{"\nRetry later\n"},
+			code: ytrerrors.ExitUserError, stderr: []string{`"suggestion":"Retry later"`},
 			check: assertSignIns("test-token", "test-org"),
 		},
 		{
-			name: "Detection refused as a bad request", args: login(flags...), signedOut: true,
+			name:      "Detection refused as a bad request",
+			args:      login(flags...),
+			signedOut: true,
 			exchanges: []faketracker.Exchange{
 				myselfError(http.StatusBadRequest, "360 invalid request"),
 				myselfError(http.StatusBadRequest, "cloud invalid request"),
 			},
-			code: ytrerrors.ExitUserError, stderr: []string{"\nReview the reported Tracker error details and retry\n"},
-			check: assertSignIns("test-token", "test-org"),
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{`"suggestion":"Review the reported Tracker error details and retry"`},
+			check:  assertSignIns("test-token", "test-org"),
 		},
 		{
 			name: "Empty piped token", args: login("--org-id", "O"), signedOut: true, stdin: "\n",
 			code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: empty token from stdin\nPipe a non-empty token: echo TOKEN | ytr auth login --org-id ORG\n",
+				`"message":"empty token from stdin",` +
+					`"suggestion":"Pipe a non-empty token: echo TOKEN | ytr auth login --org-id ORG"`,
 			},
 		},
 		{
-			name: "No token", args: login("--org-id", "O"), signedOut: true, code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: no token provided\nProvide a token: ytr auth login --token TOKEN\n"},
+			name:      "No token",
+			args:      login("--org-id", "O"),
+			signedOut: true,
+			code:      ytrerrors.ExitUserError,
+			stderr: []string{
+				`"message":"no token provided",` + `"suggestion":"Provide a token: ytr auth login --token TOKEN"`,
+			},
 		},
 		{
-			name: "No org ID", args: login(), signedOut: true, stdin: "tok\n", code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: org-id is required\nUse --org-id flag: ytr auth login --org-id ORG\n"},
+			name:      "No org ID",
+			args:      login(),
+			signedOut: true,
+			stdin:     "tok\n",
+			code:      ytrerrors.ExitUserError,
+			stderr: []string{
+				`"message":"org-id is required",` + `"suggestion":"Use --org-id flag: ytr auth login --org-id ORG"`,
+			},
 		},
 		{
-			name: "Bad org type", args: login(slices.Concat(flags, []string{"--org-type", "invalid"})...),
-			signedOut: true, code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: invalid org-type \"invalid\"\nUse --org-type 360 or --org-type cloud\n"},
+			name:      "Bad org type",
+			args:      login(slices.Concat(flags, []string{"--org-type", "invalid"})...),
+			signedOut: true,
+			code:      ytrerrors.ExitUserError,
+			stderr: []string{
+				`"message":"invalid org-type \"invalid\"",` + `"suggestion":"Use --org-type 360 or --org-type cloud"`,
+			},
 		},
 	})
 }
@@ -264,17 +286,17 @@ func TestAuthStatus(t *testing.T) {
 			name: "Field hint signed out", args: []string{"auth", "status", "--json="}, signedOut: true,
 			code: ytrerrors.ExitUserError,
 			stderr: []string{
-				fieldHint("auth status", []string{"status", "user", "org_id", "org_type", "token_source"}),
+				noFieldsDocument([]string{"status", "user", "org_id", "org_type", "token_source"}),
 			},
 		},
 		{
 			name: "Signed out", args: status, signedOut: true, code: ytrerrors.ExitAuthError,
-			stderr: []string{"Error: not authenticated\n"},
+			stderr: []string{`"message":"not authenticated"`},
 		},
 		{
 			name: "Rejected token", args: status, signedOut: true, config: cloudConfig,
 			exchanges: []faketracker.Exchange{myselfError(http.StatusForbidden, "Token expired")},
-			code:      ytrerrors.ExitAuthError, stderr: []string{"Error: Token expired\n"},
+			code:      ytrerrors.ExitAuthError, stderr: []string{`"message":"Token expired"`},
 		},
 	})
 }
@@ -314,7 +336,7 @@ func TestAuthLogout(t *testing.T) {
 		{
 			name: "Field hint before the config is written", args: []string{"auth", "logout", "--json="},
 			config: signedIn, code: ytrerrors.ExitUserError,
-			stderr: []string{fieldHint("auth logout", []string{"status", "config_path"})},
+			stderr: []string{noFieldsDocument([]string{"status", "config_path"})},
 			check:  assertConfigFile(signedIn),
 		},
 	})

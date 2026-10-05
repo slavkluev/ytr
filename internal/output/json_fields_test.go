@@ -150,38 +150,6 @@ func TestValidateFields_CaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestPrintFieldHint(t *testing.T) {
-	var buf bytes.Buffer
-	err := output.PrintFieldHint(&buf, "issue list", []string{"key", "summary", "status"})
-
-	if err == nil {
-		t.Fatal("PrintFieldHint should return an ExitError")
-	}
-
-	var exitErr *ytrerrors.ExitError
-	ee := &ytrerrors.ExitError{}
-	if errors.As(err, &ee) {
-		exitErr = ee
-	} else {
-		t.Fatalf("error type = %T, want *errors.ExitError", err)
-	}
-
-	if exitErr.ExitCode != 1 {
-		t.Errorf("ExitCode = %d, want 1", exitErr.ExitCode)
-	}
-
-	out := buf.String()
-	if !strings.Contains(out, "issue list") {
-		t.Errorf("output should contain command name, got: %q", out)
-	}
-	if !strings.Contains(out, "key") {
-		t.Errorf("output should list field 'key', got: %q", out)
-	}
-	if !strings.Contains(out, "summary") {
-		t.Errorf("output should list field 'summary', got: %q", out)
-	}
-}
-
 func TestApplyJQ_Simple(t *testing.T) {
 	var buf bytes.Buffer
 	data := map[string]any{"key": "ISSUE-1"}

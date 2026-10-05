@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "25.0"
+  version: "26.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -45,8 +45,8 @@ Notes:
 - For regular commands, flag-based and env-based auth require all three values together.
 - `ytr auth login` is the exception: it can detect the organization type when `--org-type` is omitted.
 - `auth status`, `auth login` and `auth logout` take `--json` fields and `--jq` like any other
-  command. `--json=` lists their fields, and it or an unknown field exits 1 before any request
-  or config change.
+  command. `--json=`, which names no field, and an unknown field both exit 1 before any request
+  or config change, with the command's fields in `validFields`.
 - Config is stored in `~/.config/ytr/config.yaml`.
 
 ## Command Reference
@@ -220,7 +220,7 @@ as `PROJ-1` or a 24-character hexadecimal issue ID such as
 `invalid issue key or ID "bad"` and sends nothing, as does a `--from-json`
 body whose `"issues"` is missing or empty (`no issue keys provided`). Keys
 given as arguments or on stdin, and `--field` values, are checked before auth
-and before the `--json=` field hint. Under `--from-json` the body's `"issues"`
+and before `--json=` is refused. Under `--from-json` the body's `"issues"`
 is the only source of keys: key arguments beside it exit 1 with
 `cannot combine --from-json with issue keys`, and stdin is not read for keys
 (with `--from-json -` it carries the body itself).
@@ -240,11 +240,10 @@ ytr bulk move PROJ-1 PROJ-2 --queue TARGET --json id,status,suggestion
 # {"id":"6543210abcdef","status":"CREATED","suggestion":"ytr bulk status 6543210abcdef"}
 ```
 
-They exit 1 when the operation ends `FAILED`, writing nothing to stdout. Under
-`--json` or `--jq` the error document on stderr carries `operationId`,
-`statusText`, `totalIssues` and `totalCompletedIssues`, so it still says how
-much of the change landed; without them the plain-text error states the same
-counts. The `suggestion` is a runnable `ytr bulk status <operationId>`:
+They exit 1 when the operation ends `FAILED`, writing nothing to stdout. The
+error document on stderr carries `operationId`, `statusText`, `totalIssues`
+and `totalCompletedIssues`, so it still says how much of the change landed.
+The `suggestion` is a runnable `ytr bulk status <operationId>`:
 
 ```bash
 ytr bulk move PROJ-1 PROJ-2 --queue TARGET --json id,status
@@ -396,14 +395,18 @@ ytr issue view PROJ-123 --json key,summary
 
 Most resource commands support `--json field1,field2` field selection.
 Run `ytr <command> --help` and look for the `JSON FIELDS` section to see
-the available field names for that command.
+the available field names for that command. A `--json` that names no field
+(`--json=`) or an unknown one exits 1 before any request, and its error
+document names them too, in `validFields`.
 
 ### Streams
 
 stdout carries the command's output and nothing else. A run that fails writes
-nothing at all to stdout and puts one error on stderr: a JSON document under
-`--json` or `--jq`, plain text otherwise. The streams alone tell the two apart:
-parse stdout for the result, stderr for the failure, never both for one answer.
+nothing at all to stdout and one JSON document to stderr, with or without
+`--json` or `--jq`: `code`, `message`, and `suggestion` when the error has
+one. Read together, the two streams therefore hold exactly one JSON document,
+the result on stdout or the failure on stderr, never both -- unless the run
+asked for a `--jq` stream, `--debug` lines or help, which are text:
 
 - Without `--jq`, stdout on success is exactly one JSON document.
 - `--jq` is a stream, not a document: one line per result with an implicit
@@ -412,8 +415,7 @@ parse stdout for the result, stderr for the failure, never both for one answer.
   the results it had already produced -- so a partial stream is not a shape you
   have to handle.
 - `--debug` writes its `[debug]` diagnostics to stderr, where they share the
-  stream with the error document. It moves nothing to stdout, and the position
-  of `--json` in the argument list changes nothing.
+  stream with the error document. It moves nothing to stdout.
 - `--help` and `ytr help <command>` are not command output: they write plain
   text to stdout and exit 0 even under `--json`.
 
@@ -450,7 +452,7 @@ ytr comment list PROJ-123 --json body --jq '.[].body'
 | Exit Code | Meaning | Recovery |
 |-----------|---------|----------|
 | 0 | Success | -- |
-| 1 | User error | Read `message` and `suggestion` fields in JSON error |
+| 1 | User error | Read `message` and `suggestion` in the JSON error on stderr |
 | 3 | Auth error | Set `YTR_TOKEN`, `YTR_ORG_ID`, and `YTR_ORG_TYPE`, or run `ytr auth login` |
 | 4 | Not found | Verify the resource key exists |
 | 5 | Rate limited | Wait and retry |
@@ -495,36 +497,36 @@ each exits 1 before any request:
 ### Bad invocations
 
 Any invocation ytr cannot serve exits 1, leaves stdout empty, and writes one
-error to stderr -- a single JSON document under `--json` or `--jq`, plain text
-otherwise. This covers a mistyped subcommand, a group named without a
-subcommand (`ytr issue`), `ytr` with no arguments at all, an unknown flag, a
-stray positional argument, a malformed one such as `ytr issue view 123` (not an
-issue key) or an empty one, a `--limit` outside 1 to 1000, a `--cursor` of
-`issue list`, `queue list` or `user list` that is not a page number (`2` is
-one, `abc` is not), `--all` together with `--cursor`, an `issue list --filter`
-without `=`, and an unknown `ytr help` topic. None of them reach Tracker, and
-none print help and exit 0. A bad `--limit`, `--cursor` or `--filter`,
-`--all` with `--cursor`, a bad bulk issue key given as an argument or on
-stdin, or a flag error above that does not come from a `--from-json` body,
-exits 1 even without credentials, since ytr checks it before auth.
+JSON error document to stderr, whatever flags it carries. This covers a
+mistyped subcommand, a group named without a subcommand (`ytr issue`), `ytr`
+with no arguments at all, an unknown flag, a stray positional argument, a
+malformed one such as `ytr issue view 123` (not an issue key) or an empty one,
+a `--json` that names no field (`--json=`) or an unknown one, a `--limit`
+outside 1 to 1000, a `--cursor` of `issue list`, `queue list` or `user list`
+that is not a page number (`2` is one, `abc` is not), `--all` together with
+`--cursor`, an `issue list --filter` without `=`, and an unknown `ytr help`
+topic. None of them reach Tracker, and none print help and exit 0. A bad
+`--limit`, `--cursor` or `--filter`, `--all` with `--cursor`, a bad bulk issue
+key given as an argument or on stdin, or a flag error above that does not come
+from a `--from-json` body, exits 1 even without credentials, since ytr checks
+it before auth.
 
-`--json` is honoured even when it comes after the mistake, so
-`ytr issue list --nosuchflag --json key` still answers with JSON.
-
-Every `suggestion` can be run as it stands. A suggested command is complete and
-never contains a value ytr picked for you, so act on it literally:
+Every `suggestion` that names a command can be run as it stands. A suggested
+command is complete and never contains a value ytr picked for you, so act on
+it literally:
 
 ```bash
-ytr issue lst --json key
+ytr issue lst
 # {"code":"user_error","message":"unknown command \"lst\" for \"ytr issue\"","suggestion":"Did you mean: ytr issue list"}
 
 ytr issue
-# Error: "ytr issue" needs a subcommand: changelog, create, list, transition, update, view
-# Run "ytr issue --help" for details.
+# {"code":"user_error","message":"\"ytr issue\" needs a subcommand: changelog, create, list, transition, update, view","suggestion":"Run \"ytr issue --help\" for details."}
 
 ytr issue list --limitt 5
-# Error: unknown flag: --limitt
-# Did you mean: --limit
+# {"code":"user_error","message":"unknown flag: --limitt","suggestion":"Did you mean: --limit"}
+
+ytr auth status --json=
+# {"code":"invalid_field","message":"no fields specified","validFields":["status","user","org_id","org_type","token_source"],"suggestion":"Valid fields: status, user, org_id, org_type, token_source"}
 ```
 
 Asking for help is not a bad invocation: `--help` and `ytr help <command>` write

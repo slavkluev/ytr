@@ -77,52 +77,51 @@ func TestIssueCreate(t *testing.T) {
 		},
 		{
 			name: "Missing queue", args: create("--summary", "Fix login bug"), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: missing --queue\n"},
+			stderr: []string{`"message":"missing --queue"`},
 		},
 		{
 			name: "Bad value", args: create("--queue", "PROJ", "--summary", "hello\x00world"),
 			code:   ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 5 in summary\n"},
+			stderr: []string{`"message":"control character U+0000 at position 5 in summary"`},
 		},
 		{
 			name: "Bad description", args: create(slices.Concat(required, []string{"--description", "a\x01b"})...),
 			code:   ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0001 at position 1 in description\n"},
+			stderr: []string{`"message":"control character U+0001 at position 1 in description"`},
 		},
 		{
 			name: "Bad value signed out", args: create("--queue", "PROJ", "--summary", "a\x00"),
 			signedOut: true, code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 1 in summary\n"},
+			stderr: []string{`"message":"control character U+0000 at position 1 in summary"`},
 		},
 		{
 			name: "Bad value before the hint", args: create("--queue", "PROJ", "--summary", "a\x00", "--json="),
 			signedOut: true, code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 1 in summary\n"},
+			stderr: []string{`"message":"control character U+0000 at position 1 in summary"`},
 		},
 		{
 			name: "Flag next to JSON signed out", args: create("--summary", "x", "--from-json", "{}"),
 			signedOut: true, code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: cannot combine --from-json with --summary\n"},
+			stderr: []string{`"message":"cannot combine --from-json with --summary"`},
 		},
 		{
 			name:   "Bad value in JSON",
 			args:   create("--from-json", `{"queue": "PROJ", "summary": "a\u0000"}`),
 			code:   ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 1 in summary\n"},
+			stderr: []string{`"message":"control character U+0000 at position 1 in summary"`},
 		},
 		{
-			name: "Unknown key",
-			args: create("--from-json", `{"queue": "PROJ", "summary": "Fix login bug", "size": ["L"]}`,
-				"--json", "key"),
+			name:   "Unknown key",
+			args:   create("--from-json", `{"queue": "PROJ", "summary": "Fix login bug", "size": ["L"]}`),
 			code:   ytrerrors.ExitUserError,
 			stderr: []string{`"code":"invalid_field"`, `"invalidFields":["size"]`},
 		},
 		{
 			name: "Malformed JSON", args: create("--from-json", `{"queue":`), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: invalid JSON input: unexpected end of JSON input\n"},
+			stderr: []string{`"message":"invalid JSON input: unexpected end of JSON input"`},
 		},
 		failureRow(trackerNotFoundOn(http.MethodPost, path, "Queue not found"),
-			create(slices.Concat(required, []string{"--json", "key"})...)...),
+			create(required...)...),
 	})
 }
 
@@ -175,32 +174,32 @@ func TestIssueUpdate(t *testing.T) {
 		},
 		{
 			name: "Bad value", args: update("--summary", "hello\x00world"), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 5 in summary\n"},
+			stderr: []string{`"message":"control character U+0000 at position 5 in summary"`},
 		},
 		{
 			name: "Bad description", args: update("--description", "a\x01b"), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0001 at position 1 in description\n"},
+			stderr: []string{`"message":"control character U+0001 at position 1 in description"`},
 		},
 		{
 			name: "Bad description signed out", args: update("--description", "a\x00"),
 			signedOut: true, code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 1 in description\n"},
+			stderr: []string{`"message":"control character U+0000 at position 1 in description"`},
 		},
 		{
 			name: "Bad description before the hint", args: update("--description", "a\x00", "--json="),
 			signedOut: true, code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 1 in description\n"},
+			stderr: []string{`"message":"control character U+0000 at position 1 in description"`},
 		},
 		{
 			name: "Bad description in JSON", args: update("--from-json", `{"description": "a\u0001b"}`),
 			code:   ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0001 at position 1 in description\n"},
+			stderr: []string{`"message":"control character U+0001 at position 1 in description"`},
 		},
 		{
 			name:   "Bad value in JSON under a key in another case",
 			args:   update("--from-json", `{"Summary": "a\u0000"}`),
 			code:   ytrerrors.ExitUserError,
-			stderr: []string{"Error: control character U+0000 at position 1 in summary\n"},
+			stderr: []string{`"message":"control character U+0000 at position 1 in summary"`},
 		},
 		{
 			name:      "Tab and line breaks",
@@ -218,10 +217,10 @@ func TestIssueUpdate(t *testing.T) {
 		},
 		{
 			name: "Bad arg", args: []string{"issue", "update", "bad-key", "--summary", "x"},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad-key"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"bad-key\"`},
 		},
 		failureRow(trackerNotFoundOn(http.MethodPatch, path, "Issue not found"),
-			update("--summary", "x", "--json", "key")...),
+			update("--summary", "x")...),
 	})
 }
 
@@ -271,27 +270,26 @@ func TestIssueTransition(t *testing.T) {
 			name: "Not available", args: transition("--to", "nonexistent"),
 			exchanges: []faketracker.Exchange{transitions}, code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: transition \"nonexistent\" is not available for PROJ-123\n" +
-					"Valid transitions: Open, In Progress, Closed\n" +
-					"Try: ytr issue transition PROJ-123 --to \"Open\"\n",
+				`"message":"transition \"nonexistent\" is not available for PROJ-123",` +
+					`"suggestion":"Valid transitions: Open, In Progress, Closed\nTry: ytr issue transition PROJ-123 --to \"Open\""`,
 			},
 		},
 		{
 			name: "Empty target", args: transition("--to", ""), exchanges: []faketracker.Exchange{transitions},
 			code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: transition \"\" is not available for PROJ-123\n" +
-					"Valid transitions: Open, In Progress, Closed\n",
+				`"message":"transition \"\" is not available for PROJ-123",` +
+					`"suggestion":"Valid transitions: Open, In Progress, Closed\n`,
 			},
 		},
 		{
 			name: "Bad arg", args: []string{"issue", "transition", "bad-key", "--to", "open"},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad-key"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"bad-key\"`},
 		},
 		named("Transitions fail", failureRow(trackerNotFoundOn(http.MethodGet, path, "Issue not found"),
-			transition("--to", "inProgress", "--json", "key")...)),
+			transition("--to", "inProgress")...)),
 		{
-			name: "Execute fails", args: transition("--to", "inProgress", "--json", "key"),
+			name: "Execute fails", args: transition("--to", "inProgress"),
 			exchanges: []faketracker.Exchange{
 				transitions, trackerError(http.MethodPost, path+"/2/_execute", http.StatusInternalServerError, "Boom"),
 			},

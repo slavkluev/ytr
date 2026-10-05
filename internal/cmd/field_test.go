@@ -89,7 +89,7 @@ func TestFieldList(t *testing.T) {
 			fieldHintRow("field list", []string{"--queue", "PROJ"}, "id", "key", "name", "schema", "items",
 				"readonly", "options", "queueOptions", "defaultOptions"),
 		),
-		notFoundRow("/v3/queues/NOPE/localFields", "field", "list", "--queue", "NOPE", "--json", "id"),
+		notFoundRow("/v3/queues/NOPE/localFields", "field", "list", "--queue", "NOPE"),
 	})
 }
 
@@ -157,6 +157,6 @@ func TestFieldGet(t *testing.T) {
 			exchanges: []faketracker.Exchange{trackerGET("/v3/fields/size", badOptionsField)},
 			code:      ytrerrors.ExitUserError, stderr: []string{optionDecodeError(t)},
 		},
-		notFoundRow("/v3/queues/PROJ/localFields/nope", "field", "get", "nope", "--queue", "PROJ", "--json", "id"),
+		notFoundRow("/v3/queues/PROJ/localFields/nope", "field", "get", "nope", "--queue", "PROJ"),
 	})
 }

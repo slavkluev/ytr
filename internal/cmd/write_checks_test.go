@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
+	"github.com/slavkluev/ytr/internal/jsonenc"
 )
 
 // writeCheck is one invocation a write leaf must refuse before any request,
@@ -224,9 +225,18 @@ func TestWriteChecksShareOneWording(t *testing.T) {
 
 	var rows []leafRow
 	for _, check := range slices.Concat(conflicts, missing, nothing) {
+		doc, err := jsonenc.Marshal(struct {
+			Code       string `json:"code"`
+			Message    string `json:"message"`
+			Suggestion string `json:"suggestion"`
+		}{ytrerrors.CodeUserError, check.message, check.suggestion})
+		if err != nil {
+			t.Fatalf("encoding the expected error document: %v", err)
+		}
+
 		rows = append(rows, leafRow{
 			name: strings.Join(check.args, " "), args: check.args, code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: " + check.message + "\n" + check.suggestion + "\n"},
+			stderr: []string{string(doc) + "\n"},
 		})
 	}
 

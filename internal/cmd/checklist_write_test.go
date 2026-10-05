@@ -77,15 +77,15 @@ func TestChecklistCreate(t *testing.T) {
 			json:      `{"id": "", "text": "Review PR", "checked": false, "assignee": "uid-b", "assigneeId": ""}`,
 		},
 		{
-			name: "Unknown key", args: create("--from-json", `{"text": "x", "bogus": 1}`, "--json", "id"),
+			name: "Unknown key", args: create("--from-json", `{"text": "x", "bogus": 1}`),
 			code: ytrerrors.ExitUserError, stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
 		},
 		{
 			name: "Bad arg", args: []string{"checklist", "create", "bad", "--text", "x"}, code: ytrerrors.ExitUserError,
-			stderr: []string{`invalid issue key "bad"`},
+			stderr: []string{`invalid issue key \"bad\"`},
 		},
 		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
-			create("--text", "x", "--json", "id")...),
+			create("--text", "x")...),
 		helpRow("checklist create", "Deadline is supported only via --from-json (not as a separate flag).\n\n"+
 			"JSON FIELDS\n  id, text, checked, assignee, assigneeId\n"),
 	})
@@ -148,7 +148,7 @@ func TestChecklistEdit(t *testing.T) {
 		},
 		{
 			name:   "Unknown key",
-			args:   edit("--from-json", `{"bogus": 1}`, "--json", "id"),
+			args:   edit("--from-json", `{"bogus": 1}`),
 			code:   ytrerrors.ExitUserError,
 			stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
 		},
@@ -160,11 +160,11 @@ func TestChecklistEdit(t *testing.T) {
 		},
 		{
 			name: "Bad issue key", args: []string{"checklist", "edit", "bad", "item-2", "--checked"},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"bad\"`},
 		},
 		failureRow(
 			trackerNotFoundOn(http.MethodPatch, path, "Checklist item not found"),
-			edit("--checked", "--json", "id")...),
+			edit("--checked")...),
 		helpRow("checklist edit", "Use --checked to mark an item as done, --checked=false to unmark it.\n\n"+
 			"JSON FIELDS\n  id, text, checked, assignee, assigneeId\n"),
 	})
@@ -190,11 +190,11 @@ func TestChecklistDelete(t *testing.T) {
 			name:   "Bad issue key",
 			args:   []string{"checklist", "delete", "bad", "item-1"},
 			code:   ytrerrors.ExitUserError,
-			stderr: []string{`invalid issue key "bad"`},
+			stderr: []string{`invalid issue key \"bad\"`},
 		},
 		failureRow(
 			trackerNotFoundOn(http.MethodDelete, path, "Checklist item not found"),
-			slices.Concat(args, []string{"--json", "id"})...),
+			args...),
 		helpRow(
 			"checklist delete",
 			"Delete a checklist item from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n",

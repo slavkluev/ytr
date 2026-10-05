@@ -20,7 +20,7 @@ const (
 // ExitError is an error with a semantic exit code, machine-readable code,
 // human-readable message, and an optional recovery suggestion.
 // It implements the error interface and carries all information needed
-// for both JSON and human error formatting.
+// for the JSON error document.
 type ExitError struct {
 	// ExitCode is the semantic exit code (0-130) for the process.
 	ExitCode int
@@ -41,7 +41,7 @@ func (e *ExitError) Error() string {
 	return e.Message
 }
 
-// JSONError returns the JSON representation of the error for --json mode.
+// JSONError returns the JSON document a failed run prints for the error.
 // The suggestion field is omitted when empty.
 func (e *ExitError) JSONError() ([]byte, error) {
 	return jsonenc.Marshal(struct {
@@ -153,6 +153,20 @@ func NewInvalidFieldError(field string, validFields []string) *InvalidFieldError
 	}
 }
 
+// NewNoFieldsError creates an error for a --json that names no field. It
+// carries no invalidField: nothing was rejected, the selection was empty.
+func NewNoFieldsError(validFields []string) *InvalidFieldError {
+	return &InvalidFieldError{
+		ExitError: ExitError{
+			ExitCode:   ExitUserError,
+			Code:       CodeInvalidField,
+			Message:    "no fields specified",
+			Suggestion: "Valid fields: " + strings.Join(validFields, ", "),
+		},
+		ValidFields: validFields,
+	}
+}
+
 // NewUnknownFieldsError creates an error for JSON input carrying keys the
 // request body has no field for. Unlike NewInvalidFieldError it reports every
 // offending key at once, so a single run names all of them.
@@ -216,8 +230,8 @@ func (e *BulkFailedError) JSONError() ([]byte, error) {
 }
 
 // NewBulkFailedError creates an error for a bulk operation that reached the
-// FAILED state. The message repeats the counts so human output, which shows
-// only the message and the suggestion, says as much as the JSON document.
+// FAILED state. The message repeats the counts, so a reader that takes only
+// the message learns as much as one that reads the document's own keys.
 func NewBulkFailedError(
 	operationID, statusText string,
 	totalIssues, totalCompletedIssues int,

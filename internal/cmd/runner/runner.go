@@ -615,18 +615,16 @@ func run[V any](cmd *cobra.Command, raw []string, s steps[V]) error {
 
 // SelectFields returns the output options of a run of cmd, a command whose
 // --json fields are fields, with the fields the run selected: those --json
-// names, or every one without it. It answers a bare --json= with the field hint
-// instead.
+// names, or every one without it. It refuses a bare --json= with an error that
+// carries the fields.
 //
-// It returns a copy: the options in cmd's context keep what the flags set, so
-// an error the run ends with later renders in the mode the flags asked for,
-// as one before this does.
+// It returns a copy: the options in cmd's context are the ones the root flags
+// are bound to, and they keep what the flags set.
 func SelectFields(cmd *cobra.Command, fields []string) (*output.Options, error) {
 	flags := output.FromContext(cmd.Context())
 
 	if flags.WantsFieldHint(cmd.Flags().Changed("json")) {
-		name := strings.TrimPrefix(cmd.CommandPath(), cmd.Root().Name()+" ")
-		return nil, output.PrintFieldHint(cmd.ErrOrStderr(), name, fields)
+		return nil, errors.NewNoFieldsError(fields)
 	}
 
 	opts := *flags

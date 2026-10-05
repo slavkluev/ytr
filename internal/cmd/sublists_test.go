@@ -53,13 +53,13 @@ func TestWorklogList(t *testing.T) {
 		},
 		{
 			name: "Bad arg", args: []string{"worklog", "list", "bad"}, code: ytrerrors.ExitUserError,
-			stderr: []string{`invalid issue key "bad": expected format QUEUE-123`},
+			stderr: []string{`"message":"invalid issue key \"bad\": expected format QUEUE-123"`},
 		},
 		{
 			name: "Bad arg before the hint", args: []string{"worklog", "list", "bad", "--json="},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"bad\"`},
 		},
-		notFoundRow(path, "worklog", "list", "PROJ-1", "--json", "id"),
+		notFoundRow(path, "worklog", "list", "PROJ-1"),
 	})
 }
 
@@ -111,9 +111,9 @@ func TestLinkList(t *testing.T) {
 		},
 		{
 			name: "Bad arg", args: []string{"link", "list", "bad"}, code: ytrerrors.ExitUserError,
-			stderr: []string{`invalid issue key "bad": expected format QUEUE-123`},
+			stderr: []string{`"message":"invalid issue key \"bad\": expected format QUEUE-123"`},
 		},
-		notFoundRow(path, "link", "list", "PROJ-1", "--json", "id"),
+		notFoundRow(path, "link", "list", "PROJ-1"),
 	})
 }
 
@@ -158,8 +158,8 @@ func TestChecklistList(t *testing.T) {
 		},
 		{
 			name: "Bad arg", args: []string{"checklist", "list", "bad"}, code: ytrerrors.ExitUserError,
-			stderr: []string{`invalid issue key "bad": expected format QUEUE-123`},
+			stderr: []string{`"message":"invalid issue key \"bad\": expected format QUEUE-123"`},
 		},
-		notFoundRow(path, "checklist", "list", "PROJ-1", "--json", "id"),
+		notFoundRow(path, "checklist", "list", "PROJ-1"),
 	})
 }

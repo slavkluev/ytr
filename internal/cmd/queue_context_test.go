@@ -6,7 +6,6 @@ import (
 	"slices"
 	"testing"
 
-	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
 )
 
@@ -275,14 +274,7 @@ func TestQueueContext(t *testing.T) {
 		named("Unknown queue", failureRow(
 			withQuery(trackerNotFoundOn(http.MethodGet, "/v3/queues/NOPE", "Очередь не существует."),
 				url.Values{"expand": {"issueTypesConfig"}}),
-			context("NOPE", "--json", "key")...)),
-		{
-			name: "Unknown queue, whole document", args: context("NOPE"),
-			exchanges: []faketracker.Exchange{withQuery(
-				trackerNotFoundOn(http.MethodGet, "/v3/queues/NOPE", "Очередь не существует."),
-				url.Values{"expand": {"issueTypesConfig"}})},
-			code: ytrerrors.ExitNotFound, stderr: []string{"Error: Очередь не существует.\n"},
-		},
+			context("NOPE")...)),
 	})
 }
 

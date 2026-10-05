@@ -58,36 +58,39 @@ func TestWorklogCreate(t *testing.T) {
 		{
 			name: "Bad duration", args: create("--duration", "1h", "--start", "2026-03-30T10:00:00Z"),
 			code: ytrerrors.ExitUserError, stderr: []string{
-				"Error: invalid ISO 8601 duration \"1h\"\n" +
-					"Use ISO 8601 format: PT1H30M (1h30m), PT45M (45min), P1D (1 day), P1DT2H (1 day 2 hours)\n",
+				`"message":"invalid ISO 8601 duration \"1h\"",` +
+					`"suggestion":"Use ISO 8601 format: PT1H30M (1h30m), PT45M (45min), P1D (1 day), P1DT2H (1 day 2 hours)"`,
 			},
 		},
 		{
 			name:   "Bad value before the hint",
 			args:   create("--duration", "1h", "--start", "2026-03-30T10:00:00Z", "--json="),
 			code:   ytrerrors.ExitUserError,
-			stderr: []string{`Error: invalid ISO 8601 duration "1h"`},
+			stderr: []string{`"message":"invalid ISO 8601 duration \"1h\"`},
 		},
 		{
-			name: "Bad start", args: create("--duration", "PT1H", "--start", "x"), code: ytrerrors.ExitUserError,
-			stderr: []string{"Error: invalid timestamp \"x\"\nUse RFC 3339 format: 2026-03-30T10:00:00Z\n"},
+			name: "Bad start",
+			args: create("--duration", "PT1H", "--start", "x"),
+			code: ytrerrors.ExitUserError,
+			stderr: []string{
+				`"message":"invalid timestamp \"x\"",` + `"suggestion":"Use RFC 3339 format: 2026-03-30T10:00:00Z"`,
+			},
 		},
 		{
-			name: "Unknown key",
-			args: create("--from-json", `{"start": "2026-03-30T10:00:00Z", "duration": "PT1H", "bogus": 1}`,
-				"--json", "id"),
+			name:   "Unknown key",
+			args:   create("--from-json", `{"start": "2026-03-30T10:00:00Z", "duration": "PT1H", "bogus": 1}`),
 			code:   ytrerrors.ExitUserError,
 			stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
 		},
 		{
 			name: "Bad arg", args: []string{"worklog", "create", "bad", "--duration", "PT1H", "--start", "x"},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"bad\"`},
 		},
 		named("Field hint before --from-json is read",
 			fieldHintRow("worklog create", []string{"PROJ-1", "--from-json", `{"comment": "x", "bogus": 1}`},
 				worklogFields...)),
 		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
-			create(slices.Concat(required, []string{"--json", "id"})...)...),
+			create(required...)...),
 		helpRow("worklog create", "Tracker requires both duration and start time when creating a worklog.\n\n"+
 			"JSON FIELDS\n  id, author, authorId, duration, start, comment\n"),
 	})
@@ -140,15 +143,15 @@ func TestWorklogEdit(t *testing.T) {
 		},
 		{
 			name: "Bad duration", args: edit("--duration", "1h"), code: ytrerrors.ExitUserError,
-			stderr: []string{`Error: invalid ISO 8601 duration "1h"`},
+			stderr: []string{`"message":"invalid ISO 8601 duration \"1h\"`},
 		},
 		{
 			name: "Bad start", args: edit("--start", "x"), code: ytrerrors.ExitUserError,
-			stderr: []string{`Error: invalid timestamp "x"`},
+			stderr: []string{`"message":"invalid timestamp \"x\"`},
 		},
 		{
 			name:   "Unknown key",
-			args:   edit("--from-json", `{"bogus": 1}`, "--json", "id"),
+			args:   edit("--from-json", `{"bogus": 1}`),
 			code:   ytrerrors.ExitUserError,
 			stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
 		},
@@ -158,10 +161,10 @@ func TestWorklogEdit(t *testing.T) {
 		},
 		{
 			name: "Bad issue key", args: []string{"worklog", "edit", "bad", "101", "--comment", "x"},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"bad\"`},
 		},
 		failureRow(trackerNotFoundOn(http.MethodPatch, path, "Worklog not found"),
-			edit("--comment", "x", "--json", "id")...),
+			edit("--comment", "x")...),
 		helpRow("worklog edit", "Provide one or more flags to update, or --from-json for full JSON input.\n\n"+
 			"JSON FIELDS\n  id, author, authorId, duration, start, comment\n"),
 	})
@@ -184,10 +187,10 @@ func TestWorklogDelete(t *testing.T) {
 		},
 		{
 			name: "Bad issue key", args: []string{"worklog", "delete", "bad", "101"}, code: ytrerrors.ExitUserError,
-			stderr: []string{`invalid issue key "bad"`},
+			stderr: []string{`invalid issue key \"bad\"`},
 		},
 		failureRow(trackerNotFoundOn(http.MethodDelete, path, "Worklog not found"),
-			slices.Concat(args, []string{"--json", "id"})...),
+			args...),
 		helpRow("worklog delete", "Delete a worklog from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n"),
 	}))
 }

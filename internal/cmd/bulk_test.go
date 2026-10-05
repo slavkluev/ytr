@@ -118,14 +118,14 @@ func TestBulkMove(t *testing.T) {
 			args: move("PROJ-1", "--from-json", `{"queue": "T", "issues": ["PROJ-2"]}`),
 			code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: cannot combine --from-json with issue keys\n" +
-					`Pass the issue keys as arguments or as the key "issues" in --from-json, not both` + "\n",
+				`"message":"cannot combine --from-json with issue keys",` +
+					`"suggestion":"Pass the issue keys as arguments or as the key \"issues\" in --from-json, not both"`,
 			},
 		},
 		{
 			name: "Keys as args beside JSON signed out", signedOut: true,
 			args: move("PROJ-1", "--from-json", `{"queue": "T", "issues": ["PROJ-2"]}`, "--json="),
-			code: ytrerrors.ExitUserError, stderr: []string{"Error: cannot combine --from-json with issue keys\n"},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"cannot combine --from-json with issue keys"`},
 		},
 		{
 			name:      "Keys on stdin beside JSON",
@@ -139,37 +139,39 @@ func TestBulkMove(t *testing.T) {
 			name: "Failed", args: move("PROJ-1", "PROJ-2", "PROJ-3", "--queue", "TARGET"),
 			exchanges: []faketracker.Exchange{started, bulkFailed("3", "1")}, code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: bulk operation op-1 failed: Operation FAILED (1 of 3 issues completed)\nytr bulk status op-1\n",
+				`{"code":"bulk_failed","message":"bulk operation op-1 failed: Operation FAILED ` +
+					`(1 of 3 issues completed)","operationId":"op-1","statusText":"Operation FAILED",` +
+					`"totalIssues":3,"totalCompletedIssues":1,"suggestion":"ytr bulk status op-1"}` + "\n",
 			},
 		},
 		{
 			name: "Empty stdin", args: move("--queue", "TARGET"), code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: no issue keys provided via stdin\n" +
-					"Pipe issue keys via stdin (one per line) or provide as arguments\n",
+				`"message":"no issue keys provided via stdin",` +
+					`"suggestion":"Pipe issue keys via stdin (one per line) or provide as arguments"`,
 			},
 		},
 		{
 			name: "Bad key on stdin", args: move("--queue", "TARGET"), stdin: "PROJ-1\ninvalid-key\n",
-			code: ytrerrors.ExitUserError, stderr: []string{`Error: invalid issue key or ID "invalid-key"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"invalid issue key or ID \"invalid-key\"`},
 		},
 		{
 			name: "Bad key", args: move("bad-key", "--queue", "TARGET"), code: ytrerrors.ExitUserError,
 			stderr: []string{
-				`Error: invalid issue key or ID "bad-key": expected QUEUE-123 or a 24-character hexadecimal ID`,
+				`"message":"invalid issue key or ID \"bad-key\": expected QUEUE-123 or a 24-character hexadecimal ID`,
 			},
 		},
 		{
 			name: "Bad key signed out", args: move("", "--queue", "TARGET"), signedOut: true,
-			code: ytrerrors.ExitUserError, stderr: []string{`Error: invalid issue key or ID ""`},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"invalid issue key or ID \"\"`},
 		},
 		{
 			name: "Bad key on stdin signed out", args: move("--queue", "TARGET"), stdin: "bad\n", signedOut: true,
-			code: ytrerrors.ExitUserError, stderr: []string{`Error: invalid issue key or ID "bad"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"invalid issue key or ID \"bad\"`},
 		},
 		{
 			name: "Bad key before the hint", args: move("bad", "--queue", "TARGET", "--json="),
-			code: ytrerrors.ExitUserError, stderr: []string{`Error: invalid issue key or ID "bad"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"invalid issue key or ID \"bad\"`},
 		},
 		{
 			name: "Wait ends before the change does", args: move("PROJ-1", "--queue", "TARGET", "--timeout", "1ms"),
@@ -192,25 +194,24 @@ func TestBulkMove(t *testing.T) {
 			holds: []string{"Maximum time to wait for the operation to finish (default 1m0s)"},
 		},
 		{
-			name: "No operation ID", args: move("PROJ-1", "--queue", "TARGET", "--json", "id"),
+			name: "No operation ID", args: move("PROJ-1", "--queue", "TARGET"),
 			exchanges: []faketracker.Exchange{trackerPOST("/v3/bulkchange/_move", `{"status": "CREATED"}`)},
 			code:      ytrerrors.ExitUserError,
 			stderr:    []string{`"code":"bulk_no_operation_id"`, "the API returned no operation ID"},
 		},
 		{
 			name: "JSON body with no issues",
-			args: move("--from-json", `{"queue": "TARGET", "issues": []}`, "--json", "id"),
+			args: move("--from-json", `{"queue": "TARGET", "issues": []}`),
 			code: ytrerrors.ExitUserError,
 			stderr: []string{`{"code":"user_error","message":"no issue keys provided",` +
 				`"suggestion":"Pass them as the key \"issues\" in --from-json"}`},
 		},
 		{
-			name: "Unknown key", args: move("--from-json", `{"queue": "TARGET", "issues": ["PROJ-1"], "bogus": 1}`,
-				"--json", "id"),
+			name: "Unknown key", args: move("--from-json", `{"queue": "TARGET", "issues": ["PROJ-1"], "bogus": 1}`),
 			code: ytrerrors.ExitUserError, stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
 		},
 		failureRow(trackerNotFoundOn(http.MethodPost, "/v3/bulkchange/_move", "Queue not found"),
-			move("PROJ-1", "--queue", "TARGET", "--json", "id")...),
+			move("PROJ-1", "--queue", "TARGET")...),
 	})
 }
 
@@ -275,7 +276,7 @@ func TestBulkUpdate(t *testing.T) {
 			check: assertFirstBody(`{"issues": ["PROJ-1"], "values": {"a": ""}}`),
 		},
 		{
-			name: "Failed", args: update("PROJ-1", "PROJ-2", "--field", "a=b", "--json", "id"),
+			name: "Failed", args: update("PROJ-1", "PROJ-2", "--field", "a=b"),
 			exchanges: []faketracker.Exchange{started, bulkFailed("2", "0")}, code: ytrerrors.ExitUserError,
 			stderr: []string{
 				`{"code":"bulk_failed","message":"bulk operation op-1 failed: Operation FAILED ` +
@@ -286,8 +287,8 @@ func TestBulkUpdate(t *testing.T) {
 		{
 			name: "Not a field", args: update("PROJ-1", "--field", "noequals"), code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: invalid field format \"noequals\": expected key=value\n" +
-					"Use --field key=value (e.g., --field priority=critical)\n",
+				`"message":"invalid field format \"noequals\": expected key=value",` +
+					`"suggestion":"Use --field key=value (e.g., --field priority=critical)"`,
 			},
 		},
 		{
@@ -295,7 +296,7 @@ func TestBulkUpdate(t *testing.T) {
 			args:      update("PROJ-1", "--field", "noequals"),
 			signedOut: true,
 			code:      ytrerrors.ExitUserError,
-			stderr:    []string{"Error: invalid field format \"noequals\": expected key=value\n"},
+			stderr:    []string{`"message":"invalid field format \"noequals\": expected key=value"`},
 		},
 		{
 			name: "Issue ID in JSON body",
@@ -313,11 +314,11 @@ func TestBulkUpdate(t *testing.T) {
 			args: update("--from-json", `{"issues": ["PROJ-1", "bad"], "values": {"a": "b"}}`),
 			code: ytrerrors.ExitUserError,
 			stderr: []string{
-				`Error: invalid issue key or ID "bad": expected QUEUE-123 or a 24-character hexadecimal ID`,
+				`"message":"invalid issue key or ID \"bad\": expected QUEUE-123 or a 24-character hexadecimal ID`,
 			},
 		},
 		{
-			name: "Unknown key", args: update("--from-json", `{"issues": ["PROJ-1"], "bogus": 1}`, "--json", "id"),
+			name: "Unknown key", args: update("--from-json", `{"issues": ["PROJ-1"], "bogus": 1}`),
 			code: ytrerrors.ExitUserError, stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
 		},
 	})
@@ -363,11 +364,13 @@ func TestBulkTransition(t *testing.T) {
 			name: "Failed", args: transition("PROJ-1", "PROJ-2", "--transition", "close"),
 			exchanges: []faketracker.Exchange{started, bulkFailed("2", "0")}, code: ytrerrors.ExitUserError,
 			stderr: []string{
-				"Error: bulk operation op-1 failed: Operation FAILED (0 of 2 issues completed)\nytr bulk status op-1\n",
+				`{"code":"bulk_failed","message":"bulk operation op-1 failed: Operation FAILED ` +
+					`(0 of 2 issues completed)","operationId":"op-1","statusText":"Operation FAILED",` +
+					`"totalIssues":2,"totalCompletedIssues":0,"suggestion":"ytr bulk status op-1"}` + "\n",
 			},
 		},
 		{
-			name: "Poll fails", args: transition("PROJ-1", "--transition", "close", "--json", "id"),
+			name: "Poll fails", args: transition("PROJ-1", "--transition", "close"),
 			exchanges: []faketracker.Exchange{
 				started, trackerError(http.MethodGet, "/v3/bulkchange/op-1", http.StatusInternalServerError, "Boom"),
 			},
@@ -375,7 +378,7 @@ func TestBulkTransition(t *testing.T) {
 		},
 		{
 			name: "Poll's own HTTP timeout fails like any poll",
-			args: transition("PROJ-1", "--transition", "close", "--timeout", "1m", "--json", "id"),
+			args: transition("PROJ-1", "--transition", "close", "--timeout", "1m"),
 			exchanges: []faketracker.Exchange{
 				started, {Method: http.MethodGet, Path: "/v3/bulkchange/op-1", Err: context.DeadlineExceeded},
 			},
@@ -393,14 +396,16 @@ func TestBulkTransition(t *testing.T) {
 			check:     assertFirstBody(`{"transition": "close", "issues": ["PROJ-2", "PROJ-1", "PROJ-2"]}`),
 		},
 		{
-			name: "JSON body without issues", args: transition("--from-json", `{"transition": "close"}`),
-			code:   ytrerrors.ExitUserError,
-			stderr: []string{"Error: no issue keys provided\nPass them as the key \"issues\" in --from-json\n"},
+			name: "JSON body without issues",
+			args: transition("--from-json", `{"transition": "close"}`),
+			code: ytrerrors.ExitUserError,
+			stderr: []string{
+				`"message":"no issue keys provided",` + `"suggestion":"Pass them as the key \"issues\" in --from-json"`,
+			},
 		},
 		{
-			name: "Unknown key",
-			args: transition("--from-json", `{"transition": "close", "issues": ["PROJ-1"], "bogus": 1}`,
-				"--json", "id"),
+			name:   "Unknown key",
+			args:   transition("--from-json", `{"transition": "close", "issues": ["PROJ-1"], "bogus": 1}`),
 			code:   ytrerrors.ExitUserError,
 			stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
 		},
@@ -449,6 +454,6 @@ func TestBulkStatus(t *testing.T) {
 			name: "Bad arg signed out", args: []string{"bulk", "status", " "}, signedOut: true,
 			code: ytrerrors.ExitUserError, stderr: []string{"invalid operation ID: expected a non-empty value"},
 		},
-		failureRow(trackerNotFound("/v3/bulkchange/op-1"), status("--json", "id")...),
+		failureRow(trackerNotFound("/v3/bulkchange/op-1"), status()...),
 	})
 }

@@ -1,4 +1,4 @@
-version 25.0
+version 26.0
 command ytr
 command ytr auth
 command ytr auth login

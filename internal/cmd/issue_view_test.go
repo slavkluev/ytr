@@ -45,20 +45,13 @@ func TestIssueView(t *testing.T) {
 		},
 		{
 			name: "Not an issue key", args: []string{"issue", "view", "123"},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "123"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"123\"`},
 		},
 		{
 			name: "Extra arg", args: []string{"issue", "view", "PROJ-1", "PROJ-2"}, code: ytrerrors.ExitUserError,
 			stderr: []string{"accepts 1 arg(s), received 2"},
 		},
-		notFoundRow("/v3/issues/NOEXIST-1", "issue", "view", "NOEXIST-1", "--json", "key"),
-		{
-			// Every field is selected by then, yet the error keeps the mode the
-			// flags asked for.
-			name: "Tracker 404 without an output flag", args: []string{"issue", "view", "NOEXIST-1"},
-			exchanges: []faketracker.Exchange{trackerNotFound("/v3/issues/NOEXIST-1")},
-			code:      ytrerrors.ExitNotFound, stderr: []string{"Error: Object not found\n"},
-		},
+		notFoundRow("/v3/issues/NOEXIST-1", "issue", "view", "NOEXIST-1"),
 		{
 			name: "JSON keeps <, > and & literal", args: []string{"issue", "view", "PROJ-123", "--json", "description"},
 			exchanges: []faketracker.Exchange{withMarkdown}, stdout: `{"description":"` + markdown + `"}` + "\n",
@@ -70,7 +63,7 @@ func TestIssueView(t *testing.T) {
 		},
 		{
 			name:      "Error document keeps <, > and & literal",
-			args:      []string{"issue", "view", "PROJ-404", "--json", "key"},
+			args:      []string{"issue", "view", "PROJ-404"},
 			exchanges: []faketracker.Exchange{trackerNotFoundOn(http.MethodGet, "/v3/issues/PROJ-404", serverText)},
 			code:      ytrerrors.ExitNotFound,
 			stderr:    []string{`"message":"` + serverText + `"`},

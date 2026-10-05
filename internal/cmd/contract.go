@@ -193,8 +193,8 @@ func isNear(typed, name string) bool {
 		strings.HasPrefix(strings.ToLower(name), strings.ToLower(typed))
 }
 
-// flagError turns a flag parse failure into an ExitError, so the failure is
-// rendered by the one error renderer and reaches JSON mode like any other.
+// flagError turns a flag parse failure into an ExitError, so the failure
+// carries a suggestion into the error document like any other.
 // Cobra looks the handler up on the root, so installing it there covers every
 // command in the tree.
 func flagError(cmd *cobra.Command, err error) error {

@@ -43,7 +43,7 @@ func TestDebugLinesPrecedeTheOneErrorDocument(t *testing.T) {
 		Status: http.StatusInternalServerError,
 		Header: http.Header{"Content-Type": {"application/json"}},
 		Body:   []byte(`{"errorMessages":["Internal server error"],"errors":{}}`),
-	}}, "status", "list", "--debug", "--json", "id")
+	}}, "status", "list", "--debug")
 
 	if res.Code == 0 {
 		t.Errorf("exit = 0, want non-zero")
@@ -63,5 +63,5 @@ func TestDebugLinesPrecedeTheOneErrorDocument(t *testing.T) {
 			t.Errorf("stderr line %q precedes the error document but is not a debug line", line)
 		}
 	}
-	decodeOneJSONError(t, "ytr status list --debug --json id", lines[len(lines)-1])
+	decodeOneJSONError(t, "ytr status list --debug", lines[len(lines)-1]+"\n")
 }

@@ -58,37 +58,37 @@ func TestLinkCreate(t *testing.T) {
 		{
 			name: "Bad value", args: create("--type", "relates", "--issue", "bad-key"), code: ytrerrors.ExitUserError,
 			stderr: []string{
-				`Error: invalid issue key or ID "bad-key": expected QUEUE-123 or a 24-character hexadecimal ID`,
+				`"message":"invalid issue key or ID \"bad-key\": expected QUEUE-123 or a 24-character hexadecimal ID`,
 			},
 		},
 		{
 			name: "Bad value signed out", args: create("--type", "relates", "--issue", "bad"),
 			signedOut: true, code: ytrerrors.ExitUserError,
 			stderr: []string{
-				`Error: invalid issue key or ID "bad": expected QUEUE-123 or a 24-character hexadecimal ID`,
+				`"message":"invalid issue key or ID \"bad\": expected QUEUE-123 or a 24-character hexadecimal ID`,
 			},
 		},
 		{
 			name: "Bad value in JSON", args: create("--from-json", `{"relationship": "relates", "issue": "bad"}`),
 			code: ytrerrors.ExitUserError,
 			stderr: []string{
-				`Error: invalid issue key or ID "bad": expected QUEUE-123 or a 24-character hexadecimal ID`,
+				`"message":"invalid issue key or ID \"bad\": expected QUEUE-123 or a 24-character hexadecimal ID`,
 			},
 		},
 		{
 			name: "Missing key before a bad value", args: create("--from-json", `{"issue": "bad"}`),
-			code: ytrerrors.ExitUserError, stderr: []string{"Error: missing --type\n"},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"missing --type"`},
 		},
 		{
-			name: "Unknown key", args: create("--from-json", `{"relationship": "relates", "bogus": 1}`, "--json", "id"),
+			name: "Unknown key", args: create("--from-json", `{"relationship": "relates", "bogus": 1}`),
 			code: ytrerrors.ExitUserError, stderr: []string{`"code":"invalid_field"`, `"invalidFields":["bogus"]`},
 		},
 		{
 			name: "Bad arg", args: []string{"link", "create", "bad-key", "--type", "relates", "--issue", "PROJ-2"},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "bad-key"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"bad-key\"`},
 		},
 		failureRow(trackerNotFoundOn(http.MethodPost, path, "Issue not found"),
-			create("--type", "relates", "--issue", "PROJ-2", "--json", "id")...),
+			create("--type", "relates", "--issue", "PROJ-2")...),
 		helpRow(
 			"link create",
 			"Provide --type and --issue for individual flags, or --from-json for full JSON input.\n\n"+
@@ -114,10 +114,10 @@ func TestLinkDelete(t *testing.T) {
 		},
 		{
 			name: "Bad issue key", args: []string{"link", "delete", "bad", "101"}, code: ytrerrors.ExitUserError,
-			stderr: []string{`invalid issue key "bad"`},
+			stderr: []string{`invalid issue key \"bad\"`},
 		},
 		failureRow(trackerNotFoundOn(http.MethodDelete, path, "Link not found"),
-			slices.Concat(args, []string{"--json", "id"})...),
+			args...),
 		helpRow("link delete", "Delete a link from a Yandex Tracker issue.\n\nJSON FIELDS\n  id, deleted\n"),
 	}))
 }

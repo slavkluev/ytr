@@ -207,35 +207,30 @@ func assertOneErrorDocument(message string) func(*testing.T, cliResult) {
 	}
 }
 
-// notFoundRow asks for one JSON field of what path answers with a 404, and
-// wants stdout empty and the server's text in the one JSON error document.
+// notFoundRow runs args against a 404 on path, and wants stdout empty and the
+// server's text in the one JSON error document.
 func notFoundRow(path string, args ...string) leafRow {
 	return failureRow(trackerNotFound(path), args...)
 }
 
-// failureRow runs args, which ask for JSON, against ex, an exchange that
-// answers with a 404 and Tracker's error body, and wants stdout empty and the
-// server's text in the one JSON error document, with the not-found exit code.
+// failureRow runs args against ex, an exchange that answers with a 404 and
+// Tracker's error body, and wants stdout empty and the server's text in the
+// one JSON error document, with the not-found exit code.
 func failureRow(ex faketracker.Exchange, args ...string) leafRow {
 	var answer struct {
 		ErrorMessages []string `json:"errorMessages"`
 	}
 	_ = json.Unmarshal(ex.Body, &answer)
 
-	exit, code := ytrerrors.ExitNotFound, ytrerrors.CodeNotFound
-
 	return leafRow{
 		name: "Tracker 404", args: args, exchanges: []faketracker.Exchange{ex},
-		code: exit, stderr: []string{`"code":"` + code + `"`},
+		code: ytrerrors.ExitNotFound, stderr: []string{`"code":"` + ytrerrors.CodeNotFound + `"`},
 		check: func(t *testing.T, res cliResult) {
 			t.Helper()
 
-			var doc errorDocument
-			if err := json.Unmarshal([]byte(res.Stderr), &doc); err != nil || strings.Count(res.Stderr, "\n") != 1 {
-				t.Fatalf("stderr = %q, want exactly one JSON document (%v)", res.Stderr, err)
-			}
-			if doc.Code != code || doc.Message != strings.Join(answer.ErrorMessages, "; ") {
-				t.Errorf("error = %+v, want code %q and the server's text", doc, code)
+			doc := decodeOneJSONErrorCoded(t, "stderr", res.Stderr, ytrerrors.CodeNotFound)
+			if want := strings.Join(answer.ErrorMessages, "; "); doc.Message != want {
+				t.Errorf("message = %q, want the server's text %q", doc.Message, want)
 			}
 		},
 	}
@@ -247,20 +242,23 @@ func named(name string, row leafRow) leafRow {
 	return row
 }
 
-// fieldHintRow wants --json= on the leaf at path, given args, to name its
-// fields in order before any request.
+// fieldHintRow wants --json= on the leaf at path, given args, refused before
+// any request with a document that names its fields in order.
 func fieldHintRow(path string, args []string, fields ...string) leafRow {
 	return leafRow{
 		name: "Field hint", args: slices.Concat(strings.Fields(path), args, []string{"--json="}),
 		code:   ytrerrors.ExitUserError,
-		stderr: []string{fieldHint(path, fields)},
+		stderr: []string{noFieldsDocument(fields)},
 	}
 }
 
-// fieldHint is what --json= prints to stderr for the leaf at path.
-func fieldHint(path string, fields []string) string {
-	return "Specify one or more comma-separated field names for JSON output.\n\n" +
-		"Available fields for " + path + ":\n  " + strings.Join(fields, "\n  ") + "\nError: no fields specified\n"
+// noFieldsDocument is what --json= writes to stderr on a leaf whose fields are
+// fields.
+func noFieldsDocument(fields []string) string {
+	valid, _ := json.Marshal(fields)
+
+	return `{"code":"invalid_field","message":"no fields specified","validFields":` + string(valid) +
+		`,"suggestion":"Valid fields: ` + strings.Join(fields, ", ") + `"}` + "\n"
 }
 
 // helpRow wants the leaf's --help to hold tail: the end of its description, then

@@ -60,6 +60,6 @@ func TestQueueView(t *testing.T) {
 			name: "Blank key", args: []string{"queue", "view", " "},
 			code: ytrerrors.ExitUserError, stderr: []string{"invalid queue key: expected a non-empty value"},
 		},
-		notFoundRow("/v3/queues/NOEXIST", "queue", "view", "NOEXIST", "--json", "key"),
+		notFoundRow("/v3/queues/NOEXIST", "queue", "view", "NOEXIST"),
 	})
 }

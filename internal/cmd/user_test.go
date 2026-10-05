@@ -41,7 +41,7 @@ func TestUserMyself(t *testing.T) {
 			name: "jq", args: []string{"user", "myself", "--jq", ".login"},
 			exchanges: []faketracker.Exchange{user}, stdout: "john.doe\n",
 		},
-		notFoundRow(path, "user", "myself", "--json", "uid"),
+		notFoundRow(path, "user", "myself"),
 	})
 }
 
@@ -76,7 +76,7 @@ func TestUserGet(t *testing.T) {
 			name: "Bad arg before the hint", args: []string{"user", "get", " ", "--json="},
 			code: ytrerrors.ExitUserError, stderr: []string{"invalid user ID"},
 		},
-		notFoundRow(path, "user", "get", "12345", "--json", "uid"),
+		notFoundRow(path, "user", "get", "12345"),
 	})
 }
 
@@ -159,7 +159,7 @@ func TestUserList(t *testing.T) {
 			json: `{"items": [{"uid": 100}, {"uid": 200}, {"uid": 300}], "pagination": {"hasMore": false, "total": 3}}`,
 		},
 		{
-			name: "A later page fails", args: list("--all", "--limit", "2", "--json", "uid"),
+			name: "A later page fails", args: list("--all", "--limit", "2"),
 			exchanges: []faketracker.Exchange{
 				userPage(1, 2, 3, users),
 				withQuery(
@@ -174,6 +174,6 @@ func TestUserList(t *testing.T) {
 			name: "Empty", args: list(), exchanges: []faketracker.Exchange{empty},
 			json: `{"items": [], "pagination": {"hasMore": false}}`,
 		},
-		failureRow(withQuery(trackerNotFound("/v3/users"), pageQuery(1, 50)), list("--json", "uid")...),
+		failureRow(withQuery(trackerNotFound("/v3/users"), pageQuery(1, 50)), list()...),
 	})
 }

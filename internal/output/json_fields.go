@@ -119,21 +119,6 @@ func isEmptyValue(v reflect.Value) bool {
 	return false
 }
 
-// PrintFieldHint outputs available fields as a formatted list to the writer
-// and returns an ExitError with exit code 1.
-func PrintFieldHint(w io.Writer, commandName string, fields []string) error {
-	_, _ = fmt.Fprintf(w, "Specify one or more comma-separated field names for JSON output.\n\n")
-	_, _ = fmt.Fprintf(w, "Available fields for %s:\n", commandName)
-	for _, f := range fields {
-		_, _ = fmt.Fprintf(w, "  %s\n", f)
-	}
-	return &errors.ExitError{
-		ExitCode: errors.ExitUserError,
-		Code:     "field_hint",
-		Message:  "no fields specified",
-	}
-}
-
 // ApplyJQ parses and executes a jq expression against JSON data.
 // Input data is marshaled to JSON then unmarshaled to any (gojq requires
 // map[string]any / []any, not custom structs).

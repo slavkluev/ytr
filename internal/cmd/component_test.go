@@ -46,7 +46,7 @@ func TestComponentList(t *testing.T) {
 			name: "Empty", args: []string{"component", "list"},
 			exchanges: []faketracker.Exchange{trackerGET(path, `[]`)}, json: `[]`,
 		},
-		notFoundRow(path, "component", "list", "--json", "id"),
+		notFoundRow(path, "component", "list"),
 	})
 }
 
@@ -79,12 +79,12 @@ func TestComponentGet(t *testing.T) {
 		},
 		{
 			name: "Bad arg", args: []string{"component", "get", "abc"}, code: ytrerrors.ExitUserError,
-			stderr: []string{`invalid component ID "abc": expected a positive integer`},
+			stderr: []string{`"message":"invalid component ID \"abc\": expected a positive integer"`},
 		},
 		{
 			name: "Bad arg before the hint", args: []string{"component", "get", "abc", "--json="},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid component ID "abc"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid component ID \"abc\"`},
 		},
-		notFoundRow(path, "component", "get", "42", "--json", "id"),
+		notFoundRow(path, "component", "get", "42"),
 	})
 }

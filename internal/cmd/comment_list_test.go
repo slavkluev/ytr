@@ -94,7 +94,7 @@ func TestCommentList(t *testing.T) {
 			check: assertRequestOrder("perPage=100", "id=2&perPage=100", "id=3&perPage=100"),
 		},
 		{
-			name: "A later page fails", args: list("--json", "id"),
+			name: "A later page fails", args: list(),
 			exchanges: []faketracker.Exchange{
 				commentPage("", numberedComments([]string{"1", "2"})),
 				withQuery(
@@ -113,19 +113,19 @@ func TestCommentList(t *testing.T) {
 				commentPage("stuck", numberedComments([]string{"2", "stuck"})),
 			},
 			code:   ytrerrors.ExitUserError,
-			stderr: []string{`cannot page past cursor "stuck": the last item of the page has ID "stuck"`},
+			stderr: []string{`cannot page past cursor \"stuck\": the last item of the page has ID \"stuck\""`},
 		},
 		{
 			name: "A page ending in null", args: list(),
 			exchanges: []faketracker.Exchange{commentPage("", `[{"id": 1}, null]`)},
 			code:      ytrerrors.ExitUserError,
-			stderr:    []string{`cannot page past cursor "": the last item of the page has ID ""`},
+			stderr:    []string{`cannot page past cursor \"\": the last item of the page has ID \"\""`},
 		},
 		{
 			name: "Not an issue key", args: []string{"comment", "list", "bad-key"}, code: ytrerrors.ExitUserError,
-			stderr: []string{`invalid issue key "bad-key": expected format QUEUE-123`},
+			stderr: []string{`"message":"invalid issue key \"bad-key\": expected format QUEUE-123"`},
 		},
 		failureRow(withQuery(trackerNotFound("/v3/issues/PROJ-1/comments"), url.Values{"perPage": {"100"}}),
-			list("--json", "id")...),
+			list()...),
 	})
 }

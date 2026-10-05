@@ -141,7 +141,7 @@ func TestIssueChangelog(t *testing.T) {
 			),
 		},
 		{
-			name: "A later page fails", args: changelog("--all", "--limit", "1", "--json", "author"),
+			name: "A later page fails", args: changelog("--all", "--limit", "1"),
 			exchanges: []faketracker.Exchange{
 				changelogPage(url.Values{"perPage": {"1"}}, entry("cursor-1", "alice")),
 				withQuery(
@@ -154,7 +154,7 @@ func TestIssueChangelog(t *testing.T) {
 			check: assertOneErrorDocument("Changelog unavailable"),
 		},
 		{
-			name: "A page ending in null", args: changelog("--all", "--limit", "2", "--json", "author"),
+			name: "A page ending in null", args: changelog("--all", "--limit", "2"),
 			exchanges: []faketracker.Exchange{
 				changelogPage(
 					url.Values{"perPage": {"2"}},
@@ -173,15 +173,15 @@ func TestIssueChangelog(t *testing.T) {
 				changelogPage(url.Values{"perPage": {"50"}, "id": {"stuck"}}, entry("stuck", "bob")),
 			},
 			code:   ytrerrors.ExitUserError,
-			stderr: []string{`cannot page past cursor "stuck": the last item of the page has ID "stuck"`},
+			stderr: []string{`cannot page past cursor \"stuck\": the last item of the page has ID \"stuck\""`},
 		},
 		{
 			name: "Not an issue key", args: []string{"issue", "changelog", "123"},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "123"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"123\"`},
 		},
 		{
 			name: "Conflict before the hint", args: changelog("--all", "--cursor", "2", "--json="), signedOut: true,
-			code: ytrerrors.ExitUserError, stderr: []string{"Error: cannot combine --all with --cursor\n"},
+			code: ytrerrors.ExitUserError, stderr: []string{`"message":"cannot combine --all with --cursor"`},
 		},
 		{
 			name: "Conflict before the limit", args: changelog("--all", "--cursor", "2", "--limit", "0"),
@@ -189,9 +189,9 @@ func TestIssueChangelog(t *testing.T) {
 		},
 		{
 			name: "Bad arg before the hint", args: []string{"issue", "changelog", "123", "--json="},
-			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key "123"`},
+			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"123\"`},
 		},
 		failureRow(withQuery(trackerNotFound("/v3/issues/PROJ-123/changelog"), firstPage),
-			changelog("--json", "author")...),
+			changelog()...),
 	})
 }
