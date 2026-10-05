@@ -1,8 +1,8 @@
 # ytr
 
-Yandex Tracker CLI for humans and LLM agents.
+Yandex Tracker CLI for LLM agents.
 
-A command-line client for [Yandex Tracker](https://tracker.yandex.ru/) — Yandex's project management tool, similar to Jira. Designed primarily for LLM agents calling commands programmatically, with a strong secondary focus on human developers in the terminal.
+A command-line client for [Yandex Tracker](https://tracker.yandex.ru/) — Yandex's project management tool, similar to Jira — built for LLM agents calling commands programmatically. A person only sets it up with `ytr auth login`.
 
 ## Features
 

@@ -1,9 +1,9 @@
 <!-- bmad:context -->
-<!-- Verified 2026-10-05 against 1d855d5. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-10-05 against c75199b. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## ytr
 
-Yandex Tracker CLI for LLM agents and humans: Go 1.26, cobra, built on `github.com/slavkluev/go-yandex-tracker` (sibling checkout `../go-yandex-tracker`). `skills/ytr/SKILL.md` and `skills/ytr/query-language.md` are the shipped guide for agents that use ytr, so they are part of the CLI's contract. Tracker API reference: https://yandex.ru/support/tracker/en/api-ref/about-api
+Yandex Tracker CLI for LLM agents; a person only runs `auth login`: Go 1.26, cobra, built on `github.com/slavkluev/go-yandex-tracker` (sibling checkout `../go-yandex-tracker`). `skills/ytr/SKILL.md` and `skills/ytr/query-language.md` are the shipped guide for agents that use ytr, so they are part of the CLI's contract. Tracker API reference: https://yandex.ru/support/tracker/en/api-ref/about-api
 
 ## Policy
 
@@ -14,8 +14,8 @@ Yandex Tracker CLI for LLM agents and humans: Go 1.26, cobra, built on `github.c
 
 ## Where things are
 
-- New command: copy the declaration of its shape under `internal/cmd/` — `worklog/list.go` (`runner.List`; `status/list.go` when the endpoint pages, through `runner.Collect`), `queue/list.go` (`runner.Pages`, for the `{items, pagination}` envelope with `--limit`, `--cursor` and `--all`), `component/get.go` (`runner.Get`), `worklog/create.go` (`runner.Write` with `Required`), `worklog/edit.go` (`runner.Write` with `Update`), `issue/create.go` (`runner.Write` with `Detail`, a card in place of the confirm line), `worklog/delete.go` (`runner.Delete`); `FromJSON` adds `--from-json`. A group file such as `worklog/worklog.go` holds only the group command.
-- Procedural, because no shape fits them: `auth`, `bulk`, `completion`, `issue changelog`, `queue context`, `version`. Copy one only for a command no shape fits. All but `completion` take shared pieces from `internal/cmd/runner/runner.go` (`Client`, `SetFields`, `ItemFields`, `SelectFields`, `PrintJSON`, `PrintText`, `PrintPage`, `Collect`).
+- New command: copy the declaration of its shape under `internal/cmd/` — `worklog/list.go` (`runner.List`; `status/list.go` when the endpoint pages, through `runner.Collect`), `queue/list.go` (`runner.Pages`, for the `{items, pagination}` envelope with `--limit`, `--cursor` and `--all`), `component/get.go` (`runner.Get`), `worklog/create.go` (`runner.Write` with `Required`), `worklog/edit.go` (`runner.Write` with `Update`), `worklog/delete.go` (`runner.Delete`); `FromJSON` adds `--from-json`. A group file such as `worklog/worklog.go` holds only the group command.
+- Procedural, because no shape fits them: `auth`, `bulk`, `completion`, `issue changelog`, `queue context`, `version`. Copy one only for a command no shape fits. All but `completion` take shared pieces from `internal/cmd/runner/runner.go` (`Client`, `SetFields`, `ItemFields`, `SelectFields`, `PrintJSON`, `PrintPage`, `Collect`).
 
 ## Running and verifying
 
@@ -26,13 +26,13 @@ Yandex Tracker CLI for LLM agents and humans: Go 1.26, cobra, built on `github.c
 ## Conventions that differ from defaults
 
 - A command's `--json` fields are the json tags of its flat item struct, in order; a runner declaration derives the `JSON FIELDS` help, the `--json=` hint, validation and completion from them, so never hand-write them. A procedural command gives `runner.SetFields(cmd, …)` an `XxxFields` slice built with `runner.ItemFields[item]()` or kept equal to the tags by hand — no check compares a hand-kept slice with the tags, and a mismatch silently drops the field.
-- Render JSON from that flat struct with value types, never from an SDK struct; read SDK pointers with `api.Deref*`, falling back to `""` in JSON and `"-"` in tables. Every user-valued field `x` gets a sibling `xId` from `User.IDOr("")`, without `omitempty`.
+- Render JSON from that flat struct with value types, never from an SDK struct; read SDK pointers with `api.Deref*`, falling back to `""`. Every user-valued field `x` gets a sibling `xId` from `User.IDOr("")`, without `omitempty`.
 - Return SDK errors as `api.MapAPIError(err)` and other failures as `errors.NewUserError`/`NewAuthError`/`NewNotFoundError` (`internal/errors`) with a Suggestion; never `os.Exit` outside `cmd/ytr/main.go`.
 - Declare a runner command's positional args as `runner.IssueKey`, `runner.StringID(label)` or `runner.NumericID(label)`: the runner checks them before the field hint and auth and hands `Call` the parsed values. Outside the runner, validate them before auth with `validate.ValidateIssueKey`, `ValidateStringID` or `ValidateNumericID`.
 - Outside `runner.Write`, check a write's flags with `validate.Body.CheckFlags` and decode `--from-json` through `Body.Decode`, which rejects unknown keys and applies `Required` and `Update` — never `json.Unmarshal`. Set a request field only when `cmd.Flags().Changed(name)`, since requests are partial PATCHes.
 - When an output shape or exit code changes, update `skills/ytr/SKILL.md` in the same commit and bump its `metadata.version` major; a wording change bumps nothing.
 - User-visible changes are `feat` or `fix` commits — goreleaser drops `docs`, `test`, and `chore` from release notes. Commit and branch format: `CONTRIBUTING.md`.
-- Test every command through `runCLI` (`internal/cmd/harness_test.go`) as `leafRow` table rows (`internal/cmd/leaf_test.go`) against inline Tracker exchanges that carry only the fields ytr reads, never a mock, SDK interface or factory var. Tests are white-box and stdlib `testing` only. Give a row its terminal facts (`term: output.Options{TTY: true, Colors: true}`), `stdin`, extra `env` and starting `config`, or run it `signedOut`, and read what it wrote under `cliResult.ConfigDir` — never through `t.Setenv` or a package global, which the parallel `internal/cmd` tests cannot share.
+- Test every command through `runCLI` (`internal/cmd/harness_test.go`) as `leafRow` table rows (`internal/cmd/leaf_test.go`) against inline Tracker exchanges that carry only the fields ytr reads, never a mock, SDK interface or factory var. Tests are white-box and stdlib `testing` only. Give a row its `stdin`, extra `env` and starting `config`, or run it `signedOut`, and read what it wrote under `cliResult.ConfigDir` — never through `t.Setenv` or a package global, which the parallel `internal/cmd` tests cannot share.
 - Comment only a why the code cannot say — never restate a name, label a step, or narrate a past bug; pin the bug with a named regression test instead. `internal/cmd/comments_test.go` catches only doc comments of the form `newX|runX|renderX creates|executes|handles|renders|returns…` and testability phrases, not step labels or bug history.
 
 ## Known pitfalls

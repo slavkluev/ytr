@@ -34,10 +34,6 @@ Provide one or more flags to update, or --from-json for full JSON input.`,
 			component, _, err := c.Components.Edit(ctx, args[0], req)
 			return component, err
 		},
-		Item:  toComponentItem,
-		Quiet: componentID,
-		Confirm: func(_ []string, component *tracker.Component) string {
-			return "Component " + componentID(component) + " updated"
-		},
+		Item: toComponentItem,
 	}.Command()
 }

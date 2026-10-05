@@ -8,7 +8,6 @@ import (
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 func queuePage(page, perPage, total int, queues string) faketracker.Exchange {
@@ -38,32 +37,17 @@ func TestQueueList(t *testing.T) {
 
 	runLeafRows(t, []leafRow{
 		{
-			name: "Table", args: list(), exchanges: []faketracker.Exchange{two},
-			stdout: "KEY\tNAME\tLEAD\nPROJ\tQueue PROJ\tlead-PROJ\nTEST\tQueue TEST\tlead-TEST\n",
-		},
-		{
-			name: "TTY", args: list(), term: output.Options{TTY: true, Colors: true},
-			exchanges: []faketracker.Exchange{two},
-			holds:     []string{"KEY   NAME        LEAD", "PROJ  Queue PROJ  lead-PROJ", "TEST  Queue TEST  lead-TEST"},
-			check:     assertAlignedTable,
-		},
-		{
-			name: "JSON", args: list("--json", "key,name,lead,leadId"), exchanges: []faketracker.Exchange{two},
+			name: "Every field", args: list(), exchanges: []faketracker.Exchange{two},
 			json: `{"items": [
 				{"key": "PROJ", "name": "Queue PROJ", "lead": "lead-PROJ", "leadId": "uid-PROJ"},
 				{"key": "TEST", "name": "Queue TEST", "lead": "lead-TEST", "leadId": "uid-TEST"}],
 				"pagination": {"hasMore": false, "total": 2}}`,
 		},
 		{
-			name: "JSON of a bare queue", args: list("--json", "key,name,lead,leadId"),
+			name: "A bare queue", args: list(),
 			exchanges: []faketracker.Exchange{queuePage(1, 50, 1, `[{"key": "NIL-Q", "name": "Queue with nils"}]`)},
 			json: `{"items": [{"key": "NIL-Q", "name": "Queue with nils", "leadId": ""}],
 				"pagination": {"hasMore": false, "total": 1}}`,
-		},
-		{
-			name: "Table of a bare queue", args: list(),
-			exchanges: []faketracker.Exchange{queuePage(1, 50, 1, `[{"key": "NIL-Q", "name": "Queue with nils"}]`)},
-			stdout:    "KEY\tNAME\tLEAD\nNIL-Q\tQueue with nils\t-\n",
 		},
 		{
 			name: "Namesakes keep their lead IDs", args: list("--jq", "[.items[].leadId]"),
@@ -79,22 +63,19 @@ func TestQueueList(t *testing.T) {
 				"pagination": {"cursor": "2", "hasMore": true, "total": 5}}`,
 		},
 		{
-			name: "Quiet", args: list("--quiet"), exchanges: []faketracker.Exchange{two}, stdout: "PROJ\nTEST\n",
-		},
-		{
 			name: "jq", args: list("--jq", ".items[].name"), exchanges: []faketracker.Exchange{two},
 			stdout: "Queue PROJ\nQueue TEST\n",
 		},
 		{
-			name: "Limit", args: list("--limit", "10", "--quiet"),
+			name: "Limit", args: list("--limit", "10", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{queuePage(1, 10, 0, `[]`)},
 		},
 		{
-			name: "Limit at the maximum", args: list("--limit", "1000", "--quiet"),
+			name: "Limit at the maximum", args: list("--limit", "1000", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{queuePage(1, 1000, 0, `[]`)},
 		},
 		{
-			name: "Cursor", args: list("--cursor", "3", "--quiet"),
+			name: "Cursor", args: list("--cursor", "3", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{queuePage(3, 50, 0, `[]`)},
 		},
 		{
@@ -102,7 +83,7 @@ func TestQueueList(t *testing.T) {
 			stderr: []string{"invalid cursor"},
 		},
 		{
-			name: "All pages", args: list("--all", "--limit", "2", "--quiet"),
+			name: "All pages", args: list("--all", "--limit", "2", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{
 				queuePage(1, 2, 3, "["+listedQueue("A")+","+listedQueue("B")+"]"),
 				queuePage(2, 2, 3, "["+listedQueue("C")+"]"),
@@ -111,7 +92,7 @@ func TestQueueList(t *testing.T) {
 			check:  assertRequestOrder("page=1&perPage=2", "page=2&perPage=2"),
 		},
 		{
-			name: "All pages end on a full page", args: list("--all", "--limit", "2", "--quiet"),
+			name: "All pages end on a full page", args: list("--all", "--limit", "2", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{
 				queuePage(1, 2, 4, "["+listedQueue("A")+","+listedQueue("B")+"]"),
 				queuePage(2, 2, 4, "["+listedQueue("C")+","+listedQueue("D")+"]"),
@@ -140,10 +121,7 @@ func TestQueueList(t *testing.T) {
 			check: assertOneErrorDocument("Queues unavailable"),
 		},
 		{
-			name: "Empty", args: list(), exchanges: []faketracker.Exchange{empty}, stdout: "No queues found\n",
-		},
-		{
-			name: "Empty as JSON", args: list("--json", "key"), exchanges: []faketracker.Exchange{empty},
+			name: "Empty", args: list(), exchanges: []faketracker.Exchange{empty},
 			json: `{"items": [], "pagination": {"hasMore": false}}`,
 		},
 		failureRow(withQuery(trackerNotFound("/v3/queues"), pageQuery(1, 50)),

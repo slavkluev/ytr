@@ -2,7 +2,6 @@ package comment
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
@@ -23,7 +22,7 @@ Provide the updated text via --body or full JSON via --from-json.`,
   # Edit via JSON input
   ytr comment edit PROJ-123 42 --from-json '{"text": "new body"}'
 
-  # Edit and get result as JSON
+  # Edit and keep only the ID and body
   ytr comment edit PROJ-123 42 --body "Fixed" --json id,body`,
 		Args:     []runner.Arg{runner.IssueKey, runner.NumericID("comment ID")},
 		Flags:    []runner.Flag{bodyFlag("Updated comment text")},
@@ -35,10 +34,6 @@ Provide the updated text via --body or full JSON via --from-json.`,
 			comment, _, err := c.Issues.EditComment(ctx, args[0], args[1], req)
 			return comment, err
 		},
-		Item:  toCommentItem,
-		Quiet: commentID,
-		Confirm: func(args []string, _ *tracker.Comment) string {
-			return fmt.Sprintf("Comment %s updated on %s", args[1], args[0])
-		},
+		Item: toCommentItem,
 	}.Command()
 }

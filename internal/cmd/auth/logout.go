@@ -2,7 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/spf13/cobra"
 
@@ -62,13 +61,7 @@ func runLogout(cmd *cobra.Command, _ []string) error {
 	// Config was just saved successfully, so ConfigFilePath cannot fail.
 	cfgPath, _ := config.ConfigFilePath(cmd.Context())
 
-	if opts.IsJSON() {
-		item := logoutItem{Status: "logged_out", ConfigPath: cfgPath}
-		return runner.PrintJSON(cmd, opts, output.FilterFields(item, opts.JSONFields))
-	}
+	item := logoutItem{Status: "logged_out", ConfigPath: cfgPath}
 
-	return runner.PrintText(cmd, func(w io.Writer) error {
-		_, err := fmt.Fprintf(w, "Logged out. Credentials removed from %s\n", cfgPath)
-		return err
-	})
+	return runner.PrintJSON(cmd, opts, output.FilterFields(item, opts.JSONFields))
 }

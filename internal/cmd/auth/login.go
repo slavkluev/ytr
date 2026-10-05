@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
+	"github.com/mattn/go-isatty"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -315,15 +317,7 @@ func runLogin(cmd *cobra.Command, _ []string) error {
 		ConfigPath: cfgPath,
 	}
 
-	if opts.IsJSON() {
-		return runner.PrintJSON(cmd, opts, output.FilterFields(item, opts.JSONFields))
-	}
-
-	return runner.PrintText(cmd, func(w io.Writer) error {
-		_, err := fmt.Fprintf(w, "Authenticated as %s (org: %s, type: %s)\nConfig saved to %s\n",
-			item.User, item.OrgID, item.OrgType, item.ConfigPath)
-		return err
-	})
+	return runner.PrintJSON(cmd, opts, output.FilterFields(item, opts.JSONFields))
 }
 
 func resolveUserAndOrgType(
@@ -365,7 +359,7 @@ func resolveToken(flagValue string, cmd *cobra.Command) (string, error) {
 }
 
 func readToken(stdin io.Reader, cmd *cobra.Command) (string, error) {
-	if terminal, tty := output.TerminalFile(stdin); tty {
+	if terminal, tty := terminalFile(stdin); tty {
 		prompt := cmd.ErrOrStderr() //nolint:forbidigo // an interactive prompt, kept off stdout
 		_, _ = fmt.Fprint(prompt, "Token: ")
 		//nolint:gosec // fd conversion is safe for terminal operations
@@ -411,7 +405,7 @@ func resolveOrgID(flagValue string, cmd *cobra.Command) (string, error) {
 		return flagValue, nil
 	}
 
-	if terminal, tty := output.TerminalFile(cmd.InOrStdin()); tty {
+	if terminal, tty := terminalFile(cmd.InOrStdin()); tty {
 		prompt := cmd.ErrOrStderr() //nolint:forbidigo // an interactive prompt, kept off stdout
 		_, _ = fmt.Fprint(prompt, "Organization ID: ")
 		scanner := bufio.NewScanner(terminal)
@@ -427,6 +421,20 @@ func resolveOrgID(flagValue string, cmd *cobra.Command) (string, error) {
 		"org-id is required",
 		"Use --org-id flag: ytr auth login --org-id ORG",
 	)
+}
+
+// terminalFile returns stream as a file and whether that file is open on a
+// terminal, where login prompts for what its flags do not give. A stream that
+// is not an *os.File, such as a test's buffer, is never a terminal.
+func terminalFile(stream any) (*os.File, bool) {
+	f, ok := stream.(*os.File)
+	if !ok {
+		return nil, false
+	}
+
+	fd := f.Fd()
+
+	return f, isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
 // An empty value means the type should be auto-detected.

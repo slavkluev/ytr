@@ -5,18 +5,10 @@ import (
 	"io"
 )
 
-const errorPrefixANSI = "\x1b[1;31mError\x1b[0m"
-
-// PrintHuman formats an error for TTY display in gh CLI style.
-// Format: "Error: <message>" on first line, suggestion on next line if present.
-// When useColors is true, the "Error" prefix is rendered in red bold.
-func PrintHuman(w io.Writer, err *ExitError, useColors bool) {
-	prefix := "Error"
-	if useColors {
-		prefix = errorPrefixANSI
-	}
-
-	fmt.Fprintf(w, "%s: %s\n", prefix, err.Message)
+// PrintHuman writes err as plain text in gh CLI style: "Error: <message>" on
+// the first line and the suggestion, if any, on the next.
+func PrintHuman(w io.Writer, err *ExitError) {
+	fmt.Fprintf(w, "Error: %s\n", err.Message)
 
 	if err.Suggestion != "" {
 		fmt.Fprintf(w, "%s\n", err.Suggestion)

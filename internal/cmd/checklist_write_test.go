@@ -15,6 +15,14 @@ func checklistAnswer(method, path, items string) faketracker.Exchange {
 	return trackerWrite(method, path, http.StatusOK, `{"key": "PROJ-1", "checklistItems": [`+items+`]}`)
 }
 
+// The items the create and edit rows' Tracker answers hold, as ytr prints them.
+const (
+	createdChecklistItem = `{"id": "item-new", "text": "Review PR", "checked": false, "assignee": "Иван Петров",
+		"assigneeId": "uid-b"}`
+	editedChecklistItem = `{"id": "item-2", "text": "Updated", "checked": true, "assignee": "Иван Петров",
+		"assigneeId": "uid-b"}`
+)
+
 func TestChecklistCreate(t *testing.T) {
 	t.Parallel()
 
@@ -32,12 +40,12 @@ func TestChecklistCreate(t *testing.T) {
 		{
 			name: "Flag body", args: create("--text", "Review PR", "--assignee", "uid-b"),
 			exchanges: []faketracker.Exchange{created}, body: `{"text": "Review PR", "assignee": "uid-b"}`,
-			stdout: "Checklist item item-new created on PROJ-1\n",
+			json: createdChecklistItem,
 		},
 		{
 			name: "JSON body", args: create("--from-json", `{"text": "Review PR", "assignee": "uid-b"}`),
 			exchanges: []faketracker.Exchange{created}, body: `{"text": "Review PR", "assignee": "uid-b"}`,
-			stdout: "Checklist item item-new created on PROJ-1\n",
+			json: createdChecklistItem,
 		},
 		{
 			name: "JSON body with a key no flag sets",
@@ -46,45 +54,27 @@ func TestChecklistCreate(t *testing.T) {
 			exchanges: []faketracker.Exchange{created},
 			body: `{"text": "Review PR", "deadline": {"date": "2026-04-01T00:00:00.000+0000",
 				"deadlineType": "date"}}`,
-			stdout: "Checklist item item-new created on PROJ-1\n",
+			json: createdChecklistItem,
 		},
 		{
-			name: "JSON", args: create("--text", "Review PR", "--json", "id,text,checked,assignee,assigneeId"),
-			exchanges: []faketracker.Exchange{created},
-			json: `{"id": "item-new", "text": "Review PR", "checked": false, "assignee": "Иван Петров",
-				"assigneeId": "uid-b"}`,
+			name: "JSON", args: create("--text", "Review PR", "--json", "id,text"),
+			exchanges: []faketracker.Exchange{created}, json: `{"id": "item-new", "text": "Review PR"}`,
 		},
 		{
-			name: "Quiet", args: create("--text", "Review PR", "--quiet"), exchanges: []faketracker.Exchange{created},
-			stdout: "item-new\n",
-		},
-		{
-			name: "Newest item with the text", args: create("--text", "Review PR", "--quiet"),
+			name: "Newest item with the text", args: create("--text", "Review PR", "--jq", ".id"),
 			exchanges: []faketracker.Exchange{checklistAnswer(http.MethodPost, path, `
 				{"id": "item-1", "text": "Review PR"}, {"id": "item-2", "text": "Review PR"}, {"id": "item-3", "text": "x"}`)},
 			stdout: "item-2\n",
 		},
 		{
-			name: "Last item when none has the text", args: create("--text", "Unseen", "--quiet"),
+			name: "Last item when none has the text", args: create("--text", "Unseen", "--jq", ".id"),
 			exchanges: []faketracker.Exchange{created}, stdout: "item-other\n",
 		},
 		{
-			name: "The request when Tracker sends no item",
-			args: create(
-				"--text",
-				"Review PR",
-				"--assignee",
-				"uid-b",
-				"--json",
-				"id,text,checked,assignee,assigneeId",
-			),
+			name:      "The request when Tracker sends no item",
+			args:      create("--text", "Review PR", "--assignee", "uid-b"),
 			exchanges: []faketracker.Exchange{checklistAnswer(http.MethodPost, path, ``)},
 			json:      `{"id": "", "text": "Review PR", "checked": false, "assignee": "uid-b", "assigneeId": ""}`,
-		},
-		{
-			name: "Confirm when Tracker sends no item", args: create("--text", "Review PR"),
-			exchanges: []faketracker.Exchange{checklistAnswer(http.MethodPost, path, ``)},
-			stdout:    "Checklist item  created on PROJ-1\n",
 		},
 		{
 			name: "Unknown key", args: create("--from-json", `{"text": "x", "bogus": 1}`, "--json", "id"),
@@ -119,55 +109,41 @@ func TestChecklistEdit(t *testing.T) {
 			exchanges: []faketracker.Exchange{
 				edited,
 			},
-			body:   `{"text": "Updated", "checked": true, "assignee": "uid-b"}`,
-			stdout: "Checklist item item-2 updated on PROJ-1\n",
+			body: `{"text": "Updated", "checked": true, "assignee": "uid-b"}`,
+			json: editedChecklistItem,
 		},
 		{
 			name: "Partial", args: edit("--checked=false"), exchanges: []faketracker.Exchange{edited},
-			body: `{"checked": false}`, stdout: "Checklist item item-2 updated on PROJ-1\n",
+			body: `{"checked": false}`, json: editedChecklistItem,
 		},
 		{
 			name: "Partial text", args: edit("--text", "Updated"), exchanges: []faketracker.Exchange{edited},
-			body: `{"text": "Updated"}`, stdout: "Checklist item item-2 updated on PROJ-1\n",
+			body: `{"text": "Updated"}`, json: editedChecklistItem,
 		},
 		{
 			name:      "JSON body",
 			args:      edit("--from-json", `{"checked": false}`),
 			exchanges: []faketracker.Exchange{edited},
 			body:      `{"checked": false}`,
-			stdout:    "Checklist item item-2 updated on PROJ-1\n",
+			json:      editedChecklistItem,
 		},
 		{
-			name: "JSON", args: edit("--checked", "--json", "id,text,checked,assignee,assigneeId"),
-			exchanges: []faketracker.Exchange{edited},
-			json: `{"id": "item-2", "text": "Updated", "checked": true, "assignee": "Иван Петров",
-				"assigneeId": "uid-b"}`,
+			name: "JSON", args: edit("--checked", "--json", "id,checked"),
+			exchanges: []faketracker.Exchange{edited}, json: `{"id": "item-2", "checked": true}`,
 		},
 		{
-			name: "Quiet", args: edit("--checked", "--quiet"), exchanges: []faketracker.Exchange{edited},
-			stdout: "item-2\n",
-		},
-		{
-			name: "The request when Tracker sends no such item",
-			args: edit(
-				"--text",
-				"Updated",
-				"--checked",
-				"--assignee",
-				"uid-b",
-				"--json",
-				"id,text,checked,assignee,assigneeId",
-			),
+			name:      "The request when Tracker sends no such item",
+			args:      edit("--text", "Updated", "--checked", "--assignee", "uid-b"),
 			exchanges: []faketracker.Exchange{checklistAnswer(http.MethodPatch, path, `{"id": "item-1", "text": "x"}`)},
 			json:      `{"id": "item-2", "text": "Updated", "checked": true, "assignee": "uid-b", "assigneeId": ""}`,
 		},
 		{
-			name: "Confirm when Tracker sends no such item", args: edit("--checked"),
+			name: "The request when Tracker sends no item", args: edit("--checked"),
 			exchanges: []faketracker.Exchange{checklistAnswer(http.MethodPatch, path, ``)},
-			stdout:    "Checklist item item-2 updated on PROJ-1\n",
+			json:      `{"id": "item-2", "text": "", "checked": true, "assigneeId": ""}`,
 		},
 		{
-			name: "Trimmed ID", args: []string{"checklist", "edit", "PROJ-1", " item-2 ", "--checked", "--quiet"},
+			name: "Trimmed ID", args: []string{"checklist", "edit", "PROJ-1", " item-2 ", "--checked", "--jq", ".id"},
 			exchanges: []faketracker.Exchange{edited}, stdout: "item-2\n",
 		},
 		{
@@ -201,10 +177,10 @@ func TestChecklistDelete(t *testing.T) {
 	deleted := checklistAnswer(http.MethodDelete, path, `{"id": "item-2", "text": "Kept"}`)
 	args := []string{"checklist", "delete", "PROJ-1", "item-1"}
 
-	runLeafRows(t, slices.Concat(deleteRows(args, deleted, "item-1", "Checklist item item-1 deleted"), []leafRow{
+	runLeafRows(t, slices.Concat(deleteRows(args, deleted, "item-1"), []leafRow{
 		{
 			name: "Trimmed ID", args: []string{"checklist", "delete", "PROJ-1", " item-1 "},
-			exchanges: []faketracker.Exchange{deleted}, stdout: "Checklist item item-1 deleted\n",
+			exchanges: []faketracker.Exchange{deleted}, json: `{"id": "item-1", "deleted": true}`,
 		},
 		{
 			name: "Empty ID", args: []string{"checklist", "delete", "PROJ-1", " "}, code: ytrerrors.ExitUserError,

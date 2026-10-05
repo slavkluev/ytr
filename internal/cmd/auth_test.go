@@ -67,20 +67,8 @@ func assertNoConfigFile(t *testing.T, res cliResult) {
 	}
 }
 
-// assertStdoutNamesTheConfig wants stdout to be want followed by the path of
-// the run's config.yaml and a newline.
-func assertStdoutNamesTheConfig(want string) func(*testing.T, cliResult) {
-	return func(t *testing.T, res cliResult) {
-		t.Helper()
-
-		if full := want + filepath.Join(res.ConfigDir, "config.yaml") + "\n"; res.Stdout != full {
-			t.Errorf("stdout = %q, want %q", res.Stdout, full)
-		}
-	}
-}
-
-// assertJSONNamesTheConfig wants stdout to be want with the path of the run's
-// config.yaml as its config_path.
+// assertJSONNamesTheConfig wants stdout to be one line of want with the path
+// of the run's config.yaml as its config_path.
 func assertJSONNamesTheConfig(want string) func(*testing.T, cliResult) {
 	return func(t *testing.T, res cliResult) {
 		t.Helper()
@@ -89,6 +77,7 @@ func assertJSONNamesTheConfig(want string) func(*testing.T, cliResult) {
 		if err != nil {
 			t.Fatalf("encoding the config path: %v", err)
 		}
+		assertOneLine(t, res.Stdout)
 		assertSameJSONAs(t, "stdout", res.Stdout, want[:len(want)-1]+`, "config_path": `+string(path)+"}")
 	}
 }
@@ -103,12 +92,12 @@ func TestAuthLogin(t *testing.T) {
 		{
 			name: "Flags", args: login(slices.Concat(flags, []string{"--org-type", "360"})...), signedOut: true,
 			exchanges: []faketracker.Exchange{myselfAnswer("Test User")},
-			holds:     []string{"Authenticated as Test User (org: test-org, type: 360)\nConfig saved to "},
+			holds:     []string{`"user":"Test User"`},
 			check: func(t *testing.T, res cliResult) {
 				t.Helper()
 				assertConfigFile("token: test-token\norg_id: test-org\norg_type: \"360\"\n")(t, res)
-				assertStdoutNamesTheConfig("Authenticated as Test User (org: test-org, type: 360)\nConfig saved to ")(
-					t, res)
+				assertJSONNamesTheConfig(
+					`{"status": "authenticated", "user": "Test User", "org_id": "test-org", "org_type": "360"}`)(t, res)
 			},
 		},
 		{
@@ -149,17 +138,19 @@ func TestAuthLogin(t *testing.T) {
 			exchanges: []faketracker.Exchange{
 				myselfError(http.StatusForbidden, "No access to organization"), myselfAnswer("Piped User"),
 			},
-			holds: []string{"Authenticated as Piped User (org: O, type: cloud)\n"},
+			holds: []string{`"user":"Piped User"`},
 			check: func(t *testing.T, res cliResult) {
 				t.Helper()
 				assertSignIns("tok", "O")(t, res)
 				assertConfigFile("token: tok\norg_id: O\norg_type: cloud\n")(t, res)
+				assertJSONNamesTheConfig(
+					`{"status": "authenticated", "user": "Piped User", "org_id": "O", "org_type": "cloud"}`)(t, res)
 			},
 		},
 		{
 			name: "Detection tries 360 first", args: login(flags...), signedOut: true,
 			exchanges: []faketracker.Exchange{myselfAnswer("360 User")},
-			holds:     []string{"Authenticated as 360 User (org: test-org, type: 360)\n"},
+			holds:     []string{`"org_type":"360"`},
 			check: func(t *testing.T, res cliResult) {
 				t.Helper()
 				assertSignIns("test-token", "test-org")(t, res)
@@ -240,30 +231,23 @@ func TestAuthStatus(t *testing.T) {
 
 	const cloudConfig = "token: valid-token\norg_id: org-123\norg_type: cloud\n"
 	status := []string{"auth", "status"}
-	jq := []string{"auth", "status", "--jq", "."}
 
 	runLeafRows(t, []leafRow{
 		{
 			name: "From the config", args: status, signedOut: true, config: cloudConfig,
 			exchanges: []faketracker.Exchange{myselfAnswer("Status User")},
-			stdout: "Authenticated as Status User\n  Token source: config\n  Organization: org-123\n" +
-				"  Organization type: cloud\n",
-		},
-		{
-			name: "JSON from the config", args: jq, signedOut: true, config: cloudConfig,
-			exchanges: []faketracker.Exchange{myselfAnswer("JQ Status User")},
-			json: `{"status": "authenticated", "user": "JQ Status User", "org_id": "org-123", "org_type": "cloud",
+			json: `{"status": "authenticated", "user": "Status User", "org_id": "org-123", "org_type": "cloud",
 				"token_source": "config"}`,
 		},
 		{
-			name: "From the environment", args: jq, signedOut: true,
+			name: "From the environment", args: status, signedOut: true,
 			env:       map[string]string{"YTR_TOKEN": "env-token", "YTR_ORG_ID": "env-org", "YTR_ORG_TYPE": "360"},
 			exchanges: []faketracker.Exchange{myselfAnswer("Env User")},
 			json: `{"status": "authenticated", "user": "Env User", "org_id": "env-org", "org_type": "360",
 				"token_source": "env"}`,
 		},
 		{
-			name: "From the flags", args: []string{"auth", "status", "--jq", "."},
+			name: "From the flags", args: status,
 			exchanges: []faketracker.Exchange{myselfAnswer("Flag User")},
 			json: `{"status": "authenticated", "user": "Flag User", "org_id": "test-org", "org_type": "360",
 				"token_source": "flag"}`,
@@ -307,13 +291,17 @@ func TestAuthLogout(t *testing.T) {
 			check: func(t *testing.T, res cliResult) {
 				t.Helper()
 				assertConfigFile("{}\n")(t, res)
-				assertStdoutNamesTheConfig("Logged out. Credentials removed from ")(t, res)
+				assertJSONNamesTheConfig(`{"status": "logged_out"}`)(t, res)
 			},
-			holds: []string{"Logged out. Credentials removed from "},
+			holds: []string{`"status":"logged_out"`},
 		},
 		{
-			name: "No config yet", args: logout, holds: []string{"Logged out. Credentials removed from "},
-			check: assertConfigFile("{}\n"),
+			name: "No config yet", args: logout, holds: []string{`"status":"logged_out"`},
+			check: func(t *testing.T, res cliResult) {
+				t.Helper()
+				assertConfigFile("{}\n")(t, res)
+				assertJSONNamesTheConfig(`{"status": "logged_out"}`)(t, res)
+			},
 		},
 		{
 			name: "JSON", args: []string{"auth", "logout", "--json", "status"}, config: signedIn,

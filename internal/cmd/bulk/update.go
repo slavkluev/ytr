@@ -33,7 +33,7 @@ JSON FIELDS
   ytr bulk update PROJ-1 PROJ-2 --field priority=critical --field assignee=user123
 
   # Update via stdin pipe
-  ytr issue list --quiet | ytr bulk update --field status=done
+  ytr issue list --jq '.items[].key' | ytr bulk update --field status=done
 
   # Update via JSON
   ytr bulk update --from-json '{"issues":["PROJ-1"],"values":{"priority":"critical"}}'`,

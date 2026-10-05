@@ -8,7 +8,6 @@ import (
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 const (
@@ -18,9 +17,6 @@ const (
 	bulkCompletedJSON = `{"id": "op-1", "status": "COMPLETED", "statusText": "Operation COMPLETED", "totalIssues": 2,
 		"totalCompletedIssues": 2, "executionIssuePercent": 100, "executionChunkPercent": 100,
 		"createdBy": "Иван Петров", "createdById": "uid-a", "createdAt": "2026-03-30T12:00:00Z", "suggestion": ""}`
-	bulkFields = "id,status,statusText,totalIssues,totalCompletedIssues,executionIssuePercent," +
-		"executionChunkPercent,createdBy,createdById,createdAt,suggestion"
-	bulkTable = "ID\tSTATUS\tTOTAL\tDONE\tPERCENT\tSUGGESTION\nop-1\tCOMPLETED\t2\t2\t100%\t-\n"
 )
 
 // bulkStarted answers the bulk change op starts, such as _move, with a
@@ -69,20 +65,23 @@ func TestBulkMove(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "Keys as args win over stdin", args: move("PROJ-1", "PROJ-2", "--queue", "TARGET"),
-			stdin: "STDIN-1\n", exchanges: done, stdout: bulkTable,
+			stdin: "STDIN-1\n", exchanges: done, json: bulkCompletedJSON,
 			check: assertFirstBody(`{"queue": "TARGET", "issues": ["PROJ-1", "PROJ-2"]}`),
 		},
 		{
 			name:      "Fields",
-			args:      move("PROJ-1", "--queue", "TARGET", "--field", "priority=critical", "--json", bulkFields),
+			args:      move("PROJ-1", "--queue", "TARGET", "--field", "priority=critical"),
 			exchanges: done,
 			json:      bulkCompletedJSON,
 			check:     assertFirstBody(`{"queue": "TARGET", "issues": ["PROJ-1"], "values": {"priority": "critical"}}`),
 		},
 		{
-			name: "Keys on stdin", args: move("--queue", "TARGET", "--quiet"), stdin: "PROJ-1\n\nPROJ-2\n  \nPROJ-1\n",
-			exchanges: done, stdout: "op-1\n",
-			check: assertFirstBody(`{"queue": "TARGET", "issues": ["PROJ-1", "PROJ-2"]}`),
+			name:      "Keys on stdin",
+			args:      move("--queue", "TARGET", "--jq", ".id"),
+			stdin:     "PROJ-1\n\nPROJ-2\n  \nPROJ-1\n",
+			exchanges: done,
+			stdout:    "op-1\n",
+			check:     assertFirstBody(`{"queue": "TARGET", "issues": ["PROJ-1", "PROJ-2"]}`),
 		},
 		{
 			name: "JSON body",
@@ -92,24 +91,24 @@ func TestBulkMove(t *testing.T) {
 			check: assertFirstBody(`{"queue": "TARGET", "issues": ["PROJ-1"], "moveAllFields": true}`),
 		},
 		{
-			name: "JSON body on stdin", args: move("--from-json", "-", "--quiet"),
+			name: "JSON body on stdin", args: move("--from-json", "-", "--jq", ".id"),
 			stdin: `{"queue": "TARGET", "issues": ["PROJ-1"]}`, exchanges: done, stdout: "op-1\n",
 			check: assertFirstBody(`{"queue": "TARGET", "issues": ["PROJ-1"]}`),
 		},
 		{
 			name:      "Keys as args are sent once",
-			args:      move("PROJ-1", "PROJ-2", "PROJ-1", "--queue", "TARGET", "--quiet"),
+			args:      move("PROJ-1", "PROJ-2", "PROJ-1", "--queue", "TARGET", "--jq", ".id"),
 			exchanges: done,
 			stdout:    "op-1\n",
 			check:     assertFirstBody(`{"queue": "TARGET", "issues": ["PROJ-1", "PROJ-2"]}`),
 		},
 		{
-			name: "Empty queue", args: move("PROJ-1", "--queue", "", "--quiet"), exchanges: done, stdout: "op-1\n",
+			name: "Empty queue", args: move("PROJ-1", "--queue", "", "--jq", ".id"), exchanges: done, stdout: "op-1\n",
 			check: assertFirstBody(`{"queue": "", "issues": ["PROJ-1"]}`),
 		},
 		{
 			name:      "JSON keys in another case",
-			args:      move("--from-json", `{"Queue": "T", "Issues": ["PROJ-1"]}`, "--quiet"),
+			args:      move("--from-json", `{"Queue": "T", "Issues": ["PROJ-1"]}`, "--jq", ".id"),
 			exchanges: done,
 			stdout:    "op-1\n",
 			check:     assertFirstBody(`{"queue": "T", "issues": ["PROJ-1"]}`),
@@ -130,14 +129,14 @@ func TestBulkMove(t *testing.T) {
 		},
 		{
 			name:      "Keys on stdin beside JSON",
-			args:      move("--from-json", `{"queue": "T", "issues": ["PROJ-2"]}`, "--quiet"),
+			args:      move("--from-json", `{"queue": "T", "issues": ["PROJ-2"]}`, "--jq", ".id"),
 			stdin:     "PROJ-1\n",
 			exchanges: done,
 			stdout:    "op-1\n",
 			check:     assertFirstBody(`{"queue": "T", "issues": ["PROJ-2"]}`),
 		},
 		{
-			name: "Failed", args: move("PROJ-1", "PROJ-2", "PROJ-3", "--queue", "TARGET", "--quiet"),
+			name: "Failed", args: move("PROJ-1", "PROJ-2", "PROJ-3", "--queue", "TARGET"),
 			exchanges: []faketracker.Exchange{started, bulkFailed("3", "1")}, code: ytrerrors.ExitUserError,
 			stderr: []string{
 				"Error: bulk operation op-1 failed: Operation FAILED (1 of 3 issues completed)\nytr bulk status op-1\n",
@@ -174,25 +173,19 @@ func TestBulkMove(t *testing.T) {
 		},
 		{
 			name: "Wait ends before the change does", args: move("PROJ-1", "--queue", "TARGET", "--timeout", "1ms"),
-			exchanges: []faketracker.Exchange{started},
-			stdout:    "ID\tSTATUS\tTOTAL\tDONE\tPERCENT\tSUGGESTION\nop-1\tCREATED\t-\t-\t-\tytr bulk status op-1\n",
+			exchanges: []faketracker.Exchange{started}, json: bulkStillRunning,
 		},
 		{
 			name: "Wait ends before the change does, JSON", args: move("PROJ-1", "--queue", "TARGET", "--timeout", "0",
-				"--json", bulkFields),
-			exchanges: []faketracker.Exchange{started}, json: bulkStillRunning,
+				"--json", "id,suggestion"),
+			exchanges: []faketracker.Exchange{started},
+			json:      `{"id": "op-1", "suggestion": "ytr bulk status op-1"}`,
 		},
 		{
 			name:      "Wait ends before the change does, jq",
 			args:      move("PROJ-1", "--queue", "TARGET", "--timeout", "1ms", "--jq", ".suggestion"),
 			exchanges: []faketracker.Exchange{started},
 			stdout:    "ytr bulk status op-1\n",
-		},
-		{
-			name:      "Wait ends before the change does, quiet",
-			args:      move("PROJ-1", "--queue", "TARGET", "--timeout", "1ms", "--quiet"),
-			exchanges: []faketracker.Exchange{started},
-			stdout:    "op-1\n",
 		},
 		{
 			name: "Default wait is one minute", args: move("--help"),
@@ -234,11 +227,11 @@ func TestBulkUpdate(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "Fields", args: update("PROJ-1", "--field", "priority=critical", "--field", "assignee=user1"),
-			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}, stdout: bulkTable,
+			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}, json: bulkCompletedJSON,
 			check: assertFirstBody(`{"issues": ["PROJ-1"], "values": {"priority": "critical", "assignee": "user1"}}`),
 		},
 		{
-			name: "Polls until done", args: update("PROJ-1", "--field", "a=b", "--json", bulkFields),
+			name: "Polls until done", args: update("PROJ-1", "--field", "a=b"),
 			exchanges: []faketracker.Exchange{
 				started,
 				bulkStatusAnswer(`{"id": "op-1", "status": "RUNNING", "totalIssues": 2, "totalCompletedIssues": 1}`),
@@ -261,23 +254,23 @@ func TestBulkUpdate(t *testing.T) {
 			json: stillRunningAfterPoll,
 		},
 		{
-			name: "JSON body on stdin", args: update("--from-json", "-", "--quiet"),
+			name: "JSON body on stdin", args: update("--from-json", "-", "--jq", ".id"),
 			stdin:     `{"issues": ["PROJ-1"], "values": {"priority": "critical"}}`,
 			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}, stdout: "op-1\n",
 			check: assertFirstBody(`{"issues": ["PROJ-1"], "values": {"priority": "critical"}}`),
 		},
 		{
-			name: "Keys on stdin", args: update("--field", "a=b", "--quiet"), stdin: "PROJ-1\nPROJ-2\n",
+			name: "Keys on stdin", args: update("--field", "a=b", "--jq", ".id"), stdin: "PROJ-1\nPROJ-2\n",
 			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}, stdout: "op-1\n",
 			check: assertFirstBody(`{"issues": ["PROJ-1", "PROJ-2"], "values": {"a": "b"}}`),
 		},
 		{
-			name: "Issue ID", args: update("4ff3e8dae4b0e2ac00000001", "--field", "a=b", "--quiet"),
+			name: "Issue ID", args: update("4ff3e8dae4b0e2ac00000001", "--field", "a=b", "--jq", ".id"),
 			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}, stdout: "op-1\n",
 			check: assertFirstBody(`{"issues": ["4ff3e8dae4b0e2ac00000001"], "values": {"a": "b"}}`),
 		},
 		{
-			name: "Empty field value", args: update("PROJ-1", "--field", "a=", "--quiet"),
+			name: "Empty field value", args: update("PROJ-1", "--field", "a=", "--jq", ".id"),
 			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)}, stdout: "op-1\n",
 			check: assertFirstBody(`{"issues": ["PROJ-1"], "values": {"a": ""}}`),
 		},
@@ -309,7 +302,7 @@ func TestBulkUpdate(t *testing.T) {
 			args: update(
 				"--from-json",
 				`{"issues": ["4ff3e8dae4b0e2ac00000001"], "values": {"a": "b"}}`,
-				"--quiet",
+				"--jq", ".id",
 			),
 			exchanges: []faketracker.Exchange{started, bulkStatusAnswer(bulkCompleted)},
 			stdout:    "op-1\n",
@@ -340,30 +333,29 @@ func TestBulkTransition(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "Flags", args: transition("PROJ-1", "PROJ-2", "--transition", "close", "--field", "resolution=fixed"),
-			exchanges: done, stdout: bulkTable,
+			exchanges: done, json: bulkCompletedJSON,
 			check: assertFirstBody(
 				`{"transition": "close", "issues": ["PROJ-1", "PROJ-2"], "values": {"resolution": "fixed"}}`),
 		},
 		{
-			name: "JSON body", args: transition("--from-json", `{"transition": "close", "issues": ["PROJ-1"]}`,
-				"--json", bulkFields),
+			name: "JSON body", args: transition("--from-json", `{"transition": "close", "issues": ["PROJ-1"]}`),
 			exchanges: done, json: bulkCompletedJSON,
 			check: assertFirstBody(`{"transition": "close", "issues": ["PROJ-1"]}`),
 		},
 		{
-			name: "Keys on stdin", args: transition("--transition", "close", "--quiet"), stdin: "PROJ-1\nPROJ-2\n",
+			name: "Keys on stdin", args: transition("--transition", "close", "--jq", ".id"), stdin: "PROJ-1\nPROJ-2\n",
 			exchanges: done, stdout: "op-1\n",
 			check: assertFirstBody(`{"transition": "close", "issues": ["PROJ-1", "PROJ-2"]}`),
 		},
 		{
 			name:      "Field value holding =",
-			args:      transition("PROJ-1", "--transition", "close", "--field", "k=a=b", "--quiet"),
+			args:      transition("PROJ-1", "--transition", "close", "--field", "k=a=b", "--jq", ".id"),
 			exchanges: done,
 			stdout:    "op-1\n",
 			check:     assertFirstBody(`{"transition": "close", "issues": ["PROJ-1"], "values": {"k": "a=b"}}`),
 		},
 		{
-			name: "JSON body on stdin", args: transition("--from-json", "-", "--quiet"),
+			name: "JSON body on stdin", args: transition("--from-json", "-", "--jq", ".id"),
 			stdin: `{"transition": "close", "issues": ["PROJ-1"]}`, exchanges: done, stdout: "op-1\n",
 			check: assertFirstBody(`{"transition": "close", "issues": ["PROJ-1"]}`),
 		},
@@ -394,7 +386,7 @@ func TestBulkTransition(t *testing.T) {
 			args: transition(
 				"--from-json",
 				`{"transition": "close", "issues": ["PROJ-2", "PROJ-1", "PROJ-2"]}`,
-				"--quiet",
+				"--jq", ".id",
 			),
 			exchanges: done,
 			stdout:    "op-1\n",
@@ -422,26 +414,13 @@ func TestBulkStatus(t *testing.T) {
 	status := func(extra ...string) []string { return slices.Concat([]string{"bulk", "status", "op-1"}, extra) }
 
 	runLeafRows(t, []leafRow{
-		{name: "Table", args: status(), exchanges: []faketracker.Exchange{completed}, stdout: bulkTable},
+		{name: "Every field", args: status(), exchanges: []faketracker.Exchange{completed}, json: bulkCompletedJSON},
 		{
-			name: "TTY", args: status(), term: output.Options{TTY: true, Colors: true},
-			exchanges: []faketracker.Exchange{completed},
-			holds:     []string{"ID    STATUS     TOTAL  DONE  PERCENT", "op-1  COMPLETED  2      2     100%"},
-			check:     assertAlignedTable,
-		},
-		{
-			name: "JSON", args: status("--json", bulkFields), exchanges: []faketracker.Exchange{completed},
-			json: bulkCompletedJSON,
-		},
-		{
-			name: "JSON of a bare change", args: status("--jq", "."),
+			name: "A bare change", args: status(),
 			exchanges: []faketracker.Exchange{bulkStatusAnswer(`{"id": "op-1"}`)},
 			json: `{"id": "op-1", "status": "", "statusText": "", "totalIssues": 0, "totalCompletedIssues": 0,
 				"executionIssuePercent": 0, "executionChunkPercent": 0, "createdBy": "", "createdById": "",
 				"createdAt": "", "suggestion": "ytr bulk status op-1"}`,
-		},
-		{
-			name: "Quiet", args: status("--quiet"), exchanges: []faketracker.Exchange{completed}, stdout: "op-1\n",
 		},
 		{
 			name:      "A failed change is an answer",
@@ -455,7 +434,7 @@ func TestBulkStatus(t *testing.T) {
 			stdout:    "ytr bulk status op-1\n",
 		},
 		{
-			name: "Padded ID", args: []string{"bulk", "status", " op-1 ", "--quiet"},
+			name: "Padded ID", args: []string{"bulk", "status", " op-1 ", "--jq", ".id"},
 			exchanges: []faketracker.Exchange{completed}, stdout: "op-1\n",
 		},
 		{

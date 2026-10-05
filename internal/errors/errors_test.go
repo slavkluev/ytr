@@ -187,7 +187,7 @@ func TestErrorsAs(t *testing.T) {
 	}
 }
 
-func TestPrintHuman_NoColors(t *testing.T) {
+func TestPrintHuman(t *testing.T) {
 	var buf bytes.Buffer
 	err := &ytrerrors.ExitError{
 		ExitCode:   3,
@@ -196,41 +196,11 @@ func TestPrintHuman_NoColors(t *testing.T) {
 		Suggestion: "Run: ytr auth login",
 	}
 
-	ytrerrors.PrintHuman(&buf, err, false)
+	ytrerrors.PrintHuman(&buf, err)
 
 	want := "Error: not authenticated\nRun: ytr auth login\n"
 	if got := buf.String(); got != want {
 		t.Errorf("PrintHuman() = %q, want %q", got, want)
-	}
-}
-
-func TestPrintHuman_WithColors(t *testing.T) {
-	var bufColor bytes.Buffer
-	var bufPlain bytes.Buffer
-	err := &ytrerrors.ExitError{
-		ExitCode: 1,
-		Code:     "user_error",
-		Message:  "bad input",
-	}
-
-	ytrerrors.PrintHuman(&bufColor, err, true)
-	ytrerrors.PrintHuman(&bufPlain, err, false)
-
-	colorOut := bufColor.String()
-	plainOut := bufPlain.String()
-
-	if len(colorOut) == 0 {
-		t.Fatal("PrintHuman with colors produced empty output")
-	}
-
-	// Colored output should differ from plain output (contains ANSI codes)
-	if colorOut == plainOut {
-		t.Errorf("PrintHuman with colors should produce different output than without colors")
-	}
-
-	// Colored output should still contain the message
-	if !bytes.Contains(bufColor.Bytes(), []byte("bad input")) {
-		t.Error("PrintHuman with colors should contain the error message")
 	}
 }
 
@@ -242,7 +212,7 @@ func TestPrintHuman_NoSuggestion(t *testing.T) {
 		Message:  "bad input",
 	}
 
-	ytrerrors.PrintHuman(&buf, err, false)
+	ytrerrors.PrintHuman(&buf, err)
 
 	want := "Error: bad input\n"
 	if got := buf.String(); got != want {

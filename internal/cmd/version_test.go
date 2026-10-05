@@ -17,16 +17,8 @@ func TestVersion(t *testing.T) {
 	}
 
 	runLeafRows(t, []leafRow{
-		{
-			name: "Text", args: []string{"version"},
-			stdout: "ytr version " + info.Version + "\ncommit: " + info.Commit + "\ndate: " + info.Date +
-				"\ngo: " + info.GoVersion + "\nos/arch: " + info.OS + "/" + info.Arch + "\n",
-		},
-		{name: "Quiet", args: []string{"version", "--quiet"}, stdout: info.Version + "\n"},
-		{
-			name: "JSON of every field", args: []string{"version", "--json", "version,commit,date,goVersion,os,arch"},
-			json: string(doc),
-		},
+		{name: "Every field", args: []string{"version"}, json: string(doc)},
+		{name: "JSON", args: []string{"version", "--json", "version"}, json: `{"version": "` + info.Version + `"}`},
 		{name: "jq of the whole document", args: []string{"version", "--jq", "."}, json: string(doc)},
 	})
 }

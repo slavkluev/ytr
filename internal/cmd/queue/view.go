@@ -8,7 +8,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 // Uses value types with json tags to avoid null fields from pointer types.
@@ -32,16 +31,14 @@ func newViewCmd() *cobra.Command {
 		Example: `  # View queue details
   ytr queue view PROJ
 
-  # Get queue config as JSON
+  # Only the key, name, lead and default type
   ytr queue view PROJ --json key,name,lead,defaultType`,
 		Args: []runner.Arg{runner.StringID("queue key")},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) (*tracker.Queue, error) {
 			q, _, err := c.Queues.Get(ctx, args[0], nil)
 			return q, err
 		},
-		Item:   toQueueDetail,
-		Detail: queueCard,
-		Quiet:  func(q *tracker.Queue) string { return api.DerefString(q.Key, "") },
+		Item: toQueueDetail,
 	}.Command()
 }
 
@@ -56,18 +53,6 @@ func toQueueDetail(q *tracker.Queue) queueDetail {
 		DefaultPriority: derefPriority(q.DefaultPriority),
 		AssignAuto:      api.DerefBool(q.AssignAuto, false),
 		AllowExternals:  api.DerefBool(q.AllowExternals, false),
-	}
-}
-
-func queueCard(d *output.DetailPrinter, _ *output.Options, q *tracker.Queue) {
-	d.Field("Key", api.DerefString(q.Key, "-"))
-	d.Field("Name", api.DerefString(q.Name, "-"))
-	d.Field("Lead", q.Lead.DisplayOr("-"))
-	d.Field("Default Type", orDash(derefIssueType(q.DefaultType)))
-	d.Field("Default Priority", orDash(derefPriority(q.DefaultPriority)))
-
-	if q.Description != nil && *q.Description != "" {
-		d.Block("Description", *q.Description)
 	}
 }
 
@@ -97,12 +82,4 @@ func firstSet(values ...*string) string {
 	}
 
 	return ""
-}
-
-func orDash(value string) string {
-	if value == "" {
-		return "-"
-	}
-
-	return value
 }

@@ -1,15 +1,12 @@
 package issue
 
 import (
-	"cmp"
 	"context"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
-	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
@@ -48,9 +45,7 @@ func newCreateCmd() *cobra.Command {
 			issue, _, err := c.Issues.Create(ctx, req)
 			return issue, err
 		},
-		Item:   toIssueDetail,
-		Quiet:  issueKey,
-		Detail: writtenIssueCard,
+		Item: toIssueDetail,
 	}.Command()
 }
 
@@ -60,12 +55,4 @@ func textFlag(name, usage string) runner.Flag {
 	return runner.Text(name, usage).Check(func(value string) error {
 		return validate.ValidateNoControlChars(name, value)
 	})
-}
-
-// writtenIssueCard is the short card of the issue Tracker answers a create or
-// an update with.
-func writtenIssueCard(d *output.DetailPrinter, _ *output.Options, issue *tracker.Issue) {
-	d.Field("Key", api.DerefString(issue.Key, "-"))
-	d.Field("Summary", api.DerefString(issue.Summary, "-"))
-	d.Field("Status", cmp.Or(issueStatusDisplay(issue), "-"))
 }

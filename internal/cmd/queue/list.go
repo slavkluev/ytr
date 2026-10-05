@@ -9,7 +9,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 // Raw tracker.Queue fields are pointer types that produce nulls in JSON;
@@ -29,12 +28,11 @@ func newListCmd() *cobra.Command {
 		Example: `  # List all queues
   ytr queue list
 
-  # List queues as JSON
+  # Only keys and names
   ytr queue list --json key,name
 
   # Get all queue keys
   ytr queue list --all --json key --jq '.items[].key'`,
-		Empty: "No queues found",
 		Page: func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) (
 			[]*tracker.Queue, *tracker.Response, error,
 		) {
@@ -43,15 +41,8 @@ func newListCmd() *cobra.Command {
 		All: func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) iter.Seq2[*tracker.Queue, error] {
 			return c.Queues.ListIter(ctx, &tracker.QueueListOptions{ListOptions: o})
 		},
-		Item:   toQueueItem,
-		Header: []string{"KEY", "NAME", "LEAD"},
-		Row:    queueRow,
-		Quiet:  func(q *tracker.Queue) string { return api.DerefString(q.Key, "") },
+		Item: toQueueItem,
 	}.Command()
-}
-
-func queueRow(_ *output.Options, q *tracker.Queue) []string {
-	return []string{api.DerefString(q.Key, "-"), api.DerefString(q.Name, "-"), q.Lead.DisplayOr("-")}
 }
 
 func toQueueItem(q *tracker.Queue) queueItem {

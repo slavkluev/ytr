@@ -1,8 +1,7 @@
 // Package runner builds a command from its declaration and applies the policy
 // every such command shares: positional arguments, the request flags and
 // --from-json of a write, the paging flags of a paged list, auth, the --json
-// field prelude, the JSON, jq, quiet and table, card or confirm-line output,
-// and the mapping of Tracker errors.
+// field prelude, the JSON or jq output, and the mapping of Tracker errors.
 package runner
 
 import (
@@ -31,23 +30,17 @@ import (
 // completion finds the fields on the command itself.
 const fieldsAnnotation = "ytr:json-fields"
 
-// List declares a command that fetches a list of T from Tracker and prints it.
-// Item is the flat struct an element becomes under --json; its json tags are
-// the fields the command accepts, in order.
+// List declares a command that fetches a list of T from Tracker and prints it
+// as a JSON array. Item is the flat struct an element becomes; its json tags
+// are the fields the command accepts, in order.
 type List[T, Item any] struct {
 	// Long is the description; Command adds the JSON FIELDS section after it.
 	Use, Short, Long, Example string
 
 	Args []Arg
 
-	// Empty is printed in place of a table with no rows.
-	Empty string
-
-	Call   func(ctx context.Context, c *tracker.Client, args []string) ([]T, error)
-	Item   func(T) Item
-	Header []string
-	Row    func(*output.Options, T) []string
-	Quiet  func(T) string
+	Call func(ctx context.Context, c *tracker.Client, args []string) ([]T, error)
+	Item func(T) Item
 }
 
 // Command returns the cobra command l declares.
@@ -61,51 +54,24 @@ func (l List[T, Item]) Command() *cobra.Command {
 }
 
 func (l List[T, Item]) render(w io.Writer, opts *output.Options, _ []string, values []T) error {
-	if opts.IsJSON() {
-		return printJSON(w, opts, cut(opts, l.items(values)))
-	}
-
-	// Before the empty check, so --quiet on an empty list prints nothing.
-	if opts.Quiet {
-		keys := make([]string, len(values))
-		for i, v := range values {
-			keys[i] = l.Quiet(v)
-		}
-		output.PrintQuiet(w, keys...)
-		return nil
-	}
-
-	if len(values) == 0 {
-		_, err := fmt.Fprintln(w, l.Empty)
-		return err
-	}
-
-	tbl := opts.NewTable(w)
-	tbl.AddHeader(cells(l.Header)...)
-	for _, v := range values {
-		tbl.AddRow(cells(l.Row(opts, v))...)
-	}
-	tbl.Render()
-
-	return nil
+	return printJSON(w, opts, cut(opts, items(l.Item, values)))
 }
 
-func (l List[T, Item]) items(values []T) []Item {
-	items := make([]Item, len(values))
+func items[T, Item any](item func(T) Item, values []T) []Item {
+	converted := make([]Item, len(values))
 	for i, v := range values {
-		items[i] = l.Item(v)
+		converted[i] = item(v)
 	}
 
-	return items
+	return converted
 }
 
 const defaultPageLimit = 50
 
 // Pages declares a command that prints one page of a page-numbered Tracker
-// list, chosen with --limit and --cursor, or every page with --all. Under
-// --json the items come in the {items, pagination} envelope. Item is the flat
-// struct an element becomes under --json; its json tags are the fields the
-// command accepts, in order.
+// list, chosen with --limit and --cursor, or every page with --all, in the
+// {items, pagination} envelope. Item is the flat struct an element becomes; its
+// json tags are the fields the command accepts, in order.
 type Pages[T, Item any] struct {
 	// Long is the description; Command adds the JSON FIELDS section after it.
 	Use, Short, Long, Example string
@@ -115,19 +81,13 @@ type Pages[T, Item any] struct {
 	// parses for Page and All, which run only after it succeeds.
 	Check func(*pflag.FlagSet) error
 
-	// Empty is printed in place of a table with no rows.
-	Empty string
-
 	// Page fetches the page o names, and its Response gives the total. All is
 	// the library's iterator from the page o names on; it drops each Response,
 	// so --all can only count the items it yields.
 	Page func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) ([]T, *tracker.Response, error)
 	All  func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) iter.Seq2[T, error]
 
-	Item   func(T) Item
-	Header []string
-	Row    func(*output.Options, T) []string
-	Quiet  func(T) string
+	Item func(T) Item
 }
 
 // listPage is what a run of a Pages command fetched: the items and the
@@ -212,13 +172,8 @@ func (p Pages[T, Item]) fetchAll(ctx context.Context, c *tracker.Client, o track
 	return listPage[T]{values: values, meta: output.PaginationMeta{Total: len(values)}}, nil
 }
 
-func (p Pages[T, Item]) render(w io.Writer, opts *output.Options, args []string, page listPage[T]) error {
-	list := List[T, Item]{Empty: p.Empty, Item: p.Item, Header: p.Header, Row: p.Row, Quiet: p.Quiet}
-	if !opts.IsJSON() {
-		return list.render(w, opts, args, page.values)
-	}
-
-	return printPage(w, opts, list.items(page.values), page.meta)
+func (p Pages[T, Item]) render(w io.Writer, opts *output.Options, _ []string, page listPage[T]) error {
+	return printPage(w, opts, items(p.Item, page.values), page.meta)
 }
 
 // PrintPage prints the JSON of a page to cmd's output: items in the
@@ -242,18 +197,16 @@ func cut[Item any](opts *output.Options, items []Item) []map[string]any {
 }
 
 // Get declares a command that fetches one T from Tracker and prints it as a
-// card of labeled rows. Item is the flat struct T becomes under --json; its
-// json tags are the fields the command accepts, in order.
+// JSON object. Item is the flat struct T becomes; its json tags are the fields
+// the command accepts, in order.
 type Get[T, Item any] struct {
 	// Long is the description; Command adds the JSON FIELDS section after it.
 	Use, Short, Long, Example string
 
 	Args []Arg
 
-	Call   func(ctx context.Context, c *tracker.Client, args []string) (T, error)
-	Item   func(T) Item
-	Detail func(*output.DetailPrinter, *output.Options, T)
-	Quiet  func(T) string
+	Call func(ctx context.Context, c *tracker.Client, args []string) (T, error)
+	Item func(T) Item
 }
 
 // Command returns the cobra command g declares.
@@ -267,26 +220,13 @@ func (g Get[T, Item]) Command() *cobra.Command {
 }
 
 func (g Get[T, Item]) render(w io.Writer, opts *output.Options, _ []string, value T) error {
-	if opts.IsJSON() {
-		return printJSON(w, opts, output.FilterFields(g.Item(value), opts.JSONFields))
-	}
-
-	if opts.Quiet {
-		output.PrintQuiet(w, g.Quiet(value))
-		return nil
-	}
-
-	card := opts.NewDetail(w)
-	g.Detail(card, opts, value)
-
-	return card.Err()
+	return printJSON(w, opts, output.FilterFields(g.Item(value), opts.JSONFields))
 }
 
 // Write declares a command that sends Tracker a Req, built from its request
-// flags or given whole by --from-json, and prints the T Tracker answers with:
-// as a card of labeled rows when Detail is set, otherwise in the Confirm line.
-// Item is the flat struct T becomes under --json; its json tags are the fields
-// the command accepts, in order.
+// flags or given whole by --from-json, and prints the T Tracker answers with as
+// a JSON object. Item is the flat struct T becomes; its json tags are the
+// fields the command accepts, in order.
 type Write[Req, T, Item any] struct {
 	// Long is the description; Command adds the JSON FIELDS section after it.
 	Use, Short, Long, Example string
@@ -305,11 +245,8 @@ type Write[Req, T, Item any] struct {
 	Required []string
 	Update   bool
 
-	Call    func(ctx context.Context, c *tracker.Client, args []string, req *Req) (T, error)
-	Item    func(T) Item
-	Quiet   func(T) string
-	Detail  func(*output.DetailPrinter, *output.Options, T)
-	Confirm func(args []string, value T) string
+	Call func(ctx context.Context, c *tracker.Client, args []string, req *Req) (T, error)
+	Item func(T) Item
 }
 
 // Command returns the cobra command w declares.
@@ -335,7 +272,7 @@ func (w Write[Req, T, Item]) Command() *cobra.Command {
 				call: func(ctx context.Context, c *tracker.Client, args []string) (T, error) {
 					return w.Call(ctx, c, args, &req)
 				},
-				render: w.render,
+				render: Get[T, Item]{Item: w.Item}.render,
 			})
 		})
 
@@ -349,35 +286,15 @@ func (w Write[Req, T, Item]) Command() *cobra.Command {
 	return cmd
 }
 
-func (w Write[Req, T, Item]) render(out io.Writer, opts *output.Options, args []string, value T) error {
-	if w.Detail != nil {
-		return Get[T, Item]{Item: w.Item, Detail: w.Detail, Quiet: w.Quiet}.render(out, opts, args, value)
-	}
-
-	if opts.IsJSON() {
-		return printJSON(out, opts, output.FilterFields(w.Item(value), opts.JSONFields))
-	}
-
-	if opts.Quiet {
-		output.PrintQuiet(out, w.Quiet(value))
-		return nil
-	}
-
-	_, err := fmt.Fprintln(out, w.Confirm(args, value))
-	return err
-}
-
 // Delete declares a command that deletes what its last argument names and
-// prints that ID: as a deleted item under --json, alone under --quiet, and
-// otherwise in the Confirm line.
+// prints that ID as a deleted item: {"deleted":true,"id":"…"}.
 type Delete struct {
 	// Long is the description; Command adds the JSON FIELDS section after it.
 	Use, Short, Long, Example string
 
 	Args []Arg
 
-	Call    func(ctx context.Context, c *tracker.Client, args []string) error
-	Confirm func(id string) string
+	Call func(ctx context.Context, c *tracker.Client, args []string) error
 }
 
 // Command returns the cobra command d declares.
@@ -396,20 +313,10 @@ func (d Delete) Command() *cobra.Command {
 		})
 }
 
-func (d Delete) render(w io.Writer, opts *output.Options, args []string, _ struct{}) error {
-	id := args[len(args)-1]
+func (Delete) render(w io.Writer, opts *output.Options, args []string, _ struct{}) error {
+	item := deleted{ID: args[len(args)-1], Deleted: true}
 
-	if opts.IsJSON() {
-		return printJSON(w, opts, output.FilterFields(deleted{ID: id, Deleted: true}, opts.JSONFields))
-	}
-
-	if opts.Quiet {
-		output.PrintQuiet(w, id)
-		return nil
-	}
-
-	_, err := fmt.Fprintln(w, d.Confirm(id))
-	return err
+	return printJSON(w, opts, output.FilterFields(item, opts.JSONFields))
 }
 
 type deleted struct {
@@ -707,28 +614,33 @@ func run[V any](cmd *cobra.Command, raw []string, s steps[V]) error {
 }
 
 // SelectFields returns the output options of a run of cmd, a command whose
-// --json fields are fields, left with the fields the run selected: every one
-// under a bare --jq. It answers a bare --json= with the field hint instead.
+// --json fields are fields, with the fields the run selected: those --json
+// names, or every one without it. It answers a bare --json= with the field hint
+// instead.
+//
+// It returns a copy: the options in cmd's context keep what the flags set, so
+// an error the run ends with later renders in the mode the flags asked for,
+// as one before this does.
 func SelectFields(cmd *cobra.Command, fields []string) (*output.Options, error) {
-	opts := output.FromContext(cmd.Context())
+	flags := output.FromContext(cmd.Context())
 
-	if opts.WantsFieldHint(cmd.Flags().Changed("json")) {
+	if flags.WantsFieldHint(cmd.Flags().Changed("json")) {
 		name := strings.TrimPrefix(cmd.CommandPath(), cmd.Root().Name()+" ")
 		return nil, output.PrintFieldHint(cmd.ErrOrStderr(), name, fields)
 	}
 
-	if opts.JQFilter != "" && !opts.HasFieldSelection() {
+	opts := *flags
+	if !opts.HasFieldSelection() {
 		opts.JSONFields = fields
+		return &opts, nil
 	}
 
-	if opts.HasFieldSelection() {
-		if err := output.ValidateFields(opts.JSONFields, fields); err != nil {
-			return nil, err
-		}
-		opts.JSONFields = output.NormalizeFields(opts.JSONFields, fields)
+	if err := output.ValidateFields(opts.JSONFields, fields); err != nil {
+		return nil, err
 	}
+	opts.JSONFields = output.NormalizeFields(opts.JSONFields, fields)
 
-	return opts, nil
+	return &opts, nil
 }
 
 // Client returns the Tracker client a run of cmd sends its requests with,
@@ -753,27 +665,10 @@ func PrintJSON(cmd *cobra.Command, opts *output.Options, doc any) error {
 	return printJSON(cmd.OutOrStdout(), opts, doc)
 }
 
-// PrintText hands text cmd's output, for what a procedural leaf prints
-// outside --json once nothing is left that can fail.
-func PrintText(cmd *cobra.Command, text func(io.Writer) error) error {
-	return text(cmd.OutOrStdout())
-}
-
-// SelectFields leaves every JSON mode with a field selection, so doc is always
-// the filtered view.
 func printJSON(w io.Writer, opts *output.Options, doc any) error {
 	if opts.JQFilter != "" {
 		return output.ApplyJQ(w, doc, opts.JQFilter)
 	}
 
-	return opts.PrintJSON(w, doc)
-}
-
-func cells(values []string) []any {
-	row := make([]any, len(values))
-	for i, v := range values {
-		row[i] = v
-	}
-
-	return row
+	return output.PrintJSON(w, doc)
 }

@@ -48,7 +48,7 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
     homepage: "https://github.com/slavkluev/ytr"
-    description: "Yandex Tracker CLI for humans and LLM agents"
+    description: "Yandex Tracker CLI for LLM agents"
     license: "MIT"
     install: |
       bin.install "ytr"

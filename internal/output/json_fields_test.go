@@ -339,6 +339,11 @@ func TestApplyJQ_NoMatchesWritesNothing(t *testing.T) {
 	}
 }
 
+// failingWriter reports an error on every write.
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("write failed") }
+
 // TestApplyJQ_ReportsWriteError keeps a failed write from exiting 0: the whole
 // stream goes out in one write, so losing its error would pass an empty or
 // truncated stdout off as the complete answer.

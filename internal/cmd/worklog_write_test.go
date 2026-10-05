@@ -32,31 +32,24 @@ func TestWorklogCreate(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "Flag body", args: create(slices.Concat(required, []string{"--comment", "Code review"})...),
-			exchanges: []faketracker.Exchange{created}, body: worklogBody, stdout: "Worklog 101 created on PROJ-1\n",
+			exchanges: []faketracker.Exchange{created}, body: worklogBody, json: worklogItemJSON,
 		},
 		{
 			name:      "Flag body in Tracker's own form",
 			args:      create("--duration", "PT90M", "--start", "2026-03-30T13:00:00+03:00"),
 			exchanges: []faketracker.Exchange{created},
 			body:      `{"start": "2026-03-30T13:00:00.000+0300", "duration": "PT1H30M"}`,
-			stdout:    "Worklog 101 created on PROJ-1\n",
+			json:      worklogItemJSON,
 		},
 		{
 			name: "JSON body",
 			args: create("--from-json",
 				`{"start": "2026-03-30T10:00:00Z", "duration": "PT1H30M", "comment": "Code review"}`),
-			exchanges: []faketracker.Exchange{created}, body: worklogBody, stdout: "Worklog 101 created on PROJ-1\n",
+			exchanges: []faketracker.Exchange{created}, body: worklogBody, json: worklogItemJSON,
 		},
 		{
-			name: "JSON",
-			args: create(
-				slices.Concat(required, []string{"--json", "id,author,authorId,duration,start,comment"})...),
-			exchanges: []faketracker.Exchange{created},
-			json:      worklogItemJSON,
-		},
-		{
-			name: "Quiet", args: create(slices.Concat(required, []string{"--quiet"})...),
-			exchanges: []faketracker.Exchange{created}, stdout: "101\n",
+			name: "JSON", args: create(slices.Concat(required, []string{"--json", "id,start"})...),
+			exchanges: []faketracker.Exchange{created}, json: `{"id": "101", "start": "2026-03-30T10:00:00Z"}`,
 		},
 		{
 			name: "jq", args: create(slices.Concat(required, []string{"--jq", ".duration"})...),
@@ -113,41 +106,37 @@ func TestWorklogEdit(t *testing.T) {
 		{
 			name:      "Flag body",
 			args:      edit("--duration", "PT1H30M", "--start", "2026-03-30T10:00:00Z", "--comment", "Code review"),
-			exchanges: []faketracker.Exchange{edited}, body: worklogBody, stdout: "Worklog 101 updated on PROJ-1\n",
+			exchanges: []faketracker.Exchange{edited}, body: worklogBody, json: worklogItemJSON,
 		},
 		{
 			name: "Partial", args: edit("--comment", "Code review"), exchanges: []faketracker.Exchange{edited},
-			body: `{"comment": "Code review"}`, stdout: "Worklog 101 updated on PROJ-1\n",
+			body: `{"comment": "Code review"}`, json: worklogItemJSON,
 		},
 		{
 			name: "Partial duration", args: edit("--duration", "PT2H"), exchanges: []faketracker.Exchange{edited},
-			body: `{"duration": "PT2H"}`, stdout: "Worklog 101 updated on PROJ-1\n",
+			body: `{"duration": "PT2H"}`, json: worklogItemJSON,
 		},
 		{
 			name:      "Partial start",
 			args:      edit("--start", "2026-03-30T10:00:00Z"),
 			exchanges: []faketracker.Exchange{edited},
 			body:      `{"start": "2026-03-30T10:00:00.000+0000"}`,
-			stdout:    "Worklog 101 updated on PROJ-1\n",
+			json:      worklogItemJSON,
 		},
 		{
 			name:      "JSON body",
 			args:      edit("--from-json", `{"duration": "PT3H"}`),
 			exchanges: []faketracker.Exchange{edited},
 			body:      `{"duration": "PT3H"}`,
-			stdout:    "Worklog 101 updated on PROJ-1\n",
+			json:      worklogItemJSON,
 		},
 		{
-			name: "JSON", args: edit("--duration", "PT1H30M", "--json", "id,author,authorId,duration,start,comment"),
-			exchanges: []faketracker.Exchange{edited}, json: worklogItemJSON,
-		},
-		{
-			name: "Quiet", args: edit("--duration", "PT1H", "--quiet"), exchanges: []faketracker.Exchange{edited},
-			stdout: "101\n",
+			name: "JSON", args: edit("--duration", "PT1H30M", "--json", "id,duration"),
+			exchanges: []faketracker.Exchange{edited}, json: `{"id": "101", "duration": "PT1H30M"}`,
 		},
 		{
 			name: "Trimmed ID", args: []string{"worklog", "edit", "PROJ-1", " 101 ", "--comment", "x"},
-			exchanges: []faketracker.Exchange{edited}, stdout: "Worklog 101 updated on PROJ-1\n",
+			exchanges: []faketracker.Exchange{edited}, json: worklogItemJSON,
 		},
 		{
 			name: "Bad duration", args: edit("--duration", "1h"), code: ytrerrors.ExitUserError,
@@ -184,10 +173,10 @@ func TestWorklogDelete(t *testing.T) {
 	const path = "/v3/issues/PROJ-1/worklog/101"
 	args := []string{"worklog", "delete", "PROJ-1", "101"}
 
-	runLeafRows(t, slices.Concat(deleteRows(args, trackerDELETE(path), "101", "Worklog 101 deleted"), []leafRow{
+	runLeafRows(t, slices.Concat(deleteRows(args, trackerDELETE(path), "101"), []leafRow{
 		{
 			name: "Trimmed ID", args: []string{"worklog", "delete", "PROJ-1", " 101 "},
-			exchanges: []faketracker.Exchange{trackerDELETE(path)}, stdout: "Worklog 101 deleted\n",
+			exchanges: []faketracker.Exchange{trackerDELETE(path)}, json: `{"id": "101", "deleted": true}`,
 		},
 		{
 			name: "Empty ID", args: []string{"worklog", "delete", "PROJ-1", " "}, code: ytrerrors.ExitUserError,

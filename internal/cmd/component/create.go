@@ -6,7 +6,6 @@ import (
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
-	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 )
 
@@ -34,11 +33,7 @@ Provide --name and --queue for required fields, or --from-json for full JSON inp
 			component, _, err := c.Components.Create(ctx, req)
 			return component, err
 		},
-		Item:  toComponentItem,
-		Quiet: componentID,
-		Confirm: func(_ []string, component *tracker.Component) string {
-			return "Component " + componentID(component) + " created"
-		},
+		Item: toComponentItem,
 	}.Command()
 }
 
@@ -52,8 +47,4 @@ func componentFlags(name, queue string) []runner.Flag {
 		runner.Text("lead", "Lead user ID"),
 		runner.Bool("assign-auto", "Auto-assign issues to lead").Key("assignAuto"),
 	}
-}
-
-func componentID(c *tracker.Component) string {
-	return api.DerefFlexString(c.ID, "")
 }

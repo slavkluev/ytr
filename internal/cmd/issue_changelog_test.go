@@ -26,6 +26,15 @@ func TestIssueChangelog(t *testing.T) {
 				{"field": {"id": "summary"}, "from": "Old title", "to": "New title"}]},
 		{"id": "cl-002", "updatedAt": "2024-03-16T14:30:00.000+0000", "updatedBy": {"display": "bob"},
 			"type": "IssueWorkflow", "fields": [{"field": {"id": "status"}, "to": {"display": "Done", "key": "done"}}]}]`
+	const entries = `[
+		{"date": "2024-03-15T10:00:00Z", "author": "alice", "authorId": "uid-a", "type": "IssueUpdated",
+			"fields": [
+				{"field": "status", "from": {"display": "Open", "key": "open"},
+					"to": {"display": "In Progress", "key": "inprogress"}},
+				{"field": "summary", "from": "Old title", "to": "New title"}]},
+		{"date": "2024-03-16T14:30:00Z", "author": "bob", "authorId": "", "type": "IssueWorkflow",
+			"fields": [{"field": "status", "to": {"display": "Done", "key": "done"}}]}]`
+	const emptyPage = `{"items": [], "pagination": {"hasMore": false}}`
 	firstPage := url.Values{"perPage": {"50"}}
 	page := changelogPage(firstPage, changes)
 	changelog := func(extra ...string) []string {
@@ -38,28 +47,13 @@ func TestIssueChangelog(t *testing.T) {
 
 	runLeafRows(t, []leafRow{
 		{
-			name: "Table", args: changelog(), exchanges: []faketracker.Exchange{page},
-			stdout: "DATE\tAUTHOR\tFIELD\tFROM\tTO\n" +
-				"2024-03-15T10:00:00Z\talice\tstatus\tOpen\tIn Progress\n" +
-				"2024-03-15T10:00:00Z\talice\tsummary\tOld title\tNew title\n" +
-				"2024-03-16T14:30:00Z\tbob\tstatus\t\tDone\n",
-		},
-		{
-			name: "Quiet", args: changelog("--quiet"), exchanges: []faketracker.Exchange{page},
-			stdout: "status: Open -> In Progress\nsummary: Old title -> New title\nstatus:  -> Done\n",
+			name: "Every field", args: changelog(), exchanges: []faketracker.Exchange{page},
+			json: `{"items": ` + entries + `, "pagination": {"hasMore": false}}`,
 		},
 		{
 			name: "JSON of a full page", args: changelog("--limit", "2", "--json", "date,author,authorId,type,fields"),
 			exchanges: []faketracker.Exchange{changelogPage(url.Values{"perPage": {"2"}}, changes)},
-			json: `{"items": [
-				{"date": "2024-03-15T10:00:00Z", "author": "alice", "authorId": "uid-a", "type": "IssueUpdated",
-					"fields": [
-						{"field": "status", "from": {"display": "Open", "key": "open"},
-							"to": {"display": "In Progress", "key": "inprogress"}},
-						{"field": "summary", "from": "Old title", "to": "New title"}]},
-				{"date": "2024-03-16T14:30:00Z", "author": "bob", "authorId": "", "type": "IssueWorkflow",
-					"fields": [{"field": "status", "to": {"display": "Done", "key": "done"}}]}],
-				"pagination": {"cursor": "cl-002", "hasMore": true}}`,
+			json:      `{"items": ` + entries + `, "pagination": {"cursor": "cl-002", "hasMore": true}}`,
 		},
 		{
 			name: "JSON of a short page", args: changelog("--json", "author"), exchanges: []faketracker.Exchange{page},
@@ -70,43 +64,36 @@ func TestIssueChangelog(t *testing.T) {
 			stdout: "alice\nbob\n",
 		},
 		{
-			name: "Field filter as given", args: changelog("--field", "storyPoints", "--quiet"),
+			name: "Field filter as given", args: changelog("--field", "storyPoints"),
 			exchanges: []faketracker.Exchange{changelogPage(
 				url.Values{"perPage": {"50"}, "field": {"storyPoints"}}, `[]`)},
+			json: emptyPage,
 		},
 		{
-			name: "Type filter as given", args: changelog("--type", "IssueWorkflow", "--quiet"),
+			name: "Type filter as given", args: changelog("--type", "IssueWorkflow"),
 			exchanges: []faketracker.Exchange{changelogPage(
 				url.Values{"perPage": {"50"}, "type": {"IssueWorkflow"}}, `[]`)},
+			json: emptyPage,
 		},
 		{
-			name: "Cursor", args: changelog("--cursor", "my-cursor"),
+			name: "Cursor", args: changelog("--cursor", "my-cursor", "--json", "author"),
 			exchanges: []faketracker.Exchange{changelogPage(
 				url.Values{"perPage": {"50"}, "id": {"my-cursor"}}, entry("page1-last", "alice"))},
-			stdout: "DATE\tAUTHOR\tFIELD\tFROM\tTO\n2024-03-15T10:00:00Z\talice\tstatus\topen\tclosed\n",
+			json: `{"items": [{"author": "alice"}], "pagination": {"hasMore": false}}`,
 		},
 		{
 			name: "Empty", args: changelog(), exchanges: []faketracker.Exchange{changelogPage(firstPage, `[]`)},
-			stdout: "No changes found\n",
+			json: emptyPage,
 		},
 		{
-			name: "All pages", args: changelog("--all", "--limit", "1", "--quiet"),
+			name: "All pages", args: changelog("--all", "--limit", "1", "--json", "author"),
 			exchanges: []faketracker.Exchange{
 				changelogPage(url.Values{"perPage": {"1"}}, entry("cursor-1", "alice")),
 				changelogPage(url.Values{"perPage": {"1"}, "id": {"cursor-1"}}, entry("cursor-2", "bob")),
 				changelogPage(url.Values{"perPage": {"1"}, "id": {"cursor-2"}}, `[]`),
 			},
-			stdout: "status: open -> closed\nstatus: open -> closed\n",
-			check:  assertRequestOrder("perPage=1", "id=cursor-1&perPage=1", "id=cursor-2&perPage=1"),
-		},
-		{
-			name: "All pages as JSON", args: changelog("--all", "--limit", "1", "--json", "author"),
-			exchanges: []faketracker.Exchange{
-				changelogPage(url.Values{"perPage": {"1"}}, entry("cursor-1", "alice")),
-				changelogPage(url.Values{"perPage": {"1"}, "id": {"cursor-1"}}, entry("cursor-2", "bob")),
-				changelogPage(url.Values{"perPage": {"1"}, "id": {"cursor-2"}}, `[]`),
-			},
-			json: `{"items": [{"author": "alice"}, {"author": "bob"}], "pagination": {"hasMore": false}}`,
+			json:  `{"items": [{"author": "alice"}, {"author": "bob"}], "pagination": {"hasMore": false}}`,
+			check: assertRequestOrder("perPage=1", "id=cursor-1&perPage=1", "id=cursor-2&perPage=1"),
 		},
 		{
 			name: "All pages as JSON when they hold --limit entries",
@@ -118,18 +105,28 @@ func TestIssueChangelog(t *testing.T) {
 			json: `{"items": [{"author": "alice"}], "pagination": {"hasMore": false}}`,
 		},
 		{
-			name: "A short page is not the last", args: changelog("--all", "--limit", "2", "--quiet"),
+			name: "A short page is not the last", args: changelog("--all", "--limit", "2", "--json", "author"),
 			exchanges: []faketracker.Exchange{
 				changelogPage(url.Values{"perPage": {"2"}}, entry("cursor-1", "alice")),
 				changelogPage(url.Values{"perPage": {"2"}, "id": {"cursor-1"}}, entry("cursor-2", "bob")),
 				changelogPage(url.Values{"perPage": {"2"}, "id": {"cursor-2"}}, `[]`),
 			},
-			stdout: "status: open -> closed\nstatus: open -> closed\n",
-			check:  assertRequestOrder("perPage=2", "id=cursor-1&perPage=2", "id=cursor-2&perPage=2"),
+			json:  `{"items": [{"author": "alice"}, {"author": "bob"}], "pagination": {"hasMore": false}}`,
+			check: assertRequestOrder("perPage=2", "id=cursor-1&perPage=2", "id=cursor-2&perPage=2"),
 		},
 		{
 			name: "All pages keep the filters",
-			args: changelog("--all", "--limit", "1", "--field", "status", "--type", "IssueWorkflow", "--quiet"),
+			args: changelog(
+				"--all",
+				"--limit",
+				"1",
+				"--field",
+				"status",
+				"--type",
+				"IssueWorkflow",
+				"--json",
+				"author",
+			),
 			exchanges: []faketracker.Exchange{
 				changelogPage(url.Values{"perPage": {"1"}, "field": {"status"}, "type": {"IssueWorkflow"}},
 					entry("cursor-1", "alice")),
@@ -138,7 +135,7 @@ func TestIssueChangelog(t *testing.T) {
 					`[]`,
 				),
 			},
-			stdout: "status: open -> closed\n",
+			json: `{"items": [{"author": "alice"}], "pagination": {"hasMore": false}}`,
 			check: assertRequestOrder(
 				"field=status&perPage=1&type=IssueWorkflow", "field=status&id=cursor-1&perPage=1&type=IssueWorkflow",
 			),
@@ -170,7 +167,7 @@ func TestIssueChangelog(t *testing.T) {
 			),
 		},
 		{
-			name: "A cursor that does not move", args: changelog("--all", "--quiet"),
+			name: "A cursor that does not move", args: changelog("--all"),
 			exchanges: []faketracker.Exchange{
 				changelogPage(firstPage, entry("stuck", "alice")),
 				changelogPage(url.Values{"perPage": {"50"}, "id": {"stuck"}}, entry("stuck", "bob")),

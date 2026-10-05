@@ -1,7 +1,6 @@
 package worklog
 
 import (
-	"cmp"
 	"context"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 type worklogItem struct {
@@ -30,36 +28,18 @@ func newListCmd() *cobra.Command {
 		Example: `  # List worklogs on an issue
   ytr worklog list PROJ-123
 
-  # Get worklogs as JSON
+  # Only IDs, durations and start times
   ytr worklog list PROJ-123 --json id,duration,start
 
   # Extract durations with jq
   ytr worklog list PROJ-123 --jq '.[].duration'`,
-		Args:  []runner.Arg{runner.IssueKey},
-		Empty: "No worklogs found",
+		Args: []runner.Arg{runner.IssueKey},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) ([]*tracker.Worklog, error) {
 			worklogs, _, err := c.Issues.ListWorklogs(ctx, args[0])
 			return worklogs, err
 		},
-		Item:   toWorklogItem,
-		Header: []string{"ID", "AUTHOR", "DURATION", "START"},
-		Row:    worklogRow,
-		Quiet:  func(wl *tracker.Worklog) string { return api.DerefFlexString(wl.ID, "") },
+		Item: toWorklogItem,
 	}.Command()
-}
-
-func worklogRow(opts *output.Options, wl *tracker.Worklog) []string {
-	start := "-"
-	if wl.Start != nil {
-		start = opts.FormatTime(wl.Start.Time)
-	}
-
-	return []string{
-		api.DerefFlexString(wl.ID, "-"),
-		wl.CreatedBy.DisplayOr("-"),
-		cmp.Or(formatDuration(wl.Duration), "-"),
-		start,
-	}
 }
 
 func toWorklogItem(wl *tracker.Worklog) worklogItem {

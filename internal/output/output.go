@@ -1,3 +1,6 @@
+// Package output renders what a command prints: its JSON document, cut to the
+// selected fields or filtered through --jq, and the error a failed run ends
+// with.
 package output
 
 import (
@@ -10,33 +13,26 @@ import (
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 )
 
-// Options is what one invocation asked of its output and what the terminal it
-// writes to can show. Each invocation carries its own value in its context, so
-// nothing one run sets reaches the next.
+// Options is what one invocation asked of its output. Each invocation carries
+// its own value in its context, so nothing one run sets reaches the next.
 type Options struct {
 	// Bound to the root persistent flags.
 	JSONFields []string
 	JQFilter   string
-	Quiet      bool
 	Debug      bool
 
-	TTY    bool
-	Colors bool
-	// Width is the terminal width in columns; 0 means the 80-column default.
-	Width    int
 	DebugOut io.Writer
 }
 
 type optionsKey struct{}
 
-// NewContext returns a context that carries opts. It holds the pointer, so a
-// command that normalizes opts.JSONFields changes them for its own run only.
+// NewContext returns a context that carries opts.
 func NewContext(ctx context.Context, opts *Options) context.Context {
 	return context.WithValue(ctx, optionsKey{}, opts)
 }
 
 // FromContext returns the options ctx carries, or zero Options when it carries
-// none: off a TTY, no JSON, no debug, no colors.
+// none: no field selection, no jq filter, no debug.
 func FromContext(ctx context.Context) *Options {
 	if ctx != nil {
 		if opts, ok := ctx.Value(optionsKey{}).(*Options); ok && opts != nil {
@@ -47,8 +43,8 @@ func FromContext(ctx context.Context) *Options {
 	return &Options{}
 }
 
-// IsJSON returns true when JSON output mode is active.
-// JSON mode is active when field selection is specified or a jq filter is set.
+// IsJSON reports whether the flags asked for JSON: a field selection or a jq
+// filter. It picks the error's mode; the result is JSON whatever it says.
 func (o *Options) IsJSON() bool {
 	return len(o.JSONFields) > 0 || o.JQFilter != ""
 }
@@ -71,25 +67,15 @@ func (o *Options) WantsFieldHint(jsonFlagChanged bool) bool {
 	return jsonFlagChanged && !o.HasFieldSelection() && o.JQFilter == ""
 }
 
-// HandleError formats and writes an error to the given writer,
-// returning the appropriate exit code.
-// If err is nil, returns ExitSuccess (0).
-// If err is an *ExitError, formats it as JSON or human-readable based on IsJSON().
-// For unknown errors, writes a generic message and returns ExitUserError.
-func (o *Options) HandleError(w io.Writer, err error) int {
-	return handleError(w, err, o.IsJSON(), o.Colors)
-}
-
-// HandleInvocationError renders err the way HandleError does, but reads the
-// output mode from rawArgs as well when the parsed flags do not show JSON.
+// HandleInvocationError writes err to w and returns the exit code it carries,
+// or ExitSuccess for a nil err. err is a JSON document when the flags asked for
+// JSON, read from rawArgs as well when the parsed flags do not show it, and
+// plain text otherwise.
 //
 // A failed invocation can hide the mode it asked for: pflag stops at the first
 // flag it does not know, so `--nosuchflag --json key` never fills JSONFields.
-// rawArgs is consulted only when err is non-nil, so a value that happens to
-// read like --json (a comment body, a query) can never turn a successful run
-// into JSON.
 func (o *Options) HandleInvocationError(w io.Writer, err error, rawArgs []string) int {
-	return handleError(w, err, o.IsJSON() || (err != nil && jsonRequestedIn(rawArgs)), o.Colors)
+	return handleError(w, err, o.IsJSON() || (err != nil && jsonRequestedIn(rawArgs)))
 }
 
 // jsonRequestedIn reports whether args ask for JSON output, by the rule IsJSON
@@ -142,7 +128,7 @@ type jsonErrorRenderer interface {
 
 // w is always the caller's error stream: the single document goes to stderr in
 // every mode, so stdout carries command output and nothing else.
-func handleError(w io.Writer, err error, asJSON, colors bool) int {
+func handleError(w io.Writer, err error, asJSON bool) int {
 	if err == nil {
 		return ytrerrors.ExitSuccess
 	}
@@ -161,7 +147,7 @@ func handleError(w io.Writer, err error, asJSON, colors bool) int {
 	}
 
 	if !asJSON {
-		ytrerrors.PrintHuman(w, exitErr, colors)
+		ytrerrors.PrintHuman(w, exitErr)
 		return exitErr.ExitCode
 	}
 

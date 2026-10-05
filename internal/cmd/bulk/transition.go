@@ -34,7 +34,7 @@ JSON FIELDS
   ytr bulk transition PROJ-1 --transition close --field resolution=fixed
 
   # Transition via stdin pipe
-  ytr issue list --quiet | ytr bulk transition --transition close
+  ytr issue list --jq '.items[].key' | ytr bulk transition --transition close
 
   # Transition via JSON
   ytr bulk transition --from-json '{"transition":"close","issues":["PROJ-1"]}'`,

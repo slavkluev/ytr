@@ -31,7 +31,7 @@ JSON FIELDS
   ytr bulk move PROJ-1 PROJ-2 PROJ-3 --queue TARGET
 
   # Move via stdin pipe
-  ytr issue list --quiet | ytr bulk move --queue TARGET
+  ytr issue list --jq '.items[].key' | ytr bulk move --queue TARGET
 
   # Move with field updates
   ytr bulk move PROJ-1 PROJ-2 --queue TARGET --field priority=critical

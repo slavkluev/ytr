@@ -1,7 +1,6 @@
 package issue
 
 import (
-	"cmp"
 	"context"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 // Uses value types with json tags to avoid null fields from pointer types.
@@ -65,7 +63,7 @@ func newViewCmd() *cobra.Command {
 		Example: `  # View issue details
   ytr issue view PROJ-123
 
-  # Get specific fields as JSON
+  # Only the key, summary, status and assignee
   ytr issue view PROJ-123 --json key,summary,status,assignee
 
   # Get just the description
@@ -75,49 +73,6 @@ func newViewCmd() *cobra.Command {
 			issue, _, err := c.Issues.Get(ctx, args[0], nil)
 			return issue, err
 		},
-		Item:   toIssueDetail,
-		Detail: issueCard,
-		Quiet:  issueKey,
+		Item: toIssueDetail,
 	}.Command()
-}
-
-func issueKey(issue *tracker.Issue) string {
-	return api.DerefString(issue.Key, "")
-}
-
-func issueCard(d *output.DetailPrinter, opts *output.Options, issue *tracker.Issue) {
-	d.Field("Key", api.DerefString(issue.Key, "-"))
-	d.Field("Title", api.DerefString(issue.Summary, "-"))
-	d.Field("Status", cmp.Or(issueStatusDisplay(issue), "-"))
-
-	priority := "-"
-	if issue.Priority != nil {
-		priority = api.DerefString(issue.Priority.Display, "-")
-	}
-	d.Field("Priority", priority)
-
-	issueType := "-"
-	if issue.Type != nil {
-		issueType = api.DerefString(issue.Type.Display, "-")
-	}
-	d.Field("Type", issueType)
-
-	d.Field("Author", issue.CreatedBy.DisplayOr("-"))
-	d.Field("Assignee", issue.Assignee.DisplayOr("-"))
-
-	created := "-"
-	if issue.CreatedAt != nil {
-		created = opts.FormatTime(issue.CreatedAt.Time)
-	}
-	d.Field("Created", created)
-
-	updated := "-"
-	if issue.UpdatedAt != nil {
-		updated = opts.FormatTime(issue.UpdatedAt.Time)
-	}
-	d.Field("Updated", updated)
-
-	if issue.Description != nil && *issue.Description != "" {
-		d.Block("Description", *issue.Description)
-	}
 }

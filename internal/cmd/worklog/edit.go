@@ -2,7 +2,6 @@ package worklog
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
@@ -39,10 +38,6 @@ Provide one or more flags to update, or --from-json for full JSON input.`,
 			wl, _, err := c.Issues.EditWorklog(ctx, args[0], args[1], req)
 			return wl, err
 		},
-		Item:  toWorklogItem,
-		Quiet: worklogID,
-		Confirm: func(args []string, wl *tracker.Worklog) string {
-			return fmt.Sprintf("Worklog %s updated on %s", worklogID(wl), args[0])
-		},
+		Item: toWorklogItem,
 	}.Command()
 }

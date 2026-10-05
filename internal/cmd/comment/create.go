@@ -2,12 +2,10 @@ package comment
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
-	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -20,7 +18,7 @@ func newCreateCmd() *cobra.Command {
 		Example: `  # Add a comment
   ytr comment create PROJ-123 --body "Fixed in commit abc123"
 
-  # Add comment and get ID as JSON
+  # Add a comment and print only its ID
   ytr comment create PROJ-123 --body "Done" --json id --jq '.id'`,
 		Args:     []runner.Arg{runner.IssueKey},
 		Flags:    []runner.Flag{bodyFlag("Comment text (required)")},
@@ -31,11 +29,7 @@ func newCreateCmd() *cobra.Command {
 			comment, _, err := c.Issues.CreateComment(ctx, args[0], req)
 			return comment, err
 		},
-		Item:  toCommentItem,
-		Quiet: commentID,
-		Confirm: func(args []string, comment *tracker.Comment) string {
-			return fmt.Sprintf("Comment %s added to %s", commentID(comment), args[0])
-		},
+		Item: toCommentItem,
 	}.Command()
 }
 
@@ -43,8 +37,4 @@ func bodyFlag(usage string) runner.Flag {
 	return runner.Text("body", usage).Key("text").Check(func(body string) error {
 		return validate.ValidateNoControlChars("body", body)
 	})
-}
-
-func commentID(c *tracker.Comment) string {
-	return api.DerefFlexString(c.ID, "")
 }

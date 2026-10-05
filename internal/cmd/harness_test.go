@@ -12,7 +12,6 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/config"
 	"github.com/slavkluev/ytr/internal/faketracker"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 // cliResult is what one ytr invocation produced, plus every request Tracker
@@ -25,12 +24,10 @@ type cliResult struct {
 	ConfigDir string
 }
 
-// cliInput is what a run reads besides its arguments and Tracker: the terminal
-// term describes, such as output.Options{TTY: true, Colors: true}, of which
-// only the terminal facts count; stdin; environment variables beyond
-// YTR_CONFIG_DIR; and the config.yaml its config directory starts with.
+// cliInput is what a run reads besides its arguments and Tracker: stdin,
+// environment variables beyond YTR_CONFIG_DIR, and the config.yaml its config
+// directory starts with.
 type cliInput struct {
-	term   output.Options
 	stdin  string
 	env    map[string]string
 	config string
@@ -42,8 +39,7 @@ var harnessAuth = []string{"--token=test-token", "--org-id=test-org", "--org-typ
 
 // runCLI runs args through the real root command and the real Tracker client,
 // signed in by harnessAuth, with a fake Tracker serving exchanges in place of
-// the network. The run writes to a pipe, not a terminal, and its stdin is
-// empty.
+// the network. Its stdin is empty.
 func runCLI(t *testing.T, exchanges []faketracker.Exchange, args ...string) cliResult {
 	t.Helper()
 
@@ -93,7 +89,7 @@ func runAgainst(t *testing.T, in cliInput, fake *faketracker.Fake, argv []string
 	ctx := config.WithEnv(api.WithTransport(t.Context(), fake), lookup)
 
 	var out, errOut bytes.Buffer
-	code := execute(ctx, in.term, argv, strings.NewReader(in.stdin), &out, &errOut)
+	code := execute(ctx, argv, strings.NewReader(in.stdin), &out, &errOut)
 
 	return cliResult{
 		Code: code, Stdout: out.String(), Stderr: errOut.String(), Requests: fake.Requests(), ConfigDir: dir,

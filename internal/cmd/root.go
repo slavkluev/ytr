@@ -86,16 +86,11 @@ func addPersistentFlags(rootCmd *cobra.Command, opts *output.Options) {
 	rootCmd.PersistentFlags().
 		StringVar(&opts.JQFilter, "jq", "", "Filter JSON output with a jq expression (implies --json)")
 	rootCmd.PersistentFlags().
-		BoolVar(&opts.Quiet, "quiet", false, "Output minimal text, one item per line")
-	rootCmd.PersistentFlags().
 		BoolVar(&opts.Debug, "debug", false, "Emit sanitized debug diagnostics to stderr")
 
 	rootCmd.PersistentFlags().String("token", "", "Authentication token (use with --org-id and --org-type)")
 	rootCmd.PersistentFlags().String("org-id", "", "Tracker organization ID (use with --token and --org-type)")
 	rootCmd.PersistentFlags().String("org-type", "", "Organization type, 360 or cloud (use with --token and --org-id)")
-
-	rootCmd.MarkFlagsMutuallyExclusive("json", "quiet")
-	rootCmd.MarkFlagsMutuallyExclusive("jq", "quiet")
 }
 
 func addCommandGroups(rootCmd *cobra.Command) {
@@ -142,7 +137,7 @@ func registerSubcommands(rootCmd *cobra.Command) {
 // The caller (main.go) must pass this to os.Exit.
 func Execute() int {
 	stdout, stderr := os.Stdout, os.Stderr //nolint:forbidigo // the process's streams are wired here
-	return execute(context.Background(), output.Terminal(stdout), os.Args[1:], os.Stdin, stdout, stderr)
+	return execute(context.Background(), os.Args[1:], os.Stdin, stdout, stderr)
 }
 
 // The arguments reach the renderer as well as cobra, because a failed
@@ -152,14 +147,14 @@ func Execute() int {
 //
 // Debug diagnostics share errOut with the error document, so a caller reading
 // stderr sees them in the order they happened.
-func execute(ctx context.Context, opts output.Options, args []string, in io.Reader, out, errOut io.Writer) int {
+func execute(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) int {
 	// SetArgs(nil) makes cobra fall back to os.Args[1:], which would turn a bare
 	// invocation into whatever the process was started with.
 	if args == nil {
 		args = []string{}
 	}
 
-	opts.DebugOut = errOut
+	opts := output.Options{DebugOut: errOut}
 	root := newRootCmd(&opts)
 	root.SetArgs(args)
 	root.SetIn(in)

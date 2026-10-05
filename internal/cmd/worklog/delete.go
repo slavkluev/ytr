@@ -17,13 +17,12 @@ func newDeleteCmd() *cobra.Command {
 		Example: `  # Delete worklog abc123 from PROJ-123
   ytr worklog delete PROJ-123 abc123
 
-  # Delete and confirm via JSON
+  # Delete and print only whether it was deleted
   ytr worklog delete PROJ-123 abc123 --jq '.deleted'`,
 		Args: []runner.Arg{runner.IssueKey, runner.StringID("worklog ID")},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) error {
 			_, err := c.Issues.DeleteWorklog(ctx, args[0], args[1])
 			return err
 		},
-		Confirm: func(id string) string { return "Worklog " + id + " deleted" },
 	}.Command()
 }

@@ -1,14 +1,12 @@
 package issue
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"iter"
 	"strings"
 	"time"
 
-	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -16,15 +14,6 @@ import (
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
-	"github.com/slavkluev/ytr/internal/output"
-)
-
-const (
-	// tableReservedWidth is the space reserved for key (12), status (15),
-	// assignee (15), and padding (9) in table output.
-	tableReservedWidth = 51
-
-	minColumnWidth = 10
 )
 
 // Raw tracker.Issue fields are pointer types that produce nulls in JSON;
@@ -72,7 +61,7 @@ The two modes are mutually exclusive: --query cannot be combined with --filter.`
   # Sort ascending
   ytr issue list --filter queue=PROJ --order-by createdAt --order-asc
 
-  # Get issue keys and statuses as JSON
+  # Only keys, summaries and statuses
   ytr issue list --filter queue=PROJ --json key,summary,status
 
   # Extract just keys with jq
@@ -82,7 +71,6 @@ The two modes are mutually exclusive: --query cannot be combined with --filter.`
 			search, err = searchRequest(set)
 			return err
 		},
-		Empty: "No issues found",
 		Page: func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) (
 			[]*tracker.Issue, *tracker.Response, error,
 		) {
@@ -91,10 +79,7 @@ The two modes are mutually exclusive: --query cannot be combined with --filter.`
 		All: func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) iter.Seq2[*tracker.Issue, error] {
 			return c.Issues.SearchIter(ctx, search, &tracker.IssueSearchOptions{ListOptions: o})
 		},
-		Item:   toListItem,
-		Header: []string{"KEY", "STATUS", "ASSIGNEE", "SUMMARY"},
-		Row:    issueRow,
-		Quiet:  func(issue *tracker.Issue) string { return api.DerefString(issue.Key, "") },
+		Item: toListItem,
 	}.Command()
 
 	cmd.Flags().String("query", "", "Search using Tracker query language (mutually exclusive with --filter)")
@@ -194,20 +179,6 @@ func parseFilterFlags(flags []string) (map[string]any, error) {
 	return result, nil
 }
 
-func issueRow(opts *output.Options, issue *tracker.Issue) []string {
-	status := cmp.Or(issueStatusDisplay(issue), "-")
-	if opts.Colors {
-		status = colorizeStatus(issue, status)
-	}
-
-	return []string{
-		api.DerefString(issue.Key, "-"),
-		status,
-		issue.Assignee.DisplayOr("-"),
-		opts.FitColumn(api.DerefString(issue.Summary, "-"), tableReservedWidth, minColumnWidth),
-	}
-}
-
 func toListItem(issue *tracker.Issue) issueListItem {
 	item := issueListItem{
 		Key:        api.DerefString(issue.Key, ""),
@@ -241,22 +212,4 @@ func issueStatusDisplay(issue *tracker.Issue) string {
 		return *issue.Status.Display
 	}
 	return api.DerefString(issue.Status.Key, "")
-}
-
-func colorizeStatus(issue *tracker.Issue, statusText string) string {
-	if issue.Status == nil || issue.Status.Key == nil {
-		return statusText
-	}
-	key := strings.ToLower(*issue.Status.Key)
-
-	switch key {
-	case "closed", "done", "resolved":
-		return text.Colors{text.FgGreen}.Sprint(statusText)
-	case "inprogress", "in_progress":
-		return text.Colors{text.FgYellow}.Sprint(statusText)
-	case "cancelled", "blocked":
-		return text.Colors{text.FgRed}.Sprint(statusText)
-	default:
-		return statusText
-	}
 }

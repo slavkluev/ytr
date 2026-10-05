@@ -11,8 +11,6 @@ import (
 )
 
 func TestPrintJSON(t *testing.T) {
-	opts := output.Options{}
-
 	var buf bytes.Buffer
 	data := struct {
 		Name  string `json:"name"`
@@ -22,7 +20,7 @@ func TestPrintJSON(t *testing.T) {
 		Count: 42,
 	}
 
-	err := opts.PrintJSON(&buf, data)
+	err := output.PrintJSON(&buf, data)
 	if err != nil {
 		t.Fatalf("PrintJSON() returned error: %v", err)
 	}
@@ -43,34 +41,6 @@ func TestPrintJSON(t *testing.T) {
 	// Verify trailing newline
 	if !strings.HasSuffix(buf.String(), "\n") {
 		t.Error("PrintJSON() output should end with newline")
-	}
-}
-
-func TestPrintJSON_NoANSI(t *testing.T) {
-	opts := output.Options{}
-
-	var buf bytes.Buffer
-	data := map[string]string{"key": "value"}
-
-	err := opts.PrintJSON(&buf, data)
-	if err != nil {
-		t.Fatalf("PrintJSON() returned error: %v", err)
-	}
-
-	out := buf.String()
-	// Check for ANSI escape sequences
-	if strings.Contains(out, "\x1b") || strings.Contains(out, "\033") {
-		t.Errorf("PrintJSON() output contains ANSI escape codes: %q", out)
-	}
-}
-
-func TestPrintQuiet(t *testing.T) {
-	var buf bytes.Buffer
-	output.PrintQuiet(&buf, "value1", "value2")
-
-	want := "value1\nvalue2\n"
-	if got := buf.String(); got != want {
-		t.Errorf("PrintQuiet() = %q, want %q", got, want)
 	}
 }
 
@@ -158,49 +128,49 @@ func TestSanitizeDebugString(t *testing.T) {
 	}
 }
 
-func TestHandleError_Nil(t *testing.T) {
+func TestHandleInvocationError_Nil(t *testing.T) {
 	opts := output.Options{}
 
 	var buf bytes.Buffer
-	code := opts.HandleError(&buf, nil)
+	code := opts.HandleInvocationError(&buf, nil, nil)
 
 	if code != 0 {
-		t.Errorf("HandleError(nil) = %d, want 0", code)
+		t.Errorf("HandleInvocationError(nil) = %d, want 0", code)
 	}
 }
 
-func TestHandleError_ExitError(t *testing.T) {
+func TestHandleInvocationError_ExitError(t *testing.T) {
 	var buf bytes.Buffer
 	opts := output.Options{}
 
 	err := ytrerrors.NewAuthError("auth failed", "login again")
-	code := opts.HandleError(&buf, err)
+	code := opts.HandleInvocationError(&buf, err, nil)
 
 	if code != 3 {
-		t.Errorf("HandleError(AuthError) = %d, want 3", code)
+		t.Errorf("HandleInvocationError(AuthError) = %d, want 3", code)
 	}
 
 	// Should contain the error message in output
 	if !strings.Contains(buf.String(), "auth failed") {
-		t.Errorf("HandleError() output = %q, should contain %q", buf.String(), "auth failed")
+		t.Errorf("HandleInvocationError() output = %q, should contain %q", buf.String(), "auth failed")
 	}
 }
 
-func TestHandleError_ExitError_JSON(t *testing.T) {
+func TestHandleInvocationError_ExitError_JSON(t *testing.T) {
 	var buf bytes.Buffer
 	opts := output.Options{JSONFields: []string{"key"}}
 
 	err := ytrerrors.NewNotFoundError("issue not found", "check the key")
-	code := opts.HandleError(&buf, err)
+	code := opts.HandleInvocationError(&buf, err, nil)
 
 	if code != 4 {
-		t.Errorf("HandleError(NotFoundError) = %d, want 4", code)
+		t.Errorf("HandleInvocationError(NotFoundError) = %d, want 4", code)
 	}
 
 	// Should be valid JSON
 	var result map[string]string
 	if unmarshalErr := json.Unmarshal(buf.Bytes(), &result); unmarshalErr != nil {
-		t.Fatalf("HandleError JSON output is invalid: %v\nOutput: %q", unmarshalErr, buf.String())
+		t.Fatalf("HandleInvocationError JSON output is invalid: %v\nOutput: %q", unmarshalErr, buf.String())
 	}
 
 	if result["code"] != "not_found" {
@@ -235,20 +205,20 @@ func TestWantsFieldHint(t *testing.T) {
 	}
 }
 
-func TestHandleError_InvalidFieldError_JSON(t *testing.T) {
+func TestHandleInvocationError_InvalidFieldError_JSON(t *testing.T) {
 	var buf bytes.Buffer
 	opts := output.Options{JSONFields: []string{"key"}}
 
 	err := ytrerrors.NewInvalidFieldError("bogus", []string{"key", "summary"})
-	code := opts.HandleError(&buf, err)
+	code := opts.HandleInvocationError(&buf, err, nil)
 
 	if code != 1 {
-		t.Errorf("HandleError(InvalidFieldError) = %d, want 1", code)
+		t.Errorf("HandleInvocationError(InvalidFieldError) = %d, want 1", code)
 	}
 
 	var result map[string]any
 	if unmarshalErr := json.Unmarshal(buf.Bytes(), &result); unmarshalErr != nil {
-		t.Fatalf("HandleError JSON output is invalid: %v\nOutput: %q", unmarshalErr, buf.String())
+		t.Fatalf("HandleInvocationError JSON output is invalid: %v\nOutput: %q", unmarshalErr, buf.String())
 	}
 
 	// The structured invalid_field payload must survive — not be flattened to
@@ -265,15 +235,15 @@ func TestHandleError_InvalidFieldError_JSON(t *testing.T) {
 	}
 }
 
-func TestHandleError_InvalidFieldError_Human(t *testing.T) {
+func TestHandleInvocationError_InvalidFieldError_Human(t *testing.T) {
 	var buf bytes.Buffer
 	opts := output.Options{}
 
 	err := ytrerrors.NewInvalidFieldError("bogus", []string{"key", "summary"})
-	code := opts.HandleError(&buf, err)
+	code := opts.HandleInvocationError(&buf, err, nil)
 
 	if code != 1 {
-		t.Errorf("HandleError(InvalidFieldError) = %d, want 1", code)
+		t.Errorf("HandleInvocationError(InvalidFieldError) = %d, want 1", code)
 	}
 
 	out := buf.String()
@@ -286,11 +256,11 @@ func TestHandleError_InvalidFieldError_Human(t *testing.T) {
 	}
 }
 
-// TestHandleError_JSONErrorSharesStderrWithDebug pins the one stream the JSON
+// TestHandleInvocationError_JSONErrorSharesStderrWithDebug pins the one stream the JSON
 // error document may take. Debug diagnostics used to push it onto stdout so
 // they could keep stderr to themselves; the document now sits among them,
 // because stdout has to stay empty for a run that failed.
-func TestHandleError_JSONErrorSharesStderrWithDebug(t *testing.T) {
+func TestHandleInvocationError_JSONErrorSharesStderrWithDebug(t *testing.T) {
 	var stderrBuf bytes.Buffer
 
 	opts := output.Options{JSONFields: []string{"key"}, Debug: true, DebugOut: &stderrBuf}
@@ -298,10 +268,10 @@ func TestHandleError_JSONErrorSharesStderrWithDebug(t *testing.T) {
 	opts.Debugf("transport error")
 
 	err := ytrerrors.NewNotFoundError("issue not found", "check the key")
-	code := opts.HandleError(&stderrBuf, err)
+	code := opts.HandleInvocationError(&stderrBuf, err, nil)
 
 	if code != 4 {
-		t.Errorf("HandleError(NotFoundError) = %d, want 4", code)
+		t.Errorf("HandleInvocationError(NotFoundError) = %d, want 4", code)
 	}
 
 	lines := strings.Split(strings.TrimSuffix(stderrBuf.String(), "\n"), "\n")
@@ -322,24 +292,24 @@ func TestHandleError_JSONErrorSharesStderrWithDebug(t *testing.T) {
 	}
 }
 
-// TestHandleError_BulkFailedError_JSON checks that an error type which adds
+// TestHandleInvocationError_BulkFailedError_JSON checks that an error type which adds
 // fields to ExitError renders its own document. handleError matches the
 // JSONError interface rather than naming concrete types, so this is what keeps
 // a new type from being flattened to the generic user_error shape.
-func TestHandleError_BulkFailedError_JSON(t *testing.T) {
+func TestHandleInvocationError_BulkFailedError_JSON(t *testing.T) {
 	var buf bytes.Buffer
 	opts := output.Options{JSONFields: []string{"id"}}
 
 	err := ytrerrors.NewBulkFailedError("op-1", "Operation FAILED", 7, 3)
-	code := opts.HandleError(&buf, err)
+	code := opts.HandleInvocationError(&buf, err, nil)
 
 	if code != ytrerrors.ExitUserError {
-		t.Errorf("HandleError(BulkFailedError) = %d, want %d", code, ytrerrors.ExitUserError)
+		t.Errorf("HandleInvocationError(BulkFailedError) = %d, want %d", code, ytrerrors.ExitUserError)
 	}
 
 	var result map[string]any
 	if unmarshalErr := json.Unmarshal(buf.Bytes(), &result); unmarshalErr != nil {
-		t.Fatalf("HandleError JSON output is invalid: %v\nOutput: %q", unmarshalErr, buf.String())
+		t.Fatalf("HandleInvocationError JSON output is invalid: %v\nOutput: %q", unmarshalErr, buf.String())
 	}
 
 	if result["code"] != ytrerrors.CodeBulkFailed {
@@ -362,18 +332,18 @@ func TestHandleError_BulkFailedError_JSON(t *testing.T) {
 	}
 }
 
-// TestHandleError_BulkFailedError_Human checks the counts reach a human too:
+// TestHandleInvocationError_BulkFailedError_Human checks the counts reach a human too:
 // human output shows only the message and the suggestion, so the message has
 // to carry what the JSON document holds in its own fields.
-func TestHandleError_BulkFailedError_Human(t *testing.T) {
+func TestHandleInvocationError_BulkFailedError_Human(t *testing.T) {
 	var buf bytes.Buffer
 	opts := output.Options{}
 
 	err := ytrerrors.NewBulkFailedError("op-1", "Operation FAILED", 7, 3)
-	code := opts.HandleError(&buf, err)
+	code := opts.HandleInvocationError(&buf, err, nil)
 
 	if code != ytrerrors.ExitUserError {
-		t.Errorf("HandleError(BulkFailedError) = %d, want %d", code, ytrerrors.ExitUserError)
+		t.Errorf("HandleInvocationError(BulkFailedError) = %d, want %d", code, ytrerrors.ExitUserError)
 	}
 
 	out := buf.String()
@@ -384,32 +354,32 @@ func TestHandleError_BulkFailedError_Human(t *testing.T) {
 	}
 }
 
-func TestHandleError_GenericError(t *testing.T) {
+func TestHandleInvocationError_GenericError(t *testing.T) {
 	var buf bytes.Buffer
 	opts := output.Options{}
 
 	genericErr := bytes.ErrTooLarge
-	code := opts.HandleError(&buf, genericErr)
+	code := opts.HandleInvocationError(&buf, genericErr, nil)
 
 	if code != ytrerrors.ExitUserError {
-		t.Errorf("HandleError(generic) = %d, want %d", code, ytrerrors.ExitUserError)
+		t.Errorf("HandleInvocationError(generic) = %d, want %d", code, ytrerrors.ExitUserError)
 	}
 }
 
-func TestHandleError_GenericError_JSON(t *testing.T) {
+func TestHandleInvocationError_GenericError_JSON(t *testing.T) {
 	var buf bytes.Buffer
 	opts := output.Options{JSONFields: []string{"key"}}
 
 	genericErr := bytes.ErrTooLarge
-	code := opts.HandleError(&buf, genericErr)
+	code := opts.HandleInvocationError(&buf, genericErr, nil)
 
 	if code != ytrerrors.ExitUserError {
-		t.Errorf("HandleError(generic JSON) = %d, want %d", code, ytrerrors.ExitUserError)
+		t.Errorf("HandleInvocationError(generic JSON) = %d, want %d", code, ytrerrors.ExitUserError)
 	}
 
 	var result map[string]string
 	if unmarshalErr := json.Unmarshal(buf.Bytes(), &result); unmarshalErr != nil {
-		t.Fatalf("HandleError generic JSON output is invalid: %v\nOutput: %q", unmarshalErr, buf.String())
+		t.Fatalf("HandleInvocationError generic JSON output is invalid: %v\nOutput: %q", unmarshalErr, buf.String())
 	}
 
 	if result["code"] != "user_error" {
@@ -420,50 +390,28 @@ func TestHandleError_GenericError_JSON(t *testing.T) {
 	}
 }
 
-func TestPrintJSONOffTTYIsOneLine(t *testing.T) {
-	opts := output.Options{}
-
+func TestPrintJSONIsOneLine(t *testing.T) {
 	var buf bytes.Buffer
 	data := map[string]any{"key": "APP-1", "labels": []string{"a", "b"}}
-	if err := opts.PrintJSON(&buf, data); err != nil {
+	if err := output.PrintJSON(&buf, data); err != nil {
 		t.Fatalf("PrintJSON() returned error: %v", err)
 	}
 
-	got := buf.String()
-	if strings.Count(got, "\n") != 1 || !strings.HasSuffix(got, "\n") {
-		t.Errorf("off-TTY JSON must be one line, got %q", got)
-	}
-	if !strings.Contains(got, `{"key":"APP-1","labels":["a","b"]}`) {
-		t.Errorf("off-TTY JSON is not minified: %q", got)
+	if got, want := buf.String(), `{"key":"APP-1","labels":["a","b"]}`+"\n"; got != want {
+		t.Errorf("PrintJSON() = %q, want %q", got, want)
 	}
 }
 
-func TestPrintJSONOnTTYKeepsTheIndent(t *testing.T) {
-	opts := output.Options{TTY: true, Colors: true}
+func TestHandleInvocationErrorJSONIsOneLine(t *testing.T) {
+	opts := output.Options{JSONFields: []string{"key"}}
 
 	var buf bytes.Buffer
-	data := map[string]any{"key": "APP-1"}
-	if err := opts.PrintJSON(&buf, data); err != nil {
-		t.Fatalf("PrintJSON() returned error: %v", err)
+	code := opts.HandleInvocationError(&buf, ytrerrors.NewUserError("bad input", "try again"), nil)
+	if code != ytrerrors.ExitUserError {
+		t.Errorf("exit code = %d, want %d", code, ytrerrors.ExitUserError)
 	}
-
-	if got, want := buf.String(), "{\n  \"key\": \"APP-1\"\n}\n"; got != want {
-		t.Errorf("TTY JSON = %q, want %q", got, want)
-	}
-}
-
-func TestHandleErrorJSONStaysCompactInBothModes(t *testing.T) {
-	for _, isTTY := range []bool{false, true} {
-		opts := output.Options{JSONFields: []string{"key"}, TTY: isTTY, Colors: isTTY}
-
-		var buf bytes.Buffer
-		code := opts.HandleError(&buf, ytrerrors.NewUserError("bad input", "try again"))
-		if code != ytrerrors.ExitUserError {
-			t.Errorf("exit code = %d, want %d", code, ytrerrors.ExitUserError)
-		}
-		if got := buf.String(); strings.Count(got, "\n") != 1 {
-			t.Errorf("JSON error with the TTY option %v must be one line, got %q", isTTY, got)
-		}
+	if got := buf.String(); strings.Count(got, "\n") != 1 {
+		t.Errorf("JSON error must be one line, got %q", got)
 	}
 }
 
@@ -525,7 +473,7 @@ func TestHandleInvocationErrorRawArgForms(t *testing.T) {
 		{"no json at all", []string{"issue", "--x"}, false},
 		{"empty equals form stays on the field-hint path", []string{"issue", "--x", "--json="}, false},
 		{"json with no value", []string{"issue", "--x", "--json"}, false},
-		{"json followed by another flag", []string{"issue", "--x", "--json", "--quiet"}, false},
+		{"json followed by another flag", []string{"issue", "--x", "--json", "--debug"}, false},
 		{"json after a bare double dash is a value", []string{"issue", "--x", "--", "--json", "key"}, false},
 	}
 
@@ -545,8 +493,8 @@ func TestHandleInvocationErrorRawArgForms(t *testing.T) {
 func TestFromContextWithoutOptionsTurnsEverythingOff(t *testing.T) {
 	opts := output.FromContext(t.Context())
 
-	if opts.TTY || opts.Colors || opts.IsJSON() || opts.Quiet || opts.Debug {
-		t.Errorf("FromContext(no options) = %+v, want off a TTY with no JSON, quiet, debug or colors", opts)
+	if opts.IsJSON() || opts.Debug {
+		t.Errorf("FromContext(no options) = %+v, want no JSON and no debug", opts)
 	}
 }
 

@@ -116,6 +116,13 @@ func TestQueueContext(t *testing.T) {
 			stdout:    appContextJSON + "\n",
 		},
 		{
+			name: "Every part selected, in order",
+			args: context("APP", "--json", "key,name,defaultType,defaultPriority,issueTypes,statuses,workflows,"+
+				"components,requiredFields,localFields,globalFields,incomplete"),
+			exchanges: []faketracker.Exchange{queue, w200, components, queueFields, localFields, globalFields},
+			stdout:    appContextJSON + "\n",
+		},
+		{
 			name: "Document keeps <, > and & literal", args: context("APP"),
 			exchanges: []faketracker.Exchange{
 				queue, w200, componentsAnswer("APP", `[{"id": 55, "name": "R&D <core>"}]`),
@@ -264,13 +271,6 @@ func TestQueueContext(t *testing.T) {
 				"incomplete": [{"part": "components", "reason": "components denied"},
 					{"part": "localFields", "reason": "local fields not found"},
 					{"part": "globalFields", "reason": "global fields unavailable"}]}`,
-		},
-		{
-			name: "Quiet", args: context("APP", "--quiet"), code: ytrerrors.ExitUserError,
-			stderr: []string{
-				"Error: queue context does not support --quiet: its document is always JSON\n" +
-					"Run without --quiet: ytr queue context APP\n",
-			},
 		},
 		named("Unknown queue", failureRow(
 			withQuery(trackerNotFoundOn(http.MethodGet, "/v3/queues/NOPE", "Очередь не существует."),

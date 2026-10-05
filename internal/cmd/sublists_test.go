@@ -2,11 +2,9 @@ package cmd
 
 import (
 	"testing"
-	"time"
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 func TestWorklogList(t *testing.T) {
@@ -20,15 +18,12 @@ func TestWorklogList(t *testing.T) {
 		 "start": "2026-09-17T09:05:00.000+0300", "duration": "PT45M"},
 		{"id": 103}
 	]`)
-	recent := trackerGET(path, `[{"id": 101, "createdBy": {"display": "Иван Петров"},
-		"start": "`+trackerTime(time.Now().Add(-150*time.Minute))+`", "duration": "PT1H30M"}]`)
 	empty := trackerGET(path, `[]`)
-	tty := output.Options{TTY: true, Colors: true}
 
 	runLeafRows(t, []leafRow{
 		{
-			name:      "JSON",
-			args:      []string{"worklog", "list", "PROJ-1", "--json", "id,author,authorId,duration,start,comment"},
+			name:      "Every field",
+			args:      []string{"worklog", "list", "PROJ-1"},
 			exchanges: []faketracker.Exchange{worklogs},
 			json: `[
 				{"id": "101", "author": "Иван Петров", "authorId": "uid-a", "duration": "PT1H30M",
@@ -39,21 +34,10 @@ func TestWorklogList(t *testing.T) {
 			]`,
 		},
 		{
-			name: "Table", args: []string{"worklog", "list", "PROJ-1"}, exchanges: []faketracker.Exchange{worklogs},
-			stdout: "ID\tAUTHOR\tDURATION\tSTART\n" +
-				"101\tИван Петров\tPT1H30M\t2026-03-30T10:00:00Z\n" +
-				"102\tИван Петров\tPT45M\t2026-09-17T09:05:00+03:00\n" +
-				"103\t-\t-\t-\n",
-		},
-		{
-			name: "TTY", args: []string{"worklog", "list", "PROJ-1"}, term: tty,
-			exchanges: []faketracker.Exchange{recent},
-			holds:     []string{"ID", "AUTHOR", "DURATION", "START", "101", "Иван Петров", "PT1H30M", "2h ago"},
-			check:     assertAlignedTable,
-		},
-		{
-			name: "Quiet", args: []string{"worklog", "list", "PROJ-1", "--quiet"},
-			exchanges: []faketracker.Exchange{worklogs}, stdout: "101\n102\n103\n",
+			name:      "JSON",
+			args:      []string{"worklog", "list", "PROJ-1", "--json", "id,duration"},
+			exchanges: []faketracker.Exchange{worklogs},
+			json:      `[{"id": "101", "duration": "PT1H30M"}, {"id": "102", "duration": "PT45M"}, {"id": "103", "duration": ""}]`,
 		},
 		{
 			name: "jq", args: []string{"worklog", "list", "PROJ-1", "--jq", ".[].duration"},
@@ -61,7 +45,7 @@ func TestWorklogList(t *testing.T) {
 		},
 		{
 			name: "Empty", args: []string{"worklog", "list", "PROJ-1"},
-			exchanges: []faketracker.Exchange{empty}, stdout: "No worklogs found\n",
+			exchanges: []faketracker.Exchange{empty}, json: `[]`,
 		},
 		{
 			name: "Extra arg", args: []string{"worklog", "list", "PROJ-1", "PROJ-2"}, code: ytrerrors.ExitUserError,
@@ -91,37 +75,31 @@ func TestLinkList(t *testing.T) {
 		 "type": {"id": "relates", "inward": "is related to", "outward": "relates to"},
 		 "object": {"key": "PROJ-789", "summary": "Add tests"}},
 		{"id": 303, "direction": "both", "type": {"id": "duplicates"}, "object": {"key": "PROJ-2"}},
+		{"id": 404, "direction": "inward", "type": {"id": "x"}},
+		{"id": 405, "direction": "outward", "type": {"id": "x"}},
+		{"id": 406, "direction": "both", "type": {}},
 		{}
 	]`)
 
 	runLeafRows(t, []leafRow{
 		{
-			name: "JSON", args: []string{"link", "list", "PROJ-1", "--json", "id,type,issue,summary"},
-			exchanges: []faketracker.Exchange{links},
+			name: "Every field", args: []string{"link", "list", "PROJ-1"}, exchanges: []faketracker.Exchange{links},
 			json: `[
 				{"id": "101", "type": "depends on", "issue": "PROJ-456", "summary": "Setup database"},
 				{"id": "202", "type": "relates to", "issue": "PROJ-789", "summary": "Add tests"},
 				{"id": "303", "type": "duplicates", "issue": "PROJ-2", "summary": ""},
+				{"id": "404", "type": "", "issue": "", "summary": ""},
+				{"id": "405", "type": "", "issue": "", "summary": ""},
+				{"id": "406", "type": "", "issue": "", "summary": ""},
 				{"id": "", "type": "", "issue": "", "summary": ""}
 			]`,
 		},
 		{
-			name: "Table", args: []string{"link", "list", "PROJ-1"}, exchanges: []faketracker.Exchange{links},
-			stdout: "ID\tTYPE\tISSUE\tSUMMARY\n" +
-				"101\tdepends on\tPROJ-456\tSetup database\n" +
-				"202\trelates to\tPROJ-789\tAdd tests\n" +
-				"303\tduplicates\tPROJ-2\t\n" +
-				"\t-\t\t\n",
-		},
-		{
-			name: "TTY", args: []string{"link", "list", "PROJ-1"}, term: output.Options{TTY: true, Colors: true},
+			name:      "JSON",
+			args:      []string{"link", "list", "PROJ-1", "--json", "id,issue"},
 			exchanges: []faketracker.Exchange{links},
-			holds:     []string{"ID", "TYPE", "ISSUE", "SUMMARY", "depends on", "PROJ-456", "Setup database"},
-			check:     assertAlignedTable,
-		},
-		{
-			name: "Quiet", args: []string{"link", "list", "PROJ-1", "--quiet"},
-			exchanges: []faketracker.Exchange{links}, stdout: "101\n202\n303\n\n",
+			json: `[{"id": "101", "issue": "PROJ-456"}, {"id": "202", "issue": "PROJ-789"}, {"id": "303", "issue": "PROJ-2"},
+				{"id": "404", "issue": ""}, {"id": "405", "issue": ""}, {"id": "406", "issue": ""}, {"id": "", "issue": ""}]`,
 		},
 		{
 			name: "jq", args: []string{"link", "list", "PROJ-1", "--jq", ".[0].type"},
@@ -129,7 +107,7 @@ func TestLinkList(t *testing.T) {
 		},
 		{
 			name: "Empty", args: []string{"link", "list", "PROJ-1"},
-			exchanges: []faketracker.Exchange{trackerGET(path, `[]`)}, stdout: "No links found\n",
+			exchanges: []faketracker.Exchange{trackerGET(path, `[]`)}, json: `[]`,
 		},
 		{
 			name: "Bad arg", args: []string{"link", "list", "bad"}, code: ytrerrors.ExitUserError,
@@ -154,8 +132,8 @@ func TestChecklistList(t *testing.T) {
 
 	runLeafRows(t, []leafRow{
 		{
-			name:      "JSON",
-			args:      []string{"checklist", "list", "PROJ-1", "--json", "id,text,checked,assignee,assigneeId"},
+			name:      "Every field",
+			args:      []string{"checklist", "list", "PROJ-1"},
 			exchanges: []faketracker.Exchange{items},
 			json: `[
 				{"id": "item-1", "text": "Review code", "checked": true, "assignee": "Иван Петров", "assigneeId": "uid-a"},
@@ -165,22 +143,10 @@ func TestChecklistList(t *testing.T) {
 			]`,
 		},
 		{
-			name: "Table", args: []string{"checklist", "list", "PROJ-1"}, exchanges: []faketracker.Exchange{items},
-			stdout: "ID\tTEXT\tCHECKED\tASSIGNEE\n" +
-				"item-1\tReview code\tyes\tИван Петров\n" +
-				"item-2\tWrite tests\tno\tИван Петров\n" +
-				"item-3\tDeploy\tno\t-\n" +
-				"\t\tno\t-\n",
-		},
-		{
-			name: "TTY", args: []string{"checklist", "list", "PROJ-1"}, term: output.Options{TTY: true, Colors: true},
+			name: "JSON", args: []string{"checklist", "list", "PROJ-1", "--json", "id,checked"},
 			exchanges: []faketracker.Exchange{items},
-			holds:     []string{"ID", "TEXT", "CHECKED", "ASSIGNEE", "item-1", "Review code", "yes", "Иван Петров"},
-			check:     assertAlignedTable,
-		},
-		{
-			name: "Quiet", args: []string{"checklist", "list", "PROJ-1", "--quiet"},
-			exchanges: []faketracker.Exchange{items}, stdout: "item-1\nitem-2\nitem-3\n\n",
+			json: `[{"id": "item-1", "checked": true}, {"id": "item-2", "checked": false},
+				{"id": "item-3", "checked": false}, {"id": "", "checked": false}]`,
 		},
 		{
 			name: "jq", args: []string{"checklist", "list", "PROJ-1", "--jq", ".[].id"},
@@ -188,7 +154,7 @@ func TestChecklistList(t *testing.T) {
 		},
 		{
 			name: "Empty", args: []string{"checklist", "list", "PROJ-1"},
-			exchanges: []faketracker.Exchange{trackerGET(path, `[]`)}, stdout: "No checklist items found\n",
+			exchanges: []faketracker.Exchange{trackerGET(path, `[]`)}, json: `[]`,
 		},
 		{
 			name: "Bad arg", args: []string{"checklist", "list", "bad"}, code: ytrerrors.ExitUserError,

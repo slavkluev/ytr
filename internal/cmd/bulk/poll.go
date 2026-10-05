@@ -2,12 +2,10 @@ package bulk
 
 import (
 	"bufio"
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"time"
 
@@ -38,13 +36,6 @@ const (
 func readIssueKeys(args []string, stdin io.Reader) ([]string, error) {
 	if len(args) > 0 {
 		return dedupeKeys(args), nil
-	}
-
-	if _, tty := output.TerminalFile(stdin); tty {
-		return nil, ytrerrors.NewUserError(
-			"no issue keys provided",
-			"Provide keys as arguments or pipe them via stdin (one per line)",
-		)
 	}
 
 	var keys []string
@@ -126,27 +117,6 @@ func parseFieldFlags(fields []string) (map[string]any, error) {
 	return values, nil
 }
 
-func showProgress(w io.Writer, bc *tracker.BulkChange) {
-	if _, tty := output.TerminalFile(w); !tty {
-		return
-	}
-
-	done := api.DerefInt(bc.TotalCompletedIssues, 0)
-	total := api.DerefInt(bc.TotalIssues, 0)
-	pct := api.DerefInt(bc.ExecutionIssuePercent, 0)
-
-	fmt.Fprintf(w, "\r%-60s",
-		fmt.Sprintf("Bulk operation: %d/%d issues (%d%%)", done, total, pct))
-}
-
-func clearProgress(w io.Writer) {
-	if _, tty := output.TerminalFile(w); !tty {
-		return
-	}
-
-	fmt.Fprintf(w, "\r%-60s\r", "")
-}
-
 // errWaitEnded is what pollUntilDone returns when its context ends before the
 // operation finishes. A poll's own HTTP timeout also matches
 // context.DeadlineExceeded, so the end of the wait cannot be told by that.
@@ -164,10 +134,7 @@ func pollUntilDone(
 	getter *tracker.BulkChangeService,
 	start *tracker.BulkChange,
 	operationID string,
-	stderr io.Writer,
 ) (*tracker.BulkChange, error) {
-	defer clearProgress(stderr)
-
 	last, backoff := start, initialBackoff
 
 	for {
@@ -184,8 +151,6 @@ func pollUntilDone(
 		if err != nil {
 			return nil, api.MapAPIError(err)
 		}
-
-		showProgress(stderr, bc)
 
 		if finished(api.DerefString(bc.Status, "")) {
 			return bc, nil
@@ -221,8 +186,7 @@ func awaitBulkCompletion(
 	ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
 	defer cancel()
 
-	progress := cmd.ErrOrStderr() //nolint:forbidigo // progress shows on a terminal while the change runs, before the result
-	result, err := pollUntilDone(ctx, getter, bc, operationID, progress)
+	result, err := pollUntilDone(ctx, getter, bc, operationID)
 	if err != nil && !errors.Is(err, errWaitEnded) {
 		return err
 	}
@@ -255,39 +219,5 @@ func finalizeBulkResult(cmd *cobra.Command, opts *output.Options, bc *tracker.Bu
 }
 
 func renderBulkOutput(cmd *cobra.Command, opts *output.Options, bc *tracker.BulkChange) error {
-	if opts.IsJSON() {
-		return runner.PrintJSON(cmd, opts, output.FilterFields(toBulkChangeDetail(bc), opts.JSONFields))
-	}
-
-	return runner.PrintText(cmd, func(w io.Writer) error {
-		if opts.Quiet {
-			output.PrintQuiet(w, api.DerefFlexString(bc.ID, ""))
-			return nil
-		}
-
-		detail := toBulkChangeDetail(bc)
-		tbl := opts.NewTable(w)
-		tbl.AddHeader("ID", "STATUS", "TOTAL", "DONE", "PERCENT", "SUGGESTION")
-		tbl.AddRow(
-			api.DerefFlexString(bc.ID, "-"),
-			api.DerefString(bc.Status, "-"),
-			cell(bc.TotalIssues, ""),
-			cell(bc.TotalCompletedIssues, ""),
-			cell(bc.ExecutionIssuePercent, "%"),
-			cmp.Or(detail.Suggestion, "-"),
-		)
-		tbl.Render()
-
-		return nil
-	})
-}
-
-// cell is n followed by unit, or "-" when Tracker did not send n, as the
-// response that starts an operation does not send its counts.
-func cell(n *int, unit string) string {
-	if n == nil {
-		return "-"
-	}
-
-	return strconv.Itoa(*n) + unit
+	return runner.PrintJSON(cmd, opts, output.FilterFields(toBulkChangeDetail(bc), opts.JSONFields))
 }

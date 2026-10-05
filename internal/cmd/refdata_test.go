@@ -28,7 +28,6 @@ type refdataLeaf struct {
 	short   string
 	path    string
 	fixture string
-	empty   string
 	items   int
 	pages   int
 }
@@ -49,10 +48,10 @@ func TestRefdataList(t *testing.T) {
 	t.Parallel()
 
 	leaves := []refdataLeaf{
-		{"status", "List workflow statuses", "/v3/statuses", "status-list.json", "No statuses found", 106, 3},
-		{"priority", "List priorities", "/v3/priorities", "priority-list.json", "No priorities found", 7, 1},
-		{"resolution", "List resolutions", "/v3/resolutions", "resolution-list.json", "No resolutions found", 22, 1},
-		{"issuetype", "List issue types", "/v3/issuetypes", "issuetype-list.json", "No issue types found", 29, 1},
+		{"status", "List workflow statuses", "/v3/statuses", "status-list.json", 106, 3},
+		{"priority", "List priorities", "/v3/priorities", "priority-list.json", 7, 1},
+		{"resolution", "List resolutions", "/v3/resolutions", "resolution-list.json", 22, 1},
+		{"issuetype", "List issue types", "/v3/issuetypes", "issuetype-list.json", 29, 1},
 	}
 
 	for _, leaf := range leaves {
@@ -92,10 +91,11 @@ func TestRefdataList(t *testing.T) {
 func refdataRows() []refdataRow {
 	return []refdataRow{
 		{
-			name: "JSON", args: []string{"list", "--json", "id,key,name"}, exchanges: loadRefdataFixture,
+			name: "Every field", args: []string{"list"}, exchanges: loadRefdataFixture,
 			check: func(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
 				t.Helper()
 				assertEmpty(t, "stderr", res.Stderr)
+				assertOneLine(t, res.Stdout)
 
 				var items []refdataItem
 				if err := json.Unmarshal([]byte(res.Stdout), &items); err != nil {
@@ -112,19 +112,6 @@ func refdataRows() []refdataRow {
 			},
 		},
 		{
-			name: "Table", args: []string{"list"}, exchanges: loadRefdataFixture,
-			check: func(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
-				t.Helper()
-				assertEmpty(t, "stderr", res.Stderr)
-
-				want := []string{"ID\tKEY\tNAME"}
-				for _, item := range recorded {
-					want = append(want, item.ID+"\t"+item.Key+"\t"+item.Name)
-				}
-				assertLines(t, res.Stdout, want)
-			},
-		},
-		{
 			name: "JSON subset in any case", args: []string{"list", "--json", "ID,Key"}, exchanges: loadRefdataFixture,
 			check: func(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
 				t.Helper()
@@ -138,12 +125,17 @@ func refdataRows() []refdataRow {
 			},
 		},
 		{
-			name: "Quiet", args: []string{"list", "--quiet"}, exchanges: loadRefdataFixture,
-			check: expectRecordedKeys,
-		},
-		{
 			name: "jq default", args: []string{"list", "--jq", ".[].key"}, exchanges: loadRefdataFixture,
-			check: expectRecordedKeys,
+			check: func(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
+				t.Helper()
+				assertEmpty(t, "stderr", res.Stderr)
+
+				keys := make([]string, len(recorded))
+				for i, item := range recorded {
+					keys[i] = item.Key
+				}
+				assertLines(t, res.Stdout, keys)
+			},
 		},
 		{
 			name: "jq whole document", args: []string{"list", "--jq", "."}, exchanges: loadRefdataFixture,
@@ -160,22 +152,6 @@ func refdataRows() []refdataRow {
 		},
 		{
 			name: "Empty", args: []string{"list"}, exchanges: emptyRefdataList,
-			check: func(t *testing.T, leaf refdataLeaf, _ []refdataItem, res cliResult) {
-				t.Helper()
-				assertEmpty(t, "stderr", res.Stderr)
-				assertLines(t, res.Stdout, []string{leaf.empty})
-			},
-		},
-		{
-			name: "Empty quiet", args: []string{"list", "--quiet"}, exchanges: emptyRefdataList,
-			check: func(t *testing.T, _ refdataLeaf, _ []refdataItem, res cliResult) {
-				t.Helper()
-				assertEmpty(t, "stderr", res.Stderr)
-				assertEmpty(t, "stdout", res.Stdout)
-			},
-		},
-		{
-			name: "Empty JSON", args: []string{"list", "--json", "id"}, exchanges: emptyRefdataList,
 			check: func(t *testing.T, _ refdataLeaf, _ []refdataItem, res cliResult) {
 				t.Helper()
 				assertEmpty(t, "stderr", res.Stderr)
@@ -234,17 +210,6 @@ func loadRefdataFixture(t *testing.T, leaf refdataLeaf) []faketracker.Exchange {
 
 func emptyRefdataList(_ *testing.T, leaf refdataLeaf) []faketracker.Exchange {
 	return []faketracker.Exchange{trackerGET(leaf.path, `[]`)}
-}
-
-func expectRecordedKeys(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
-	t.Helper()
-	assertEmpty(t, "stderr", res.Stderr)
-
-	keys := make([]string, len(recorded))
-	for i, item := range recorded {
-		keys[i] = item.Key
-	}
-	assertLines(t, res.Stdout, keys)
 }
 
 // assertRefdataRequests wants one GET of leaf's path per page served: the

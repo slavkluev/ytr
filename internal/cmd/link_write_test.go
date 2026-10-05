@@ -9,10 +9,13 @@ import (
 	"github.com/slavkluev/ytr/internal/faketracker"
 )
 
-const linkAnswer = `{"id": 101, "direction": "inward",
-	"type": {"id": "depends", "inward": "depends on", "outward": "is dependency for"},
-	"object": {"id": "4ff3e8dae4b0e2ac00000001", "key": "PROJ-2", "display": "Setup database"},
-	"createdBy": {"id": "uid-a", "display": "Иван Петров"}}`
+const (
+	linkAnswer = `{"id": 101, "direction": "inward",
+		"type": {"id": "depends", "inward": "depends on", "outward": "is dependency for"},
+		"object": {"id": "4ff3e8dae4b0e2ac00000001", "key": "PROJ-2", "display": "Setup database"},
+		"createdBy": {"id": "uid-a", "display": "Иван Петров"}}`
+	linkItemJSON = `{"id": "101", "type": "depends on", "issue": "PROJ-2", "summary": ""}`
+)
 
 func TestLinkCreate(t *testing.T) {
 	t.Parallel()
@@ -25,33 +28,28 @@ func TestLinkCreate(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "Flag body", args: create("--type", "depends on", "--issue", "PROJ-2"),
-			exchanges: []faketracker.Exchange{created}, body: body, stdout: "Link 101 created on PROJ-1\n",
+			exchanges: []faketracker.Exchange{created}, body: body, json: linkItemJSON,
 		},
 		{
 			name: "JSON body", args: create("--from-json", body), exchanges: []faketracker.Exchange{created},
-			body: body, stdout: "Link 101 created on PROJ-1\n",
+			body: body, json: linkItemJSON,
 		},
 		{
 			name: "Issue ID", args: create("--type", "relates", "--issue", "4ff3e8dae4b0e2ac00000001"),
 			exchanges: []faketracker.Exchange{created},
 			body:      `{"relationship": "relates", "issue": "4ff3e8dae4b0e2ac00000001"}`,
-			stdout:    "Link 101 created on PROJ-1\n",
+			json:      linkItemJSON,
 		},
 		{
 			name:      "Issue ID in JSON",
 			args:      create("--from-json", `{"relationship": "relates", "issue": "4ff3e8dae4b0e2ac00000001"}`),
 			exchanges: []faketracker.Exchange{created},
 			body:      `{"relationship": "relates", "issue": "4ff3e8dae4b0e2ac00000001"}`,
-			stdout:    "Link 101 created on PROJ-1\n",
+			json:      linkItemJSON,
 		},
 		{
-			name: "JSON", args: create("--type", "depends on", "--issue", "PROJ-2", "--json", "id,type,issue,summary"),
-			exchanges: []faketracker.Exchange{created},
-			json:      `{"id": "101", "type": "depends on", "issue": "PROJ-2", "summary": ""}`,
-		},
-		{
-			name: "Quiet", args: create("--type", "depends on", "--issue", "PROJ-2", "--quiet"),
-			exchanges: []faketracker.Exchange{created}, stdout: "101\n",
+			name: "JSON", args: create("--type", "depends on", "--issue", "PROJ-2", "--json", "id,issue"),
+			exchanges: []faketracker.Exchange{created}, json: `{"id": "101", "issue": "PROJ-2"}`,
 		},
 		{
 			name: "jq", args: create("--type", "depends on", "--issue", "PROJ-2", "--jq", ".type"),
@@ -105,10 +103,10 @@ func TestLinkDelete(t *testing.T) {
 	const path = "/v3/issues/PROJ-1/links/101"
 	args := []string{"link", "delete", "PROJ-1", "101"}
 
-	runLeafRows(t, slices.Concat(deleteRows(args, trackerDELETE(path), "101", "Link 101 deleted"), []leafRow{
+	runLeafRows(t, slices.Concat(deleteRows(args, trackerDELETE(path), "101"), []leafRow{
 		{
 			name: "Trimmed ID", args: []string{"link", "delete", "PROJ-1", " 101 "},
-			exchanges: []faketracker.Exchange{trackerDELETE(path)}, stdout: "Link 101 deleted\n",
+			exchanges: []faketracker.Exchange{trackerDELETE(path)}, json: `{"id": "101", "deleted": true}`,
 		},
 		{
 			name: "Empty ID", args: []string{"link", "delete", "PROJ-1", " "}, code: ytrerrors.ExitUserError,

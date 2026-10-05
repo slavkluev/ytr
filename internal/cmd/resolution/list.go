@@ -8,7 +8,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 type item struct {
@@ -25,16 +24,12 @@ func newListCmd() *cobra.Command {
 		Example: `  # List all resolutions
   ytr resolution list
 
-  # Get resolutions as JSON
+  # Only IDs, keys and names
   ytr resolution list --json id,key,name`,
-		Empty: "No resolutions found",
 		Call: func(ctx context.Context, c *tracker.Client, _ []string) ([]*tracker.Resolution, error) {
 			return runner.Collect(c.Resolutions.ListIter(ctx, nil))
 		},
-		Item:   toItem,
-		Header: []string{"ID", "KEY", "NAME"},
-		Row:    row,
-		Quiet:  func(r *tracker.Resolution) string { return api.DerefString(r.Key, "") },
+		Item: toItem,
 	}.Command()
 }
 
@@ -43,13 +38,5 @@ func toItem(r *tracker.Resolution) item {
 		ID:   api.DerefFlexString(r.ID, ""),
 		Key:  api.DerefString(r.Key, ""),
 		Name: api.DerefString(r.Name, ""),
-	}
-}
-
-func row(_ *output.Options, r *tracker.Resolution) []string {
-	return []string{
-		api.DerefFlexString(r.ID, "-"),
-		api.DerefString(r.Key, "-"),
-		api.DerefString(r.Name, "-"),
 	}
 }

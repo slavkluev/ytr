@@ -1,7 +1,6 @@
 package cmd_test
 
 import (
-	"bytes"
 	"slices"
 	"testing"
 
@@ -35,36 +34,6 @@ func TestCommandTree(t *testing.T) {
 	}
 	if !found {
 		t.Error("root command does not have 'version' subcommand")
-	}
-}
-
-func TestMutuallyExclusiveFlags(t *testing.T) {
-	t.Parallel()
-
-	root := cmd.RootCmd()
-	root.SetArgs([]string{"version", "--json", "key", "--quiet"})
-	buf := new(bytes.Buffer)
-	root.SetOut(buf)
-	root.SetErr(buf)
-
-	err := root.Execute()
-	if err == nil {
-		t.Error("expected error when both --json and --quiet are set, got nil")
-	}
-}
-
-func TestMutuallyExclusiveJQAndQuiet(t *testing.T) {
-	t.Parallel()
-
-	root := cmd.RootCmd()
-	root.SetArgs([]string{"version", "--jq", ".version", "--quiet"})
-	buf := new(bytes.Buffer)
-	root.SetOut(buf)
-	root.SetErr(buf)
-
-	err := root.Execute()
-	if err == nil {
-		t.Error("expected error when both --jq and --quiet are set, got nil")
 	}
 }
 

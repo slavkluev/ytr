@@ -2,12 +2,10 @@ package link
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
-	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/validate"
 )
@@ -25,7 +23,7 @@ Provide --type and --issue for individual flags, or --from-json for full JSON in
   # Create link via JSON
   ytr link create PROJ-123 --from-json '{"relationship":"relates","issue":"PROJ-456"}'
 
-  # Create link and get result as JSON
+  # Create a link and keep only its ID and type
   ytr link create PROJ-123 --type "relates" --issue PROJ-456 --json id,type`,
 		Args: []runner.Arg{runner.IssueKey},
 		Flags: []runner.Flag{
@@ -40,14 +38,6 @@ Provide --type and --issue for individual flags, or --from-json for full JSON in
 			link, _, err := c.Issues.CreateLink(ctx, args[0], req)
 			return link, err
 		},
-		Item:  toLinkItem,
-		Quiet: linkID,
-		Confirm: func(args []string, link *tracker.IssueLink) string {
-			return fmt.Sprintf("Link %s created on %s", linkID(link), args[0])
-		},
+		Item: toLinkItem,
 	}.Command()
-}
-
-func linkID(link *tracker.IssueLink) string {
-	return api.DerefFlexString(link.ID, "")
 }

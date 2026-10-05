@@ -1,9 +1,6 @@
 package issue
 
 import (
-	"fmt"
-	"io"
-
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
@@ -43,7 +40,7 @@ JSON FIELDS
   # Filter to only status transitions
   ytr issue changelog PROJ-123 --field status
 
-  # Get as JSON with all fields
+  # Only dates, authors, types and the field, comment and link changes
   ytr issue changelog PROJ-123 --json date,author,type,fields,comments,links
 
   # Extract status transitions using jq
@@ -115,39 +112,5 @@ func runChangelog(
 		return api.MapAPIError(err)
 	}
 
-	if opts.IsJSON() {
-		return runner.PrintPage(cmd, opts, normalizeChangelog(entries), page)
-	}
-
-	return runner.PrintText(cmd, func(w io.Writer) error {
-		return renderChangelogNonJSON(w, opts, flattenChangelog(entries))
-	})
-}
-
-func renderChangelogNonJSON(w io.Writer, opts *output.Options, items []changelogItem) error {
-	if opts.Quiet {
-		for _, item := range items {
-			output.PrintQuiet(w, fmt.Sprintf("%s: %s -> %s", item.Field, item.From, item.To))
-		}
-		return nil
-	}
-
-	return renderChangelogTable(w, opts, items)
-}
-
-func renderChangelogTable(w io.Writer, opts *output.Options, items []changelogItem) error {
-	if len(items) == 0 {
-		_, err := fmt.Fprintln(w, "No changes found")
-		return err
-	}
-
-	tbl := opts.NewTable(w)
-	tbl.AddHeader("DATE", "AUTHOR", "FIELD", "FROM", "TO")
-
-	for _, item := range items {
-		tbl.AddRow(item.Date, item.Author, item.Field, item.From, item.To)
-	}
-
-	tbl.Render()
-	return nil
+	return runner.PrintPage(cmd, opts, normalizeChangelog(entries), page)
 }

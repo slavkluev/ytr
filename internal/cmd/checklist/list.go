@@ -8,7 +8,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 type checklistItem struct {
@@ -27,25 +26,14 @@ func newListCmd() *cobra.Command {
 		Example: `  # List checklist items on an issue
   ytr checklist list PROJ-123
 
-  # Get checklist as JSON
+  # Only IDs, texts and checked states
   ytr checklist list PROJ-123 --json id,text,checked`,
-		Args:  []runner.Arg{runner.IssueKey},
-		Empty: "No checklist items found",
+		Args: []runner.Arg{runner.IssueKey},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) ([]*tracker.ChecklistItem, error) {
 			items, _, err := c.Issues.ListChecklistItems(ctx, args[0])
 			return items, err
 		},
-		Item:   toChecklistItem,
-		Header: []string{"ID", "TEXT", "CHECKED", "ASSIGNEE"},
-		Row: func(_ *output.Options, c *tracker.ChecklistItem) []string {
-			return []string{
-				api.DerefFlexString(c.ID, ""),
-				api.DerefString(c.Text, ""),
-				checkedDisplay(api.DerefBool(c.Checked, false)),
-				c.Assignee.DisplayOr("-"),
-			}
-		},
-		Quiet: func(c *tracker.ChecklistItem) string { return api.DerefFlexString(c.ID, "") },
+		Item: toChecklistItem,
 	}.Command()
 }
 
@@ -59,19 +47,8 @@ func toChecklistItem(c *tracker.ChecklistItem) checklistItem {
 	}
 }
 
-func checkedDisplay(checked bool) string {
-	if checked {
-		return "yes"
-	}
-	return "no"
-}
-
 // sameItem is the Item of a write, whose Call already answers with the item it
 // prints.
 func sameItem(item checklistItem) checklistItem {
 	return item
-}
-
-func itemID(item checklistItem) string {
-	return item.ID
 }

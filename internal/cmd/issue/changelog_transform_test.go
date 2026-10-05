@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"reflect"
-	"slices"
 	"testing"
 	"time"
 
@@ -315,62 +314,6 @@ func TestChangelogNilElementsDoNotPanic(t *testing.T) {
 	  ],
 	  "pagination": {"hasMore": false}
 	}`)
-
-	want := []changelogItem{{Field: "status", From: "open", To: "closed"}}
-	if got := flattenChangelog(entries); !slices.Equal(got, want) {
-		t.Errorf("flattenChangelog() = %+v, want %+v", got, want)
-	}
-}
-
-func TestFlattenChangelog(t *testing.T) {
-	const (
-		first  = "2024-03-15T10:00:00Z"
-		second = "2024-03-16T14:30:00Z"
-	)
-
-	tests := []struct {
-		name    string
-		entries []*tracker.Changelog
-		want    []changelogItem
-	}{
-		{
-			name:    "field changes",
-			entries: sampleChangelog(),
-			want: []changelogItem{
-				{Date: first, Author: "alice", Field: "status", From: "Open", To: "In Progress"},
-				{Date: first, Author: "alice", Field: "summary", From: "Old title", To: "New title"},
-				{Date: second, Author: "bob", Field: "status", To: "Done"},
-			},
-		},
-		{
-			name:    "every other kind of change",
-			entries: sampleChangelogAllTypes(),
-			want: []changelogItem{
-				{Date: first, Author: "alice", Field: "comment", To: "Test comment"},
-				{Date: first, Author: "alice", Field: "comment", From: "Old comment"},
-				{Date: first, Author: "alice", Field: "comment", From: "old text", To: "new text"},
-				{Date: first, Author: "alice", Field: "reaction", To: "like"},
-				{Date: first, Author: "alice", Field: "reaction", From: "heart"},
-				{Date: first, Author: "alice", Field: "link", To: "Related → SIG-1"},
-				{Date: first, Author: "alice", Field: "link", From: "Blocker → SIG-7"},
-				{Date: first, Author: "alice", Field: "attachment", To: "test.txt"},
-				{Date: first, Author: "alice", Field: "attachment", From: "test.txt"},
-				{Date: first, Author: "alice", Field: "spent", To: "PT1H"},
-				{Date: first, Author: "alice", Field: "worklog", To: "PT1H"},
-				{Date: first, Author: "alice", Field: "worklog", From: "PT30M", To: "PT1H"},
-				{Date: first, Author: "alice", Field: "relatedResolution", To: "SIG-7: Resolved"},
-			},
-		},
-		{name: "no entries", entries: nil, want: nil},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := flattenChangelog(tt.entries); !slices.Equal(got, tt.want) {
-				t.Errorf("flattenChangelog() =\n%+v\nwant\n%+v", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestChangelogPagination(t *testing.T) {
@@ -530,33 +473,6 @@ func TestFormatDurationISO(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := formatDurationISO(tt.duration); got != tt.want {
 				t.Errorf("formatDurationISO() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestFormatLinkValueString(t *testing.T) {
-	relates := &tracker.IssueLinkType{ID: new(tracker.FlexString("relates")), Outward: new("Related")}
-
-	tests := []struct {
-		name  string
-		value *tracker.ChangelogLinkValue
-		want  string
-	}{
-		{"nil", nil, ""},
-		{
-			"link name and issue key",
-			&tracker.ChangelogLinkValue{
-				Direction: new("outward"), Object: &tracker.Issue{Key: new("SIG-1")}, Type: relates,
-			},
-			"Related → SIG-1",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := formatLinkValueString(tt.value); got != tt.want {
-				t.Errorf("formatLinkValueString() = %q, want %q", got, tt.want)
 			}
 		})
 	}

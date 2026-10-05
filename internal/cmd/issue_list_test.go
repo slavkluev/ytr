@@ -8,11 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jedib0t/go-pretty/v6/text"
-
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 // trackerPage answers a paged list request, page of perPage, with items, a
@@ -49,7 +46,6 @@ func TestIssueList(t *testing.T) {
 	const fullItem = `{"key": "PROJ-1", "summary": "Fix login bug", "status": "In Progress", "priority": "Critical",
 		"type": "Bug", "assignee": "Иван Петров", "assigneeId": "uid-a", "createdAt": "2026-09-17T09:05:00+03:00",
 		"updatedAt": "2026-09-18T10:00:00Z"}`
-	all := "key,summary,status,priority,type,assignee,assigneeId,createdAt,updatedAt"
 	two := issueSearch(1, 50, 2, "["+listedIssue("PROJ-1")+","+listedIssue("PROJ-2")+"]")
 	longSummary := strings.Repeat("a long summary ", 20)
 	long := issueSearch(1, 50, 1, `[{"key": "PROJ-1", "summary": "`+longSummary+`", "status": {"key": "open"}}]`)
@@ -58,27 +54,28 @@ func TestIssueList(t *testing.T) {
 
 	runLeafRows(t, []leafRow{
 		{
-			name: "Table", args: list("--filter", "queue=PROJ"), exchanges: []faketracker.Exchange{two},
+			name: "Filtered", args: list("--filter", "queue=PROJ"), exchanges: []faketracker.Exchange{two},
 			body: `{"filter": {"queue": "PROJ"}}`,
-			stdout: "KEY\tSTATUS\tASSIGNEE\tSUMMARY\n" +
-				"PROJ-1\tOpen\tuserPROJ-1\tSummary for PROJ-1\n" +
-				"PROJ-2\tOpen\tuserPROJ-2\tSummary for PROJ-2\n",
+			json: `{"items": [
+				{"key": "PROJ-1", "summary": "Summary for PROJ-1", "status": "Open", "assignee": "userPROJ-1",
+					"assigneeId": "uid-PROJ-1"},
+				{"key": "PROJ-2", "summary": "Summary for PROJ-2", "status": "Open", "assignee": "userPROJ-2",
+					"assigneeId": "uid-PROJ-2"}],
+				"pagination": {"hasMore": false, "total": 2}}`,
 		},
 		{
-			name: "JSON", args: list("--json", all),
+			name: "Every field", args: list(),
 			exchanges: []faketracker.Exchange{issueSearch(1, 50, 1, "["+fullIssue+"]")},
 			json:      `{"items": [` + fullItem + `], "pagination": {"hasMore": false, "total": 1}}`,
 		},
 		{
-			name: "JSON of a bare issue", args: list("--json", all),
-			exchanges: []faketracker.Exchange{issueSearch(1, 50, 1, `[{"key": "NIL-1", "summary": "Bare"}]`)},
-			json: `{"items": [{"key": "NIL-1", "summary": "Bare", "status": "", "assigneeId": ""}],
-				"pagination": {"hasMore": false, "total": 1}}`,
-		},
-		{
-			name: "Table of a bare issue", args: list(),
-			exchanges: []faketracker.Exchange{issueSearch(1, 50, 1, `[{"key": "NIL-1", "summary": "Bare"}]`)},
-			stdout:    "KEY\tSTATUS\tASSIGNEE\tSUMMARY\nNIL-1\t-\t-\tBare\n",
+			name: "A bare issue", args: list(),
+			exchanges: []faketracker.Exchange{
+				issueSearch(1, 50, 2, `[{"key": "NIL-1", "summary": "Bare"}, {"key": "NIL-2", "status": {}}]`),
+			},
+			json: `{"items": [{"key": "NIL-1", "summary": "Bare", "status": "", "assigneeId": ""},
+				{"key": "NIL-2", "summary": "", "status": "", "assigneeId": ""}],
+				"pagination": {"hasMore": false, "total": 2}}`,
 		},
 		{
 			name: "Namesakes keep their assignee IDs", args: list("--jq", "[.items[].assigneeId]"),
@@ -97,19 +94,15 @@ func TestIssueList(t *testing.T) {
 				"pagination": {"cursor": "2", "hasMore": true, "total": 5}}`,
 		},
 		{
-			name: "Quiet", args: list("--filter", "queue=PROJ", "--quiet"), exchanges: []faketracker.Exchange{two},
-			stdout: "PROJ-1\nPROJ-2\n",
-		},
-		{
 			name: "jq", args: list("--jq", ".items[].key"), exchanges: []faketracker.Exchange{two},
 			stdout: "PROJ-1\nPROJ-2\n",
 		},
 		{
-			name: "Limit", args: list("--limit", "10", "--quiet"),
+			name: "Limit", args: list("--limit", "10", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{issueSearch(1, 10, 0, `[]`)}, body: `{}`,
 		},
 		{
-			name: "Limit at the maximum", args: list("--limit", "1000", "--quiet"),
+			name: "Limit at the maximum", args: list("--limit", "1000", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{issueSearch(1, 1000, 0, `[]`)},
 		},
 		{
@@ -122,7 +115,7 @@ func TestIssueList(t *testing.T) {
 			stderr: []string{"invalid cursor"},
 		},
 		{
-			name: "All pages", args: list("--all", "--limit", "2", "--quiet"),
+			name: "All pages", args: list("--all", "--limit", "2", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{
 				issueSearch(1, 2, 3, "["+listedIssue("A-1")+","+listedIssue("A-2")+"]"),
 				issueSearch(2, 2, 3, "["+listedIssue("A-3")+"]"),
@@ -131,7 +124,7 @@ func TestIssueList(t *testing.T) {
 			check:  assertRequestOrder(`page=1&perPage=2`, `page=2&perPage=2`),
 		},
 		{
-			name: "All pages end on a full page", args: list("--all", "--limit", "2", "--quiet"),
+			name: "All pages end on a full page", args: list("--all", "--limit", "2", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{
 				issueSearch(1, 2, 4, "["+listedIssue("A-1")+","+listedIssue("A-2")+"]"),
 				issueSearch(2, 2, 4, "["+listedIssue("A-3")+","+listedIssue("A-4")+"]"),
@@ -163,7 +156,17 @@ func TestIssueList(t *testing.T) {
 		},
 		{
 			name: "All pages keep the filter and order",
-			args: list("--all", "--limit", "2", "--filter", "queue=PROJ", "--order-by", "updated", "--quiet"),
+			args: list(
+				"--all",
+				"--limit",
+				"2",
+				"--filter",
+				"queue=PROJ",
+				"--order-by",
+				"updated",
+				"--jq",
+				".items[].key",
+			),
 			exchanges: []faketracker.Exchange{
 				issueSearch(1, 2, 3, "["+listedIssue("A-1")+","+listedIssue("A-2")+"]"),
 				issueSearch(2, 2, 3, "["+listedIssue("A-3")+"]"),
@@ -174,7 +177,7 @@ func TestIssueList(t *testing.T) {
 		},
 		{
 			name: "All pages keep the query",
-			args: list("--all", "--limit", "2", "--query", "Queue: PROJ AND Status: open", "--quiet"),
+			args: list("--all", "--limit", "2", "--query", "Queue: PROJ AND Status: open", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{
 				issueSearch(1, 2, 3, "["+listedIssue("A-1")+","+listedIssue("A-2")+"]"),
 				issueSearch(2, 2, 3, "["+listedIssue("A-3")+"]"),
@@ -185,38 +188,36 @@ func TestIssueList(t *testing.T) {
 		},
 		{
 			name: "Empty", args: list("--filter", "queue=PROJ"), exchanges: []faketracker.Exchange{empty},
-			stdout: "No issues found\n",
-		},
-		{
-			name: "Empty on a TTY", args: list("--filter", "queue=PROJ"), term: output.Options{TTY: true, Colors: true},
-			exchanges: []faketracker.Exchange{empty}, stdout: "No issues found\n",
+			json: `{"items": [], "pagination": {"hasMore": false}}`,
 		},
 		{
 			name: "Empty as JSON", args: list("--json", "key"), exchanges: []faketracker.Exchange{empty},
 			json: `{"items": [], "pagination": {"hasMore": false}}`,
 		},
 		{
-			name: "Query", args: list("--query", "Queue: PROJ AND Status: open", "--quiet"),
+			name: "Query", args: list("--query", "Queue: PROJ AND Status: open", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{empty}, body: `{"query": "Queue: PROJ AND Status: open"}`,
 		},
 		{
-			name: "Filter", args: list("--filter", "priority=critical", "--quiet"),
+			name: "Filter", args: list("--filter", "priority=critical", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{empty}, body: `{"filter": {"priority": "critical"}}`,
 		},
 		{
-			name: "Filter value holding =", args: list("--filter", "summary=a=b", "--quiet"),
+			name: "Filter value holding =", args: list("--filter", "summary=a=b", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{empty}, body: `{"filter": {"summary": "a=b"}}`,
 		},
 		{
-			name: "Repeated filter key", args: list("--filter", "status=open", "--filter", "status=closed", "--quiet"),
-			exchanges: []faketracker.Exchange{empty}, body: `{"filter": {"status": ["open", "closed"]}}`,
+			name:      "Repeated filter key",
+			args:      list("--filter", "status=open", "--filter", "status=closed", "--jq", ".items[].key"),
+			exchanges: []faketracker.Exchange{empty},
+			body:      `{"filter": {"status": ["open", "closed"]}}`,
 		},
 		{
-			name: "Order descending", args: list("--order-by", "updated", "--quiet"),
+			name: "Order descending", args: list("--order-by", "updated", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{empty}, body: `{"order": "-updated"}`,
 		},
 		{
-			name: "Order ascending", args: list("--order-by", "created", "--order-asc", "--quiet"),
+			name: "Order ascending", args: list("--order-by", "created", "--order-asc", "--jq", ".items[].key"),
 			exchanges: []faketracker.Exchange{empty}, body: `{"order": "+created"}`,
 		},
 		{
@@ -255,43 +256,9 @@ func TestIssueList(t *testing.T) {
 			stderr: []string{"Error: --order-asc requires --order-by\n"},
 		},
 		{
-			name:      "TTY",
-			args:      list("--filter", "queue=PROJ"),
-			term:      output.Options{TTY: true},
-			exchanges: []faketracker.Exchange{two},
-			holds: []string{
-				"KEY     STATUS  ASSIGNEE    SUMMARY",
-				"PROJ-1  Open    userPROJ-1  Summary for PROJ-1",
-			},
-			check: assertAlignedTable,
-		},
-		{
-			name: "TTY with colors",
-			args: list("--filter", "queue=PROJ"),
-			term: output.Options{TTY: true, Colors: true},
-			exchanges: []faketracker.Exchange{issueSearch(1, 50, 3, `[
-				{"key": "PROJ-1", "status": {"key": "closed", "display": "Closed"}},
-				{"key": "PROJ-2", "status": {"key": "inProgress", "display": "In Progress"}},
-				{"key": "PROJ-3", "status": {"key": "blocked", "display": "Blocked"}}]`)},
-			check: assertColored(
-				text.FgGreen.Sprint("Closed"), text.FgYellow.Sprint("In Progress"), text.FgRed.Sprint("Blocked")),
-			holds: []string{"PROJ-1", "Closed"},
-		},
-		{
-			name: "TTY without colors", args: list("--filter", "queue=PROJ"), term: output.Options{TTY: true},
-			exchanges: []faketracker.Exchange{issueSearch(1, 50, 1,
-				`[{"key": "PROJ-1", "status": {"key": "closed", "display": "Closed"}}]`)},
-			holds: []string{"PROJ-1  Closed"},
-			check: assertNoANSI,
-		},
-		{
-			name: "Long summary off a TTY", args: list(), exchanges: []faketracker.Exchange{long},
-			stdout: "KEY\tSTATUS\tASSIGNEE\tSUMMARY\nPROJ-1\topen\t-\t" + longSummary + "\n",
-		},
-		{
-			name: "Long summary on a TTY", args: list(), term: output.Options{TTY: true},
-			exchanges: []faketracker.Exchange{long},
-			holds:     []string{"PROJ-1  open    -         a long summary a long summ..."},
+			name: "Long summary whole", args: list("--json", "summary,status"), exchanges: []faketracker.Exchange{long},
+			json: `{"items": [{"summary": "` + longSummary + `", "status": "open"}],
+				"pagination": {"hasMore": false, "total": 1}}`,
 		},
 		{
 			name: "Signed out", args: list(), signedOut: true, code: ytrerrors.ExitAuthError,
@@ -312,26 +279,5 @@ func assertRequestOrder(queries ...string) func(*testing.T, cliResult) {
 		if !slices.Equal(got, queries) {
 			t.Errorf("request queries = %q, want %q", got, queries)
 		}
-	}
-}
-
-// assertColored wants stdout to hold each of these, ANSI codes included.
-func assertColored(colored ...string) func(*testing.T, cliResult) {
-	return func(t *testing.T, res cliResult) {
-		t.Helper()
-
-		for _, want := range colored {
-			if !strings.Contains(res.Stdout, want) {
-				t.Errorf("stdout = %q, want it to hold %q", res.Stdout, want)
-			}
-		}
-	}
-}
-
-func assertNoANSI(t *testing.T, res cliResult) {
-	t.Helper()
-
-	if strings.Contains(res.Stdout, "\x1b") {
-		t.Errorf("stdout = %q, want no ANSI codes", res.Stdout)
 	}
 }

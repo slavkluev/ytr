@@ -9,8 +9,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/errors"
-	"github.com/slavkluev/ytr/internal/output"
 	"github.com/slavkluev/ytr/internal/validate"
 )
 
@@ -35,10 +33,8 @@ const contextLong = `Show what an agent needs to create and move issues in a que
 document: issue types, statuses, workflow transitions, components, defaults,
 required fields, local fields, and the editable global fields.
 
-The document is always JSON: with no flags it is the whole document, --json
-selects parts and makes only the requests they need, and --jq filters the
-document. --quiet is rejected. As for every command, an error is a JSON
-document on stderr only under --json or --jq.
+Without --json it is the whole document; --json selects parts and makes only
+the requests they need.
 
 key, name, defaultType, defaultPriority, and issueTypes come from the queue
 request. statuses and workflows share the workflow requests, and each other
@@ -104,13 +100,6 @@ func newContextCmd() *cobra.Command {
 }
 
 func runContext(cmd *cobra.Command, queueKey string) error {
-	if output.FromContext(cmd.Context()).Quiet {
-		return errors.NewUserError(
-			"queue context does not support --quiet: its document is always JSON",
-			"Run without --quiet: ytr queue context "+queueKey,
-		)
-	}
-
 	opts, err := runner.SelectFields(cmd, QueueContextFields)
 	if err != nil {
 		return err

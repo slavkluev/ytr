@@ -1,7 +1,6 @@
 package link
 
 import (
-	"cmp"
 	"context"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 type linkItem struct {
@@ -56,23 +54,16 @@ func newListCmd() *cobra.Command {
 		Example: `  # List links on an issue
   ytr link list PROJ-123
 
-  # Get links as JSON
+  # Only IDs, types and linked issues
   ytr link list PROJ-123 --json id,type,issue
 
   # Extract link types with jq
   ytr link list PROJ-123 --json type --jq '.[].type'`,
-		Args:  []runner.Arg{runner.IssueKey},
-		Empty: "No links found",
+		Args: []runner.Arg{runner.IssueKey},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) ([]*tracker.IssueLink, error) {
 			links, _, err := c.Issues.GetLinks(ctx, args[0])
 			return links, err
 		},
-		Item:   toLinkItem,
-		Header: []string{"ID", "TYPE", "ISSUE", "SUMMARY"},
-		Row: func(_ *output.Options, link *tracker.IssueLink) []string {
-			item := toLinkItem(link)
-			return []string{item.ID, cmp.Or(item.Type, "-"), item.Issue, item.Summary}
-		},
-		Quiet: func(link *tracker.IssueLink) string { return api.DerefFlexString(link.ID, "") },
+		Item: toLinkItem,
 	}.Command()
 }

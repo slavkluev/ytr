@@ -8,7 +8,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 type item struct {
@@ -25,16 +24,12 @@ func newListCmd() *cobra.Command {
 		Example: `  # List all statuses
   ytr status list
 
-  # Get statuses as JSON
+  # Only IDs, keys and names
   ytr status list --json id,key,name`,
-		Empty: "No statuses found",
 		Call: func(ctx context.Context, c *tracker.Client, _ []string) ([]*tracker.Status, error) {
 			return runner.Collect(c.Statuses.ListIter(ctx, nil))
 		},
-		Item:   toItem,
-		Header: []string{"ID", "KEY", "NAME"},
-		Row:    row,
-		Quiet:  func(s *tracker.Status) string { return api.DerefString(s.Key, "") },
+		Item: toItem,
 	}.Command()
 }
 
@@ -43,13 +38,5 @@ func toItem(s *tracker.Status) item {
 		ID:   api.DerefFlexString(s.ID, ""),
 		Key:  api.DerefString(s.Key, ""),
 		Name: api.DerefString(s.Name, ""),
-	}
-}
-
-func row(_ *output.Options, s *tracker.Status) []string {
-	return []string{
-		api.DerefFlexString(s.ID, "-"),
-		api.DerefString(s.Key, "-"),
-		api.DerefString(s.Name, "-"),
 	}
 }

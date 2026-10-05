@@ -8,7 +8,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 // Option values are []any so each keeps the JSON type Tracker sent.
@@ -24,8 +23,8 @@ type fieldItem struct {
 	DefaultOptions []any            `json:"defaultOptions,omitempty"`
 }
 
-// Schema is left empty (and omitted from JSON) when the field has no schema
-// type, matching `field get`; the "-" placeholder is a table-only convention.
+// Schema is left empty, and so omitted, when the field has no schema type,
+// matching `field get`.
 func toFieldItem(f *tracker.Field) fieldItem {
 	schema, schemaItems := "", ""
 	if f.Schema != nil {
@@ -71,9 +70,8 @@ holds Tracker's defaults list.`,
   # List queue-local fields
   ytr field list --queue PROJ
 
-  # Get fields as JSON (id is the full field id needed to write the field)
+  # Only IDs, keys, names, schemas and allowed values (id is the full field id needed to write the field)
   ytr field list --queue PROJ --json id,key,name,schema,options`,
-		Empty: "No fields found",
 		Call: func(ctx context.Context, c *tracker.Client, _ []string) ([]*tracker.Field, error) {
 			if queue != "" {
 				fields, _, err := c.Fields.ListLocal(ctx, queue)
@@ -83,23 +81,7 @@ holds Tracker's defaults list.`,
 			fields, _, err := c.Fields.List(ctx)
 			return fields, err
 		},
-		Item:   toFieldItem,
-		Header: []string{"ID", "KEY", "NAME", "SCHEMA", "READONLY"},
-		Row: func(_ *output.Options, f *tracker.Field) []string {
-			schema := "-"
-			if f.Schema != nil {
-				schema = api.DerefString(f.Schema.Type, "-")
-			}
-
-			return []string{
-				api.DerefFlexString(f.ID, "-"),
-				api.DerefString(f.Key, "-"),
-				api.DerefString(f.Name, "-"),
-				schema,
-				formatBoolYesNo(api.DerefBool(f.Readonly, false)),
-			}
-		},
-		Quiet: func(f *tracker.Field) string { return api.DerefString(f.Key, "") },
+		Item: toFieldItem,
 	}.Command()
 
 	cmd.Flags().StringVar(&queue, "queue", "", "Queue key for local fields")

@@ -388,11 +388,7 @@ func TestSkillCheckNamesWhyAnInvocationFails(t *testing.T) {
 				`the fields of ytr completion bash are []`,
 		},
 		{line: "ytr issue view K-1 K-2", want: "probe: ytr issue view K-1 K-2: accepts 1 arg(s), received 2"},
-		{
-			line: "ytr issue list --json key --quiet",
-			want: "probe: ytr issue list --json key --quiet: if any flags in the group [json quiet] are set " +
-				"none of the others can be; [json quiet] were all set",
-		},
+		{line: "ytr issue list --quiet", want: "probe: ytr issue list --quiet: unknown flag: --quiet"},
 		{
 			line: "ytr issue list --json ''",
 			want: "probe: ytr issue list --json '': --json selects no field, so ytr issue list prints its field list",

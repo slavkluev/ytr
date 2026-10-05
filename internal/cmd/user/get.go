@@ -17,7 +17,7 @@ func newGetCmd() *cobra.Command {
 		Example: `  # Show user details by UID
   ytr user get 12345
 
-  # Get user as JSON
+  # Only the UID, name, login and email
   ytr user get 12345 --json uid,display,login,email
 
   # Get just the login
@@ -27,8 +27,6 @@ func newGetCmd() *cobra.Command {
 			user, _, err := c.Users.Get(ctx, args[0])
 			return user, err
 		},
-		Item:   toUserDetail,
-		Detail: userCard,
-		Quiet:  userUID,
+		Item: toUserDetail,
 	}.Command()
 }

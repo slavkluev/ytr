@@ -544,8 +544,8 @@ func exampleInvocation(leaf *cobra.Command) (invocation, bool) {
 	return invocation{}, false
 }
 
-// withoutOutputFlags drops --json, --jq and --quiet with their values, which
-// each property sets for itself.
+// withoutOutputFlags drops --json and --jq with their values, which each
+// property sets for itself.
 func withoutOutputFlags(args []string) []string {
 	var kept []string
 	for i := 0; i < len(args); i++ {
@@ -555,8 +555,7 @@ func withoutOutputFlags(args []string) []string {
 			return append(kept, args[i:]...)
 		case arg == "--json" || arg == "--jq":
 			i++
-		case arg == "--quiet",
-			strings.HasPrefix(arg, "--json="), strings.HasPrefix(arg, "--jq="), strings.HasPrefix(arg, "--quiet="):
+		case strings.HasPrefix(arg, "--json="), strings.HasPrefix(arg, "--jq="):
 		default:
 			kept = append(kept, arg)
 		}

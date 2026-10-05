@@ -29,22 +29,16 @@ func TestCommentCreate(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "Flag body", args: create("--body", "Fixed in abc123"), exchanges: []faketracker.Exchange{created},
-			body: `{"text": "Fixed in abc123"}`, stdout: "Comment 555 added to PROJ-1\n",
+			body: `{"text": "Fixed in abc123"}`, json: commentItemJSON,
 		},
 		{
-			name:      "JSON",
-			args:      create("--body", "Fixed in abc123", "--json", "id,author,authorId,body,createdAt,updatedAt"),
-			exchanges: []faketracker.Exchange{created},
-			json:      commentItemJSON,
+			name: "JSON", args: create("--body", "Fixed in abc123", "--json", "id,body"),
+			exchanges: []faketracker.Exchange{created}, json: `{"id": "555", "body": "Fixed in abc123"}`,
 		},
 		{
-			name: "JSON of a bare comment", args: create("--body", "x", "--jq", "."),
+			name: "A bare comment", args: create("--body", "x"),
 			exchanges: []faketracker.Exchange{trackerPOST(path, `{"id": 555}`)},
 			json:      `{"id": "555", "author": "", "authorId": "", "body": "", "createdAt": ""}`,
-		},
-		{
-			name: "Quiet", args: create("--body", "x", "--quiet"), exchanges: []faketracker.Exchange{created},
-			stdout: "555\n",
 		},
 		{
 			name: "jq", args: create("--body", "x", "--jq", ".authorId"), exchanges: []faketracker.Exchange{created},
@@ -81,43 +75,35 @@ func TestCommentEdit(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "Flag body", args: edit("--body", "Fixed in abc123"), exchanges: []faketracker.Exchange{edited},
-			body: `{"text": "Fixed in abc123"}`, stdout: "Comment 555 updated on PROJ-1\n",
+			body: `{"text": "Fixed in abc123"}`, json: commentItemJSON,
 		},
 		{
 			name: "JSON body", args: edit("--from-json", `{"text": "Fixed in abc123"}`),
 			exchanges: []faketracker.Exchange{edited},
-			body:      `{"text": "Fixed in abc123"}`, stdout: "Comment 555 updated on PROJ-1\n",
+			body:      `{"text": "Fixed in abc123"}`, json: commentItemJSON,
 		},
 		{
 			name: "JSON body on stdin", args: edit("--from-json", "-"), stdin: `{"text": "Fixed in abc123"}`,
 			exchanges: []faketracker.Exchange{edited},
-			body:      `{"text": "Fixed in abc123"}`, stdout: "Comment 555 updated on PROJ-1\n",
+			body:      `{"text": "Fixed in abc123"}`, json: commentItemJSON,
 		},
 		{
 			name:      "JSON body with a key no flag sets",
 			args:      edit("--from-json", `{"text": "x", "summonees": ["uid-b"]}`),
 			exchanges: []faketracker.Exchange{edited},
 			body:      `{"text": "x", "summonees": ["uid-b"]}`,
-			stdout:    "Comment 555 updated on PROJ-1\n",
+			json:      commentItemJSON,
 		},
 		{
-			name: "Confirm names the ID as given, quiet the one Tracker sent",
-			args: []string{"comment", "edit", "PROJ-1", "0555", "--body", "x"},
+			name: "The ID Tracker sent", args: []string{"comment", "edit", "PROJ-1", "0555", "--body", "x"},
 			exchanges: []faketracker.Exchange{
 				trackerPATCH("/v3/issues/PROJ-1/comments/0555", commentAnswer),
 			},
-			stdout: "Comment 0555 updated on PROJ-1\n",
+			json: commentItemJSON,
 		},
 		{
-			name: "Quiet", args: []string{"comment", "edit", "PROJ-1", "0555", "--body", "x", "--quiet"},
-			exchanges: []faketracker.Exchange{
-				trackerPATCH("/v3/issues/PROJ-1/comments/0555", commentAnswer),
-			},
-			stdout: "555\n",
-		},
-		{
-			name: "JSON", args: edit("--body", "x", "--json", "id,author,authorId,body,createdAt,updatedAt"),
-			exchanges: []faketracker.Exchange{edited}, json: commentItemJSON,
+			name: "JSON", args: edit("--body", "x", "--json", "id,authorId"),
+			exchanges: []faketracker.Exchange{edited}, json: `{"id": "555", "authorId": "uid-a"}`,
 		},
 		{
 			name: "Bad value", args: edit("--body", "hello\x00world"), code: ytrerrors.ExitUserError,
@@ -163,11 +149,11 @@ func TestCommentDelete(t *testing.T) {
 	const path = "/v3/issues/PROJ-1/comments/555"
 	args := []string{"comment", "delete", "PROJ-1", "555"}
 
-	runLeafRows(t, slices.Concat(deleteRows(args, trackerDELETE(path), "555", "Comment 555 deleted"), []leafRow{
+	runLeafRows(t, slices.Concat(deleteRows(args, trackerDELETE(path), "555"), []leafRow{
 		{
 			name: "ID as given", args: []string{"comment", "delete", "PROJ-1", "0555"},
 			exchanges: []faketracker.Exchange{trackerDELETE("/v3/issues/PROJ-1/comments/0555")},
-			stdout:    "Comment 0555 deleted\n",
+			json:      `{"id": "0555", "deleted": true}`,
 		},
 		{
 			name: "Bad arg", args: []string{"comment", "delete", "PROJ-1", "abc"}, code: ytrerrors.ExitUserError,

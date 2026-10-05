@@ -1,9 +1,6 @@
 package auth
 
 import (
-	"fmt"
-	"io"
-
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
@@ -33,9 +30,6 @@ JSON FIELDS
   status, user, org_id, org_type, token_source`,
 		Example: `  # Check auth status
   ytr auth status
-
-  # Check auth status as JSON
-  ytr auth status --jq .
 
   # Get the authenticated user's name
   ytr auth status --json user --jq .user`,
@@ -81,14 +75,5 @@ func runStatus(cmd *cobra.Command, _ []string) error {
 		TokenSource: auth.TokenSource,
 	}
 
-	if opts.IsJSON() {
-		return runner.PrintJSON(cmd, opts, output.FilterFields(item, opts.JSONFields))
-	}
-
-	return runner.PrintText(cmd, func(w io.Writer) error {
-		_, err := fmt.Fprintf(w,
-			"Authenticated as %s\n  Token source: %s\n  Organization: %s\n  Organization type: %s\n",
-			item.User, item.TokenSource, item.OrgID, item.OrgType)
-		return err
-	})
+	return runner.PrintJSON(cmd, opts, output.FilterFields(item, opts.JSONFields))
 }

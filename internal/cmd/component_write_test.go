@@ -36,29 +36,24 @@ func TestComponentCreate(t *testing.T) {
 			name: "Flag body",
 			args: create("--name", "Backend", "--queue", "PROJ", "--description", "Backend services",
 				"--lead", "uid-a", "--assign-auto"),
-			exchanges: []faketracker.Exchange{created}, body: componentBody, stdout: "Component 42 created\n",
+			exchanges: []faketracker.Exchange{created}, body: componentBody, json: componentItemJSON,
 		},
 		{
 			name: "Required flags only", args: create("--name", "Backend", "--queue", "PROJ"),
 			exchanges: []faketracker.Exchange{created}, body: `{"name": "Backend", "queue": "PROJ"}`,
-			stdout: "Component 42 created\n",
+			json: componentItemJSON,
 		},
 		{
 			name: "JSON body", args: create("--from-json", componentBody), exchanges: []faketracker.Exchange{created},
-			body: componentBody, stdout: "Component 42 created\n",
+			body: componentBody, json: componentItemJSON,
 		},
 		{
 			name: "JSON body from a file", args: create("--from-json", "@"+bodyFile),
-			exchanges: []faketracker.Exchange{created}, body: componentBody, stdout: "Component 42 created\n",
+			exchanges: []faketracker.Exchange{created}, body: componentBody, json: componentItemJSON,
 		},
 		{
-			name: "JSON", args: create("--name", "Backend", "--queue", "PROJ",
-				"--json", "id,name,queue,lead,leadId,description,assignAuto"),
-			exchanges: []faketracker.Exchange{created}, json: componentItemJSON,
-		},
-		{
-			name: "Quiet", args: create("--name", "Backend", "--queue", "PROJ", "--quiet"),
-			exchanges: []faketracker.Exchange{created}, stdout: "42\n",
+			name: "JSON", args: create("--name", "Backend", "--queue", "PROJ", "--json", "id,queue"),
+			exchanges: []faketracker.Exchange{created}, json: `{"id": "42", "queue": "PROJ"}`,
 		},
 		{
 			name:   "Unknown key",
@@ -92,36 +87,32 @@ func TestComponentEdit(t *testing.T) {
 			name: "Flag body",
 			args: edit("--name", "Backend", "--queue", "PROJ", "--description", "Backend services",
 				"--lead", "uid-a", "--assign-auto"),
-			exchanges: []faketracker.Exchange{edited}, body: componentBody, stdout: "Component 42 updated\n",
+			exchanges: []faketracker.Exchange{edited}, body: componentBody, json: componentItemJSON,
 		},
 		{
 			name: "Partial", args: edit("--lead", "uid-b"), exchanges: []faketracker.Exchange{edited},
-			body: `{"lead": "uid-b"}`, stdout: "Component 42 updated\n",
+			body: `{"lead": "uid-b"}`, json: componentItemJSON,
 		},
 		{
 			name:      "Partial assign-auto off",
 			args:      edit("--assign-auto=false"),
 			exchanges: []faketracker.Exchange{edited},
 			body:      `{"assignAuto": false}`,
-			stdout:    "Component 42 updated\n",
+			json:      componentItemJSON,
 		},
 		{
 			name: "JSON body", args: edit("--from-json", `{"name": "Backend", "description": "Updated"}`),
 			exchanges: []faketracker.Exchange{edited}, body: `{"name": "Backend", "description": "Updated"}`,
-			stdout: "Component 42 updated\n",
+			json: componentItemJSON,
 		},
 		{
-			name: "JSON", args: edit("--name", "Backend", "--json", "id,name,queue,lead,leadId,description,assignAuto"),
-			exchanges: []faketracker.Exchange{edited}, json: componentItemJSON,
-		},
-		{
-			name: "Quiet", args: edit("--name", "Backend", "--quiet"), exchanges: []faketracker.Exchange{edited},
-			stdout: "42\n",
+			name: "JSON", args: edit("--name", "Backend", "--json", "id,name"),
+			exchanges: []faketracker.Exchange{edited}, json: `{"id": "42", "name": "Backend"}`,
 		},
 		{
 			name: "ID as given", args: []string{"component", "edit", "042", "--name", "Backend"},
 			exchanges: []faketracker.Exchange{trackerPATCH("/v3/components/042", componentAnswer)},
-			stdout:    "Component 42 updated\n",
+			json:      componentItemJSON,
 		},
 		{
 			name:   "Unknown key",
@@ -146,10 +137,11 @@ func TestComponentDelete(t *testing.T) {
 	const path = "/v3/components/42"
 	args := []string{"component", "delete", "42"}
 
-	runLeafRows(t, slices.Concat(deleteRows(args, trackerDELETE(path), "42", "Component 42 deleted"), []leafRow{
+	runLeafRows(t, slices.Concat(deleteRows(args, trackerDELETE(path), "42"), []leafRow{
 		{
 			name: "ID as given", args: []string{"component", "delete", "042"},
-			exchanges: []faketracker.Exchange{trackerDELETE("/v3/components/042")}, stdout: "Component 042 deleted\n",
+			exchanges: []faketracker.Exchange{trackerDELETE("/v3/components/042")},
+			json:      `{"id": "042", "deleted": true}`,
 		},
 		{
 			name: "Bad arg", args: []string{"component", "delete", "abc"}, code: ytrerrors.ExitUserError,

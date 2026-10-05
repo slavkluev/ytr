@@ -2,7 +2,6 @@ package checklist
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
@@ -49,11 +48,7 @@ Deadline is supported only via --from-json (not as a separate flag).`,
 			}
 			return requestedChecklistItem(req), nil
 		},
-		Item:  sameItem,
-		Quiet: itemID,
-		Confirm: func(args []string, item checklistItem) string {
-			return fmt.Sprintf("Checklist item %s created on %s", item.ID, args[0])
-		},
+		Item: sameItem,
 	}.Command()
 }
 

@@ -60,10 +60,11 @@ func NewCmd() *cobra.Command {
 		Long: `Perform bulk operations on multiple Yandex Tracker issues at once.
 
 Bulk commands accept issue keys or 24-character hexadecimal issue IDs as
-positional arguments or via stdin pipe (one per line). With --from-json, the
-body's "issues" is the only source of issues: issue arguments are refused and
-stdin is not read for issues. Commands wait up to --timeout for the operation
-to finish, showing progress on a terminal.`,
+positional arguments or via stdin pipe (one per line); with no key
+arguments, stdin is read to its end, so a terminal stdin waits for input. With
+--from-json, the body's "issues" is the only source of issues: issue arguments
+are refused and stdin is not read for issues. Commands wait up to --timeout for
+the operation to finish.`,
 	}
 
 	cmd.AddCommand(newStatusCmd())

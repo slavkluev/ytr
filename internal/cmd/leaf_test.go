@@ -5,15 +5,12 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 // leafRow is one invocation of a leaf and what it must produce. Every
@@ -22,7 +19,6 @@ import (
 type leafRow struct {
 	name      string
 	args      []string
-	term      output.Options
 	exchanges []faketracker.Exchange
 	code      int
 
@@ -35,8 +31,8 @@ type leafRow struct {
 	signedOut bool
 
 	// stdout is compared byte for byte, unless json or holds is set: json
-	// wants stdout to decode to the same JSON value, and holds wants stdout,
-	// less its ANSI codes, to contain each of its strings.
+	// wants stdout to be one line that decodes to the same JSON value, and
+	// holds wants stdout to contain each of its strings.
 	stdout string
 	json   string
 	holds  []string
@@ -61,7 +57,7 @@ func runLeafRows(t *testing.T, rows []leafRow) {
 			if !row.signedOut {
 				argv = slices.Concat(harnessAuth, row.args)
 			}
-			in := cliInput{term: row.term, stdin: row.stdin, env: row.env, config: row.config}
+			in := cliInput{stdin: row.stdin, env: row.env, config: row.config}
 			res := runAgainst(t, in, faketracker.New(t, row.exchanges), argv)
 
 			if res.Code != row.code {
@@ -80,10 +76,11 @@ func runLeafRows(t *testing.T, rows []leafRow) {
 
 			switch {
 			case row.json != "":
+				assertOneLine(t, res.Stdout)
 				assertSameJSONAs(t, "stdout", res.Stdout, row.json)
 			case len(row.holds) > 0:
 				for _, want := range row.holds {
-					if !strings.Contains(withoutANSI(res.Stdout), want) {
+					if !strings.Contains(res.Stdout, want) {
 						t.Errorf("stdout = %q, want it to hold %q", res.Stdout, want)
 					}
 				}
@@ -104,6 +101,16 @@ func runLeafRows(t *testing.T, rows []leafRow) {
 				row.check(t, res)
 			}
 		})
+	}
+}
+
+// assertOneLine wants stdout to be one line ending in a newline, as compact
+// JSON is.
+func assertOneLine(t *testing.T, stdout string) {
+	t.Helper()
+
+	if strings.Count(stdout, "\n") != 1 || !strings.HasSuffix(stdout, "\n") {
+		t.Errorf("stdout = %q, want one line", stdout)
 	}
 }
 
@@ -137,11 +144,6 @@ func withQuery(ex faketracker.Exchange, query url.Values) faketracker.Exchange {
 	ex.Query = query
 
 	return ex
-}
-
-// trackerTime formats t the way Tracker sends a timestamp.
-func trackerTime(t time.Time) string {
-	return t.Format("2006-01-02T15:04:05.000-0700")
 }
 
 // trackerWrite answers a write the way Tracker does: status, and body as JSON
@@ -267,35 +269,16 @@ func helpRow(path, tail string) leafRow {
 	return leafRow{name: "Help", args: append(strings.Fields(path), "--help"), holds: []string{tail}}
 }
 
-// assertAlignedTable fails when a TTY run printed the tab-separated table
-// meant for a pipe.
-func assertAlignedTable(t *testing.T, res cliResult) {
-	t.Helper()
-
-	if strings.Contains(res.Stdout, "\t") {
-		t.Errorf("stdout = %q, want a table aligned with spaces on a TTY", res.Stdout)
-	}
-}
-
-var ansiEscape = regexp.MustCompile("\x1b\\[[0-9;]*m")
-
-func withoutANSI(s string) string {
-	return ansiEscape.ReplaceAllString(s, "")
-}
-
 // deleteRows are the output rows of the delete leaf args run, which Tracker
-// answers with answer: what it prints for id plainly, under --json, --jq and
-// --quiet.
-func deleteRows(args []string, answer faketracker.Exchange, id, confirm string) []leafRow {
+// answers with answer: what it prints for id with no flag, under --json and
+// under --jq.
+func deleteRows(args []string, answer faketracker.Exchange, id string) []leafRow {
 	with := func(extra ...string) []string { return slices.Concat(args, extra) }
 	sent := []faketracker.Exchange{answer}
 
 	return []leafRow{
-		{name: "Delete", args: args, exchanges: sent, stdout: confirm + "\n"},
+		{name: "Delete", args: args, exchanges: sent, json: `{"id": "` + id + `", "deleted": true}`},
 		{name: "Delete JSON", args: with("--json", "id"), exchanges: sent, json: `{"id": "` + id + `"}`},
-		{name: "Delete JSON of every field", args: with("--json", "id,deleted"), exchanges: sent,
-			json: `{"id": "` + id + `", "deleted": true}`},
 		{name: "Delete jq", args: with("--jq", ".deleted"), exchanges: sent, stdout: "true\n"},
-		{name: "Delete quiet", args: with("--quiet"), exchanges: sent, stdout: id + "\n"},
 	}
 }

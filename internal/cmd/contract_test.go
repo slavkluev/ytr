@@ -122,6 +122,22 @@ func TestUnknownFlagBeforeJSONStillRendersJSON(t *testing.T) {
 	}
 }
 
+// TestQuietIsAnUnknownFlag pins that --quiet is gone rather than ignored: a run
+// that still passes it fails before any request, leaving stdout empty.
+func TestQuietIsAnUnknownFlag(t *testing.T) {
+	t.Parallel()
+
+	got := runProbe(t, []string{"issue", "list", "--quiet"})
+
+	if got.Code != ytrerrors.ExitUserError {
+		t.Errorf("exit = %d, want %d", got.Code, ytrerrors.ExitUserError)
+	}
+	assertEmpty(t, "stdout", got.Stdout)
+	if want := "Error: unknown flag: --quiet\n"; !strings.HasPrefix(got.Stderr, want) {
+		t.Errorf("stderr = %q, want it to start with %q", got.Stderr, want)
+	}
+}
+
 func TestUnknownFlagNamesTheClosestFlag(t *testing.T) {
 	t.Parallel()
 
@@ -218,8 +234,8 @@ func TestHelpTopicMatchesTheHelpFlag(t *testing.T) {
 }
 
 // TestSuccessPathIsUnchanged is the stdout-side mirror of assertRejected:
-// exit 0, stderr empty, and stdout holding exactly one JSON document -- one
-// line off a terminal, so a reader can take the whole stream as the answer.
+// exit 0, stderr empty, and stdout holding exactly one JSON document on one
+// line, so a reader can take the whole stream as the answer.
 func TestSuccessPathIsUnchanged(t *testing.T) {
 	t.Parallel()
 
@@ -354,8 +370,6 @@ func TestUnknownFlagPrefixSuggestsTheFullName(t *testing.T) {
 // suite notices when that wiring breaks.
 func TestExecuteWiring(t *testing.T) {
 	t.Setenv("YTR_CONFIG_DIR", t.TempDir())
-	t.Setenv("NO_COLOR", "")
-	t.Setenv("CLICOLOR_FORCE", "1")
 
 	realArgs, realIn, realOut, realErr := os.Args, os.Stdin, os.Stdout, os.Stderr
 	t.Cleanup(func() { os.Args, os.Stdin, os.Stdout, os.Stderr = realArgs, realIn, realOut, realErr })
@@ -383,10 +397,10 @@ func TestExecuteWiring(t *testing.T) {
 			wantErr:  `"code":"user_error"`,
 		},
 		{
-			name:          "bad invocation in human mode takes colors from the environment",
+			name:          "bad invocation without an output flag",
 			argv:          []string{"ytr", "vershon"},
 			wantCode:      ytrerrors.ExitUserError,
-			wantErrPrefix: "\x1b[1;31mError\x1b[0m",
+			wantErrPrefix: "Error: unknown command \"vershon\" for \"ytr\"\n",
 		},
 		// An empty stdin would fail with "no token provided" instead, and the
 		// token is read before login sends any request.

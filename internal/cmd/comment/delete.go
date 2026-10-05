@@ -17,13 +17,12 @@ func newDeleteCmd() *cobra.Command {
 		Example: `  # Delete comment 42 from PROJ-123
   ytr comment delete PROJ-123 42
 
-  # Delete and confirm via JSON
+  # Delete and print only the deleted ID
   ytr comment delete PROJ-123 42 --json id`,
 		Args: []runner.Arg{runner.IssueKey, runner.NumericID("comment ID")},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) error {
 			_, err := c.Issues.DeleteComment(ctx, args[0], args[1])
 			return err
 		},
-		Confirm: func(id string) string { return "Comment " + id + " deleted" },
 	}.Command()
 }

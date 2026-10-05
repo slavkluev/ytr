@@ -162,10 +162,12 @@ type contextResults struct {
 }
 
 // incomplete is always included, so a narrowed document still says which of its
-// parts are missing.
+// parts are missing. With every part selected the document is not cut, which
+// keeps its parts in order rather than sorted by name.
 func contextDocument(q *tracker.Queue, queueKey string, results contextResults, fields []string) any {
-	doc := buildContext(q, queueKey, results, wantedParts(fields))
-	if len(fields) == 0 {
+	wanted := wantedParts(fields)
+	doc := buildContext(q, queueKey, results, wanted)
+	if len(wanted) == len(QueueContextFields) {
 		return doc
 	}
 	selected := output.FilterFields(doc, fields)

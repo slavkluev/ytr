@@ -2,9 +2,6 @@
 package version
 
 import (
-	"fmt"
-	"io"
-
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/cmd/runner"
@@ -15,9 +12,8 @@ import (
 // VersionFields lists the available JSON field names for version output.
 var VersionFields = []string{"version", "commit", "date", "goVersion", "os", "arch"}
 
-// NewCmd creates the version command that displays build information.
-// In human mode it prints a multi-line summary; with --json it outputs
-// structured JSON with version, commit, date, goVersion, os, and arch fields.
+// NewCmd returns the version command, which prints the build information as
+// JSON: version, commit, date, goVersion, os, and arch.
 func NewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
@@ -29,7 +25,7 @@ JSON FIELDS
 		Example: `  # Show version
   ytr version
 
-  # Get version as JSON
+  # Only the version and commit
   ytr version --json version,commit
 
   # Get just the version string
@@ -49,23 +45,5 @@ func runVersion(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	info := ver.Get()
-
-	if opts.IsJSON() {
-		return runner.PrintJSON(cmd, opts, output.FilterFields(info, opts.JSONFields))
-	}
-
-	return runner.PrintText(cmd, func(w io.Writer) error {
-		if opts.Quiet {
-			output.PrintQuiet(w, info.Version)
-			return nil
-		}
-
-		_, _ = fmt.Fprintf(w, "ytr version %s\n", info.Version)
-		_, _ = fmt.Fprintf(w, "commit: %s\n", info.Commit)
-		_, _ = fmt.Fprintf(w, "date: %s\n", info.Date)
-		_, _ = fmt.Fprintf(w, "go: %s\n", info.GoVersion)
-		_, _ = fmt.Fprintf(w, "os/arch: %s/%s\n", info.OS, info.Arch)
-		return nil
-	})
+	return runner.PrintJSON(cmd, opts, output.FilterFields(ver.Get(), opts.JSONFields))
 }

@@ -1,4 +1,4 @@
-version 24.0
+version 25.0
 command ytr
 command ytr auth
 command ytr auth login
@@ -370,7 +370,6 @@ flag ytr --jq string
 flag ytr --json stringSlice
 flag ytr --org-id string
 flag ytr --org-type string
-flag ytr --quiet bool
 flag ytr --token string
 flag ytr auth login --org-id string
 flag ytr auth login --org-type string

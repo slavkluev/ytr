@@ -2,7 +2,6 @@ package checklist
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
@@ -52,11 +51,7 @@ Use --checked to mark an item as done, --checked=false to unmark it.`,
 			}
 			return editedChecklistItem(args[1], req), nil
 		},
-		Item:  sameItem,
-		Quiet: itemID,
-		Confirm: func(args []string, item checklistItem) string {
-			return fmt.Sprintf("Checklist item %s updated on %s", item.ID, args[0])
-		},
+		Item: sameItem,
 	}.Command()
 }
 

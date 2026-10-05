@@ -83,7 +83,7 @@ func recordFixture(
 	rec := faketracker.NewRecorder(base)
 
 	var out, errOut bytes.Buffer
-	code := execute(api.WithTransport(t.Context(), rec), output.Options{}, args, strings.NewReader(""), &out, &errOut)
+	code := execute(api.WithTransport(t.Context(), rec), args, strings.NewReader(""), &out, &errOut)
 	if code != 0 {
 		return fmt.Errorf("ytr %s exited %d, nothing recorded: %s", strings.Join(args, " "), code, errOut.String())
 	}

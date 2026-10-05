@@ -17,13 +17,12 @@ func newDeleteCmd() *cobra.Command {
 		Example: `  # Delete checklist item
   ytr checklist delete PROJ-123 item-1
 
-  # Delete and confirm via JSON
+  # Delete and print only the deleted ID
   ytr checklist delete PROJ-123 item-1 --json id`,
 		Args: []runner.Arg{runner.IssueKey, runner.StringID("checklist item ID")},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) error {
 			_, _, err := c.Issues.DeleteChecklistItem(ctx, args[0], args[1])
 			return err
 		},
-		Confirm: func(id string) string { return "Checklist item " + id + " deleted" },
 	}.Command()
 }

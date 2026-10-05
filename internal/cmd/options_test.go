@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -25,32 +24,13 @@ func TestOutputOptionsDoNotLeakIntoTheNextRun(t *testing.T) {
 	if second.Code != 0 {
 		t.Fatalf("second run: exit = %d, stderr = %q, want 0", second.Code, second.Stderr)
 	}
-	if !strings.HasPrefix(second.Stdout, "ID\tKEY\tNAME\n") {
-		t.Errorf("second run stdout = %q, want TSV under an ID, KEY, NAME header", second.Stdout)
-	}
-}
 
-func TestQuietPrintsOneStatusKeyPerLine(t *testing.T) {
-	t.Parallel()
-
-	exchanges := faketracker.Load(t, filepath.Join(fixtureDir, "status-list.json"))
-
-	res := runCLI(t, exchanges, "status", "list", "--quiet")
-	if res.Code != 0 {
-		t.Fatalf("exit = %d, stderr = %q, want 0", res.Code, res.Stderr)
+	var items []map[string]any
+	if err := json.Unmarshal([]byte(second.Stdout), &items); err != nil || len(items) == 0 {
+		t.Fatalf("second run stdout = %q, want a JSON array of statuses (%v)", second.Stdout, err)
 	}
-	if strings.Contains(res.Stdout, "ID\tKEY\tNAME") {
-		t.Errorf("stdout = %q, want no table header under --quiet", res.Stdout)
-	}
-
-	var keys []string
-	for _, page := range exchanges {
-		for _, item := range fixtureItems(t, page.Body) {
-			keys = append(keys, item.Key)
-		}
-	}
-	if got := strings.Split(strings.TrimSuffix(res.Stdout, "\n"), "\n"); !slices.Equal(got, keys) {
-		t.Errorf("stdout lines = %q, want the fixture's keys %q", got, keys)
+	if _, ok := items[0]["name"]; !ok {
+		t.Errorf("second run item = %v, want every field, not the first run's id alone", items[0])
 	}
 }
 
@@ -84,18 +64,4 @@ func TestDebugLinesPrecedeTheOneErrorDocument(t *testing.T) {
 		}
 	}
 	decodeOneJSONError(t, "ytr status list --debug --json id", lines[len(lines)-1])
-}
-
-func TestRunCLIIgnoresTheColorEnvironment(t *testing.T) {
-	t.Setenv("NO_COLOR", "")
-	t.Setenv("CLICOLOR_FORCE", "1")
-
-	res := runCLI(t, nil, "status", "lst")
-
-	if res.Code == 0 {
-		t.Errorf("exit = 0, want non-zero for an unknown subcommand")
-	}
-	if strings.Contains(res.Stdout+res.Stderr, "\x1b") {
-		t.Errorf("stdout %q, stderr %q carry ANSI codes, want none", res.Stdout, res.Stderr)
-	}
 }

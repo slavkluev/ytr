@@ -8,7 +8,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 type item struct {
@@ -25,16 +24,12 @@ func newListCmd() *cobra.Command {
 		Example: `  # List all priorities
   ytr priority list
 
-  # Get priorities as JSON
+  # Only IDs, keys and names
   ytr priority list --json id,key,name`,
-		Empty: "No priorities found",
 		Call: func(ctx context.Context, c *tracker.Client, _ []string) ([]*tracker.Priority, error) {
 			return runner.Collect(c.Priorities.ListIter(ctx, nil))
 		},
-		Item:   toItem,
-		Header: []string{"ID", "KEY", "NAME"},
-		Row:    row,
-		Quiet:  func(p *tracker.Priority) string { return api.DerefString(p.Key, "") },
+		Item: toItem,
 	}.Command()
 }
 
@@ -43,13 +38,5 @@ func toItem(p *tracker.Priority) item {
 		ID:   api.DerefFlexString(p.ID, ""),
 		Key:  api.DerefString(p.Key, ""),
 		Name: api.DerefString(p.Name, ""),
-	}
-}
-
-func row(_ *output.Options, p *tracker.Priority) []string {
-	return []string{
-		api.DerefFlexString(p.ID, "-"),
-		api.DerefString(p.Key, "-"),
-		api.DerefString(p.Name, "-"),
 	}
 }

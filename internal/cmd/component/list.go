@@ -8,7 +8,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 type componentItem struct {
@@ -25,7 +24,7 @@ func toComponentItem(c *tracker.Component) componentItem {
 	return componentItem{
 		ID:          api.DerefFlexString(c.ID, ""),
 		Name:        api.DerefString(c.Name, ""),
-		Queue:       componentQueue(c, ""),
+		Queue:       componentQueue(c),
 		Lead:        c.Lead.DisplayOr(""),
 		LeadID:      c.Lead.IDOr(""),
 		Description: api.DerefString(c.Description, ""),
@@ -33,12 +32,12 @@ func toComponentItem(c *tracker.Component) componentItem {
 	}
 }
 
-func componentQueue(c *tracker.Component, fallback string) string {
+func componentQueue(c *tracker.Component) string {
 	if c.Queue == nil {
-		return fallback
+		return ""
 	}
 
-	return api.DerefString(c.Queue.Key, fallback)
+	return api.DerefString(c.Queue.Key, "")
 }
 
 func newListCmd() *cobra.Command {
@@ -49,23 +48,12 @@ func newListCmd() *cobra.Command {
 		Example: `  # List all components
   ytr component list
 
-  # Get components as JSON
+  # Only IDs, names and queues
   ytr component list --json id,name,queue`,
-		Empty: "No components found",
 		Call: func(ctx context.Context, c *tracker.Client, _ []string) ([]*tracker.Component, error) {
 			components, _, err := c.Components.List(ctx)
 			return components, err
 		},
-		Item:   toComponentItem,
-		Header: []string{"ID", "NAME", "QUEUE", "LEAD"},
-		Row: func(_ *output.Options, c *tracker.Component) []string {
-			return []string{
-				api.DerefFlexString(c.ID, ""),
-				api.DerefString(c.Name, "-"),
-				componentQueue(c, "-"),
-				c.Lead.DisplayOr("-"),
-			}
-		},
-		Quiet: func(c *tracker.Component) string { return api.DerefFlexString(c.ID, "") },
+		Item: toComponentItem,
 	}.Command()
 }

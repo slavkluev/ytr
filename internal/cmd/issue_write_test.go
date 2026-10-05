@@ -20,9 +20,6 @@ const (
 		"type": "Task", "author": "Иван Петров", "authorId": "uid-author", "assignee": "Мария Иванова",
 		"assigneeId": "uid-assignee", "createdAt": "2026-09-17T09:05:00+03:00", "updatedAt": "2026-09-18T10:00:00Z",
 		"description": "Steps to reproduce"}`
-	issueDetailFields = "key,summary,status,priority,type,author,authorId,assignee,assigneeId,createdAt,updatedAt," +
-		"description"
-	issueCard = "Key\tPROJ-7\nSummary\tFix login bug\nStatus\tOpen\n"
 )
 
 func TestIssueCreate(t *testing.T) {
@@ -36,7 +33,7 @@ func TestIssueCreate(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "Required flags", args: create(required...), exchanges: []faketracker.Exchange{created},
-			body: `{"queue": "PROJ", "summary": "Fix login bug"}`, stdout: issueCard,
+			body: `{"queue": "PROJ", "summary": "Fix login bug"}`, json: issueDetailJSON,
 		},
 		{
 			name: "Every flag",
@@ -47,40 +44,36 @@ func TestIssueCreate(t *testing.T) {
 			exchanges: []faketracker.Exchange{created},
 			body: `{"queue": "PROJ", "summary": "Fix login bug", "description": "Steps to reproduce", "type": "task",
 				"priority": "normal", "assignee": "uid-assignee", "parent": "PROJ-1"}`,
-			stdout: issueCard,
+			json: issueDetailJSON,
 		},
 		{
 			name: "Empty description", args: create(slices.Concat(required, []string{"--description", ""})...),
 			exchanges: []faketracker.Exchange{created},
-			body:      `{"queue": "PROJ", "summary": "Fix login bug", "description": ""}`, stdout: issueCard,
+			body:      `{"queue": "PROJ", "summary": "Fix login bug", "description": ""}`, json: issueDetailJSON,
 		},
 		{
 			name: "JSON body", args: create("--from-json", `{"queue": "PROJ", "summary": "Fix login bug"}`),
 			exchanges: []faketracker.Exchange{created},
-			body:      `{"queue": "PROJ", "summary": "Fix login bug"}`, stdout: issueCard,
+			body:      `{"queue": "PROJ", "summary": "Fix login bug"}`, json: issueDetailJSON,
 		},
 		{
 			name: "JSON body on stdin", args: create("--from-json", "-"),
 			stdin:     `{"queue": "PROJ", "summary": "Fix login bug", "tags": ["backend"]}`,
 			exchanges: []faketracker.Exchange{created},
-			body:      `{"queue": "PROJ", "summary": "Fix login bug", "tags": ["backend"]}`, stdout: issueCard,
+			body:      `{"queue": "PROJ", "summary": "Fix login bug", "tags": ["backend"]}`, json: issueDetailJSON,
 		},
 		{
-			name: "JSON", args: create(slices.Concat(required, []string{"--json", issueDetailFields})...),
-			exchanges: []faketracker.Exchange{created}, json: issueDetailJSON,
-		},
-		{
-			name: "Quiet", args: create(slices.Concat(required, []string{"--quiet"})...),
-			exchanges: []faketracker.Exchange{created}, stdout: "PROJ-7\n",
+			name: "JSON", args: create(slices.Concat(required, []string{"--json", "key,status"})...),
+			exchanges: []faketracker.Exchange{created}, json: `{"key": "PROJ-7", "status": "Open"}`,
 		},
 		{
 			name: "jq", args: create(slices.Concat(required, []string{"--jq", ".key"})...),
 			exchanges: []faketracker.Exchange{created}, stdout: "PROJ-7\n",
 		},
 		{
-			name: "Card of a bare issue", args: create(required...),
+			name: "A bare issue", args: create(required...),
 			exchanges: []faketracker.Exchange{trackerPOST(path, `{"key": "PROJ-7"}`)},
-			stdout:    "Key\tPROJ-7\nSummary\t-\nStatus\t-\n",
+			json:      `{"key": "PROJ-7", "summary": "", "status": "", "authorId": "", "assigneeId": ""}`,
 		},
 		{
 			name: "Missing queue", args: create("--summary", "Fix login bug"), code: ytrerrors.ExitUserError,
@@ -145,7 +138,7 @@ func TestIssueUpdate(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "One flag", args: update("--summary", "Fix login bug"), exchanges: []faketracker.Exchange{edited},
-			body: `{"summary": "Fix login bug"}`, stdout: issueCard,
+			body: `{"summary": "Fix login bug"}`, json: issueDetailJSON,
 		},
 		{
 			name: "Every flag",
@@ -154,35 +147,31 @@ func TestIssueUpdate(t *testing.T) {
 			exchanges: []faketracker.Exchange{edited},
 			body: `{"summary": "Fix login bug", "description": "Steps to reproduce", "type": "task",
 				"priority": "critical", "assignee": "uid-assignee", "parent": "PROJ-1"}`,
-			stdout: issueCard,
+			json: issueDetailJSON,
 		},
 		{
 			name: "Empty assignee", args: update("--assignee", ""), exchanges: []faketracker.Exchange{edited},
-			body: `{"assignee": ""}`, stdout: issueCard,
+			body: `{"assignee": ""}`, json: issueDetailJSON,
 		},
 		{
 			name: "Empty description", args: update("--description", ""), exchanges: []faketracker.Exchange{edited},
-			body: `{"description": ""}`, stdout: issueCard,
+			body: `{"description": ""}`, json: issueDetailJSON,
 		},
 		{
 			name: "Empty JSON value", args: update("--from-json", `{"assignee": ""}`),
-			exchanges: []faketracker.Exchange{edited}, body: `{"assignee": ""}`, stdout: issueCard,
+			exchanges: []faketracker.Exchange{edited}, body: `{"assignee": ""}`, json: issueDetailJSON,
 		},
 		{
 			name: "JSON body", args: update("--from-json", `{"summary": "Fix login bug"}`),
-			exchanges: []faketracker.Exchange{edited}, body: `{"summary": "Fix login bug"}`, stdout: issueCard,
+			exchanges: []faketracker.Exchange{edited}, body: `{"summary": "Fix login bug"}`, json: issueDetailJSON,
 		},
 		{
 			name: "JSON body on stdin", args: update("--from-json", "-"), stdin: `{"priority": "critical"}`,
-			exchanges: []faketracker.Exchange{edited}, body: `{"priority": "critical"}`, stdout: issueCard,
+			exchanges: []faketracker.Exchange{edited}, body: `{"priority": "critical"}`, json: issueDetailJSON,
 		},
 		{
-			name: "JSON", args: update("--summary", "x", "--json", issueDetailFields),
-			exchanges: []faketracker.Exchange{edited}, json: issueDetailJSON,
-		},
-		{
-			name: "Quiet", args: update("--summary", "x", "--quiet"), exchanges: []faketracker.Exchange{edited},
-			stdout: "PROJ-7\n",
+			name: "JSON", args: update("--summary", "x", "--json", "key,assigneeId"),
+			exchanges: []faketracker.Exchange{edited}, json: `{"key": "PROJ-7", "assigneeId": "uid-assignee"}`,
 		},
 		{
 			name: "Bad value", args: update("--summary", "hello\x00world"), code: ytrerrors.ExitUserError,
@@ -218,14 +207,14 @@ func TestIssueUpdate(t *testing.T) {
 			args:      update("--description", "Steps:\r\n\t1. Log in\n"),
 			exchanges: []faketracker.Exchange{edited},
 			body:      `{"description": "Steps:\r\n\t1. Log in\n"}`,
-			stdout:    issueCard,
+			json:      issueDetailJSON,
 		},
 		{
 			name:      "Tab and line breaks in JSON",
 			args:      update("--from-json", `{"description": "Steps:\r\n\t1. Log in\n"}`),
 			exchanges: []faketracker.Exchange{edited},
 			body:      `{"description": "Steps:\r\n\t1. Log in\n"}`,
-			stdout:    issueCard,
+			json:      issueDetailJSON,
 		},
 		{
 			name: "Bad arg", args: []string{"issue", "update", "bad-key", "--summary", "x"},
@@ -253,23 +242,19 @@ func TestIssueTransition(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "By key", args: transition("--to", "inProgress"), exchanges: both,
-			stdout: "PROJ-123 transitioned to In Progress\n",
-		},
-		{
-			name: "By display name", args: transition("--to", "In Progress"), exchanges: both,
-			stdout: "PROJ-123 transitioned to In Progress\n",
-		},
-		{
-			name: "By display name in another case", args: transition("--to", "in progress"), exchanges: both,
-			stdout: "PROJ-123 transitioned to In Progress\n",
-		},
-		{
-			name: "JSON", args: transition("--to", "inProgress", "--json", "key,transition"), exchanges: both,
 			json: `{"key": "PROJ-123", "transition": "In Progress"}`,
 		},
 		{
-			name: "Quiet", args: transition("--to", "inProgress", "--quiet"), exchanges: both,
-			stdout: "PROJ-123\n",
+			name: "By display name", args: transition("--to", "In Progress"), exchanges: both,
+			json: `{"key": "PROJ-123", "transition": "In Progress"}`,
+		},
+		{
+			name: "By display name in another case", args: transition("--to", "in progress"), exchanges: both,
+			json: `{"key": "PROJ-123", "transition": "In Progress"}`,
+		},
+		{
+			name: "JSON", args: transition("--to", "inProgress", "--json", "key"), exchanges: both,
+			json: `{"key": "PROJ-123"}`,
 		},
 		{
 			name: "jq", args: transition("--to", "inProgress", "--jq", ".transition"), exchanges: both,
@@ -280,7 +265,7 @@ func TestIssueTransition(t *testing.T) {
 			exchanges: []faketracker.Exchange{
 				trackerGET(path, `[{"id": "2", "to": {"key": "review"}}]`), executed,
 			},
-			stdout: "PROJ-123 transitioned to review\n",
+			json: `{"key": "PROJ-123", "transition": "review"}`,
 		},
 		{
 			name: "Not available", args: transition("--to", "nonexistent"),

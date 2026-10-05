@@ -39,8 +39,6 @@ func newUpdateCmd() *cobra.Command {
 			issue, _, err := c.Issues.Edit(ctx, args[0], req, nil)
 			return issue, err
 		},
-		Item:   toIssueDetail,
-		Quiet:  issueKey,
-		Detail: writtenIssueCard,
+		Item: toIssueDetail,
 	}.Command()
 }

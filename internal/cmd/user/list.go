@@ -9,7 +9,6 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 type userItem struct {
@@ -36,12 +35,11 @@ func newListCmd() *cobra.Command {
 		Example: `  # List all users
   ytr user list
 
-  # List users as JSON
+  # Only UIDs, names, logins and emails
   ytr user list --json uid,display,login,email
 
   # Get all user logins
   ytr user list --all --json login --jq '.items[].login'`,
-		Empty: "No users found",
 		Page: func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) (
 			[]*tracker.User, *tracker.Response, error,
 		) {
@@ -50,18 +48,6 @@ func newListCmd() *cobra.Command {
 		All: func(ctx context.Context, c *tracker.Client, o tracker.ListOptions) iter.Seq2[*tracker.User, error] {
 			return c.Users.ListIter(ctx, &tracker.UserListOptions{ListOptions: o})
 		},
-		Item:   toUserItem,
-		Header: []string{"UID", "DISPLAY", "LOGIN", "EMAIL"},
-		Row:    userRow,
-		Quiet:  userUID,
+		Item: toUserItem,
 	}.Command()
-}
-
-func userRow(_ *output.Options, u *tracker.User) []string {
-	return []string{
-		userUID(u),
-		api.DerefString(u.Display, "-"),
-		api.DerefString(u.Login, "-"),
-		api.DerefString(u.Email, "-"),
-	}
 }

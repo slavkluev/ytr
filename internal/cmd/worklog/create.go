@@ -2,12 +2,10 @@ package worklog
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
-	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
 )
 
@@ -43,14 +41,6 @@ Tracker requires both duration and start time when creating a worklog.`,
 			wl, _, err := c.Issues.CreateWorklog(ctx, args[0], req)
 			return wl, err
 		},
-		Item:  toWorklogItem,
-		Quiet: worklogID,
-		Confirm: func(args []string, wl *tracker.Worklog) string {
-			return fmt.Sprintf("Worklog %s created on %s", worklogID(wl), args[0])
-		},
+		Item: toWorklogItem,
 	}.Command()
-}
-
-func worklogID(wl *tracker.Worklog) string {
-	return api.DerefFlexString(wl.ID, "")
 }

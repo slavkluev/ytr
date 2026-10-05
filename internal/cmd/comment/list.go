@@ -9,19 +9,11 @@ import (
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
-const (
-	// commentTableReservedWidth is the space reserved for ID (8), author (15),
-	// date (12), and padding (9) in table output.
-	commentTableReservedWidth = 44
-
-	commentMinColumnWidth = 10
-	// commentPageSize only saves requests where Tracker honours it: the list
-	// pages until an empty page, whatever size each page comes in.
-	commentPageSize = 100
-)
+// commentPageSize only saves requests where Tracker honours it: the list pages
+// until an empty page, whatever size each page comes in.
+const commentPageSize = 100
 
 type commentItem struct {
 	ID        string `json:"id"`
@@ -40,36 +32,18 @@ func newListCmd() *cobra.Command {
 		Example: `  # List comments on an issue
   ytr comment list PROJ-123
 
-  # Get comments as JSON
+  # Only IDs, authors and bodies
   ytr comment list PROJ-123 --json id,author,body
 
   # Extract comment bodies with jq
   ytr comment list PROJ-123 --json body --jq '.[].body'`,
-		Args:  []runner.Arg{runner.IssueKey},
-		Empty: "No comments found",
+		Args: []runner.Arg{runner.IssueKey},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) ([]*tracker.Comment, error) {
 			opts := &tracker.CommentListOptions{PerPage: commentPageSize}
 			return runner.Collect(c.Issues.ListCommentsIter(ctx, args[0], opts))
 		},
-		Item:   toCommentItem,
-		Header: []string{"ID", "AUTHOR", "DATE", "BODY"},
-		Row:    row,
-		Quiet:  commentID,
+		Item: toCommentItem,
 	}.Command()
-}
-
-func row(opts *output.Options, c *tracker.Comment) []string {
-	date := "-"
-	if c.CreatedAt != nil {
-		date = opts.FormatTime(c.CreatedAt.Time)
-	}
-
-	return []string{
-		api.DerefFlexString(c.ID, ""),
-		c.CreatedBy.DisplayOr("-"),
-		date,
-		opts.FitColumn(api.DerefString(c.Text, ""), commentTableReservedWidth, commentMinColumnWidth),
-	}
 }
 
 func toCommentItem(c *tracker.Comment) commentItem {

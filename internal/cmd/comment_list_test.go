@@ -6,11 +6,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 	"github.com/slavkluev/ytr/internal/faketracker"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 // commentPage answers the comment list of PROJ-1 after the comment cursor
@@ -52,30 +50,18 @@ func TestCommentList(t *testing.T) {
 	thread := commentThread(comments, "202")
 	list := func(extra ...string) []string { return slices.Concat([]string{"comment", "list", "PROJ-1"}, extra) }
 
-	longBody := strings.Repeat("a long comment body ", 20)
-
 	runLeafRows(t, []leafRow{
 		{
-			name: "Table", args: list(), exchanges: thread,
-			stdout: "ID\tAUTHOR\tDATE\tBODY\n101\tjohn.doe\t2026-09-19T14:22:31+03:00\tFixed in abc123\n" +
-				"202\tjane.doe\t2026-09-20T09:00:00Z\tThanks\n",
-		},
-		{
-			name: "JSON", args: list("--json", "id,author,authorId,body,createdAt,updatedAt"),
-			exchanges: thread,
+			name: "Every field", args: list(), exchanges: thread,
 			json: `[{"id": "101", "author": "john.doe", "authorId": "uid-a", "body": "Fixed in abc123",
 					"createdAt": "2026-09-19T14:22:31+03:00", "updatedAt": "2026-09-20T10:00:00Z"},
 				{"id": "202", "author": "jane.doe", "authorId": "uid-b", "body": "Thanks",
 					"createdAt": "2026-09-20T09:00:00Z"}]`,
 		},
 		{
-			name: "JSON of a comment without an author", args: list("--jq", "."),
+			name: "A comment without an author", args: list(),
 			exchanges: commentThread(`[{"id": 7}]`, "7"),
 			json:      `[{"id": "7", "author": "", "authorId": "", "body": "", "createdAt": ""}]`,
-		},
-		{
-			name: "Table of a bare comment", args: list(), exchanges: commentThread(`[{"id": 7}]`, "7"),
-			stdout: "ID\tAUTHOR\tDATE\tBODY\n7\t-\t-\t\n",
 		},
 		{
 			name: "Namesakes keep their author IDs", args: list("--jq", "[.[].authorId]"),
@@ -89,27 +75,23 @@ func TestCommentList(t *testing.T) {
 			json: `[{"authorId": "uid-a"}, {"authorId": "uid-b"}]`,
 		},
 		{
-			name: "Quiet", args: list("--quiet"), exchanges: thread, stdout: "101\n202\n",
-		},
-		{
 			name: "Empty", args: list(), exchanges: []faketracker.Exchange{commentPage("", `[]`)},
-			stdout: "No comments found\n",
+			json: `[]`,
 		},
 		{
-			name: "Body on one escaped line", args: list(),
-			exchanges: commentThread(`[{"id": 101, "text": "first\nsecond\tthird",
-				"createdBy": {"display": "john.doe"}, "createdAt": "2026-09-19T14:22:31.000+0000"}]`, "101"),
-			stdout: "ID\tAUTHOR\tDATE\tBODY\n101\tjohn.doe\t2026-09-19T14:22:31Z\tfirst\\nsecond\\tthird\n",
+			name: "Body with line breaks on one line", args: list("--json", "body"),
+			exchanges: commentThread(`[{"id": 101, "text": "first\nsecond\tthird"}]`, "101"),
+			stdout:    `[{"body":"first\nsecond\tthird"}]` + "\n",
 		},
 		{
-			name: "A short page is not the last", args: list("--quiet"),
+			name: "A short page is not the last", args: list("--json", "id"),
 			exchanges: []faketracker.Exchange{
 				commentPage("", numberedComments([]string{"1", "2"})),
 				commentPage("2", numberedComments([]string{"3"})),
 				commentPage("3", `[]`),
 			},
-			stdout: "1\n2\n3\n",
-			check:  assertRequestOrder("perPage=100", "id=2&perPage=100", "id=3&perPage=100"),
+			json:  `[{"id": "1"}, {"id": "2"}, {"id": "3"}]`,
+			check: assertRequestOrder("perPage=100", "id=2&perPage=100", "id=3&perPage=100"),
 		},
 		{
 			name: "A later page fails", args: list("--json", "id"),
@@ -125,7 +107,7 @@ func TestCommentList(t *testing.T) {
 			check: assertOneErrorDocument("Comments unavailable"),
 		},
 		{
-			name: "A cursor that does not move", args: list("--quiet"),
+			name: "A cursor that does not move", args: list(),
 			exchanges: []faketracker.Exchange{
 				commentPage("", numberedComments([]string{"1", "stuck"})),
 				commentPage("stuck", numberedComments([]string{"2", "stuck"})),
@@ -134,23 +116,10 @@ func TestCommentList(t *testing.T) {
 			stderr: []string{`cannot page past cursor "stuck": the last item of the page has ID "stuck"`},
 		},
 		{
-			name: "A page ending in null", args: list("--quiet"),
+			name: "A page ending in null", args: list(),
 			exchanges: []faketracker.Exchange{commentPage("", `[{"id": 1}, null]`)},
 			code:      ytrerrors.ExitUserError,
 			stderr:    []string{`cannot page past cursor "": the last item of the page has ID ""`},
-		},
-		{
-			name: "TTY", args: list(), term: output.Options{TTY: true, Colors: true},
-			exchanges: commentThread(`[{"id": 101, "text": "Fixed in abc123",
-				"createdBy": {"display": "john.doe"}, "createdAt": "`+trackerTime(time.Now())+`"}]`, "101"),
-			holds: []string{"ID   AUTHOR    DATE      BODY", "101  john.doe  just now  Fixed in abc123"},
-			check: assertAlignedTable,
-		},
-		{
-			name: "Long body on a TTY", args: list(), term: output.Options{TTY: true, Colors: true},
-			exchanges: commentThread(`[{"id": 101, "text": "`+longBody+`",
-				"createdBy": {"display": "john.doe"}, "createdAt": "`+trackerTime(time.Now())+`"}]`, "101"),
-			holds: []string{"101  john.doe  just now  a long comment body a long commen..."},
 		},
 		{
 			name: "Not an issue key", args: []string{"comment", "list", "bad-key"}, code: ytrerrors.ExitUserError,

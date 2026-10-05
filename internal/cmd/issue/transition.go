@@ -36,17 +36,13 @@ fetches available transitions, matches the target by key or display name, then e
   # Transition by status key
   ytr issue transition PROJ-123 --to inProgress
 
-  # Get result as JSON
+  # Only the issue key and transition
   ytr issue transition PROJ-123 --to "Done" --json key,transition`,
 		Args:     []runner.Arg{runner.IssueKey},
 		Flags:    []runner.Flag{runner.Text("to", "Target status key or display name (required)")},
 		Required: []string{"to"},
 		Call:     executeTransition,
 		Item:     func(result transitionResult) transitionResult { return result },
-		Quiet:    func(result transitionResult) string { return result.Key },
-		Confirm: func(_ []string, result transitionResult) string {
-			return fmt.Sprintf("%s transitioned to %s", result.Key, result.Transition)
-		},
 	}.Command()
 }
 

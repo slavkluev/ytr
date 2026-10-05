@@ -27,11 +27,11 @@ JSON FIELDS
 		Example: `  # Check operation status
   ytr bulk status 593cd211ef7e8a0000000001
 
-  # Get status as JSON with specific fields
+  # Only the ID, status and issue count
   ytr bulk status 593cd211ef7e8a0000000001 --json id,status,totalIssues
 
-  # Get just the operation ID (quiet mode)
-  ytr bulk status 593cd211ef7e8a0000000001 --quiet`,
+  # Get just the operation ID
+  ytr bulk status 593cd211ef7e8a0000000001 --jq .id`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runStatus(cmd, args[0])

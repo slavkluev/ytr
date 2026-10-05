@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "24.0"
+  version: "25.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -30,7 +30,7 @@ ytr auth login --token TOKEN --org-id ORG --org-type 360
 # Verify authentication
 ytr auth status
 
-# Who is signed in, as JSON
+# Only who is signed in, and where
 ytr auth status --json status,user,org_id
 ```
 
@@ -47,9 +47,6 @@ Notes:
 - `auth status`, `auth login` and `auth logout` take `--json` fields and `--jq` like any other
   command. `--json=` lists their fields, and it or an unknown field exits 1 before any request
   or config change.
-- Without `--json` or `--jq` their result is text on stdout, as for any other command. On
-  success, only the prompts `auth login` shows on a terminal for a missing token or organization
-  ID go to stderr.
 - Config is stored in `~/.config/ytr/config.yaml`.
 
 ## Command Reference
@@ -236,21 +233,18 @@ change; the document's `status` says whether it has finished:
 - Any other status, such as `CREATED`: the wait ended before Tracker reported
   the operation finished. Do not run the command again, which would start a
   second operation; run its `suggestion`, `ytr bulk status <id>`, to check it
-  later. The text table shows the same status and a `SUGGESTION` column.
-  `--quiet` prints only the ID either way, so after it, check
-  `ytr bulk status <id> --json status` before relying on the change.
+  later.
 
 ```bash
 ytr bulk move PROJ-1 PROJ-2 --queue TARGET --json id,status,suggestion
 # {"id":"6543210abcdef","status":"CREATED","suggestion":"ytr bulk status 6543210abcdef"}
 ```
 
-They exit 1 when the operation ends `FAILED`, writing nothing to stdout in any
-mode, `--quiet` included. Under `--json` the error document on stderr carries
-`operationId`, `statusText`, `totalIssues` and `totalCompletedIssues`, so it
-still says how much of the change landed; in text mode the error message
-states the same counts. The `suggestion` is a runnable
-`ytr bulk status <operationId>`:
+They exit 1 when the operation ends `FAILED`, writing nothing to stdout. Under
+`--json` or `--jq` the error document on stderr carries `operationId`,
+`statusText`, `totalIssues` and `totalCompletedIssues`, so it still says how
+much of the change landed; without them the plain-text error states the same
+counts. The `suggestion` is a runnable `ytr bulk status <operationId>`:
 
 ```bash
 ytr bulk move PROJ-1 PROJ-2 --queue TARGET --json id,status
@@ -331,9 +325,7 @@ A part whose request failed is `null`, and `incomplete` names it with the server
 error text; a part that was fetched but is empty is `[]`. The command exits 0 once the
 queue itself is found, so check `incomplete` before relying on a part. An unknown
 queue exits 4. `--json a,b` returns only those parts and makes only the requests they
-need; `incomplete` is always included. The document is always JSON, and `--quiet` is
-an error. As for every command, an error is a JSON document on stderr only under
-`--json` or `--jq`.
+need; `incomplete` is always included.
 
 ```bash
 # Everything needed to work in a queue
@@ -374,55 +366,29 @@ ytr issue changelog PROJ-123 --json date,type,fields --jq '.items[] | select(.ty
 
 # Non-paginated sub-resource lists return arrays
 ytr comment list PROJ-123 --json body --jq '.[].body'
-
-# Quiet mode: minimal text, one item per line
-ytr issue list --filter queue=PROJ --quiet
-
-# Quiet mode for changelog outputs "category: from -> to" per line
-# Categories: field names (status, assignee), comment, link, attachment, worklog, reaction, relatedResolution
-ytr issue changelog PROJ-123 --quiet --field status
 ```
 
 ## Output Shape
 
-ytr checks whether stdout is a terminal and prints accordingly. There is no
-flag or environment variable for this: an agent that pipes, captures or
-redirects ytr always gets the lean shape below.
+Every command except `completion` and help (`ytr help`, `--help`) prints its
+result as one line of compact JSON on stdout, the same whether stdout is a
+terminal, a pipe or a file.
 
-Off a terminal:
-
-- Tables print one header row and one line per record, columns joined by a
-  single tab. Nothing is padded, truncated or given an ellipsis, so a long
-  summary or comment body arrives whole.
-- Any value's tab, newline and carriage return are escaped as `\t`, `\n` and
-  `\r`, and a literal backslash as `\\`, so one record is always one line and
-  the escaping can be reversed.
-- Detail views (`issue view`, `queue view`, `field get`, `component get`,
-  `user myself`, `user get`, and the `issue create`/`issue update` result)
-  print `Label<TAB>value` with no trailing colon. A description still follows
-  as its own block after a blank line.
-- Times in text output are RFC 3339 with the offset the server sent, the same
-  string the JSON fields carry: `2026-09-19T14:22:31+03:00`. `issue changelog`
-  already printed RFC 3339 and reads the same in both modes.
-- `--json` prints one line of JSON, and so does `queue context`, which prints
-  its document without being asked for JSON.
-- There is no color.
-
-`--jq` is unchanged: its output was always compact, and a filter that yields
-several results still prints one line per result in both modes.
-
-On a terminal the output is for human eyes: padded columns fitted to the
-terminal width, relative times such as `3h ago` (except `issue changelog`),
-color, and indented `--json`.
-
-`NO_COLOR`, `CLICOLOR_FORCE` and `CLICOLOR` keep their usual meaning, so
-`CLICOLOR_FORCE=1` colors the tab-separated output too.
+- Without `--json`, the result holds every field the command's `JSON FIELDS`
+  lists; `--json a,b` keeps only those, and `--jq` filters the result.
+- A write prints the item Tracker answers with, a delete prints
+  `{"deleted":true,"id":"..."}`, and an empty list prints `[]` or its
+  envelope with `"items":[]`.
+- Times are RFC 3339 with the offset the server sent, such as
+  `2026-09-19T14:22:31+03:00`.
+- A field Tracker sent no value for is left out of the item, or else prints
+  as `""` for a string, `0` for a number and `false` for a boolean.
 
 ```bash
-# One line per issue, columns split on a tab
-ytr issue list --filter queue=PROJ | cut -f1,4
+# Every field of an issue
+ytr issue view PROJ-123
 
-# One line of JSON
+# Only the key and summary
 ytr issue view PROJ-123 --json key,summary
 ```
 
@@ -434,10 +400,10 @@ the available field names for that command.
 
 ### Streams
 
-Under `--json` or `--jq`, stdout carries the command's output and nothing
-else. A run that fails writes nothing at all to stdout and puts one JSON error
-document on stderr. The streams alone tell the two apart: parse stdout for the
-result, stderr for the failure, never both for one answer.
+stdout carries the command's output and nothing else. A run that fails writes
+nothing at all to stdout and puts one error on stderr: a JSON document under
+`--json` or `--jq`, plain text otherwise. The streams alone tell the two apart:
+parse stdout for the result, stderr for the failure, never both for one answer.
 
 - Without `--jq`, stdout on success is exactly one JSON document.
 - `--jq` is a stream, not a document: one line per result with an implicit
@@ -466,12 +432,8 @@ ytr comment list PROJ-123 --json author,authorId
 ytr user get "$(ytr comment list PROJ-123 --json authorId --jq '.[0].authorId')"
 ```
 
-Exceptions:
+List shapes:
 
-- `queue context` prints its document as JSON even without `--json`: its top-level keys
-  are its parts. `--json` selects parts, `incomplete` is always present, and `--quiet`
-  is an error. Its errors follow the usual rule: a JSON document on stderr only under
-  `--json` or `--jq`.
 - Paginated list commands such as `issue list`, `issue changelog`, `queue list`, and `user list` return an object with `items` and `pagination`.
 - Non-paginated sub-resource list commands such as `comment list`, `link list`, `worklog list`, and `checklist list` return arrays.
 
@@ -481,9 +443,6 @@ ytr issue list --filter queue=PROJ --json key --jq '.items[].key'
 
 # Filter sub-resource array output
 ytr comment list PROJ-123 --json body --jq '.[].body'
-
-# Quiet mode: minimal text, one item per line
-ytr issue list --filter queue=PROJ --quiet
 ```
 
 ## Error Recovery
@@ -528,9 +487,10 @@ each exits 1 before any request:
   24-character hexadecimal issue ID, or such a bulk issue, given as an
   argument, on stdin or in the `"issues"` of a bulk `--from-json`.
 - `no issue keys provided`: a bulk `--from-json` body without `"issues"`, or
-  with an empty one, or a bulk command given no key arguments while stdin is a
-  terminal; `no issue keys provided via stdin` when the piped stdin holds no
-  key. The last two exit 1 before auth.
+  with an empty one; `no issue keys provided via stdin` when a bulk command
+  gets no key arguments and stdin holds no key, which exits 1 before auth. A
+  bulk command without key arguments reads stdin to its end, so give it the keys
+  as arguments or pipe them in.
 
 ### Bad invocations
 
@@ -575,9 +535,8 @@ the help text to stdout and exit 0, even on a mistyped command path
 
 | Flag | Scope | Description |
 |------|-------|-------------|
-| `--json f1,f2` | Global on most commands | Output JSON with selected fields |
-| `--jq expr` | Global | Filter JSON output with a jq expression; implies JSON |
-| `--quiet` | Global | Output minimal text, one item per line; mutually exclusive with `--json` and `--jq` |
+| `--json f1,f2` | Global on most commands | Print only the selected fields; without it, every field |
+| `--jq expr` | Global | Filter the JSON output with a jq expression |
 | `--debug` | Global | Emit sanitized debug diagnostics to stderr, alongside the error document; stdout is unaffected |
 | `--token` | Global auth override | Override auth token |
 | `--org-id` | Global auth override | Override organization ID |

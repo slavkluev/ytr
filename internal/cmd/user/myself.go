@@ -2,14 +2,12 @@ package user
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/cmd/runner"
-	"github.com/slavkluev/ytr/internal/output"
 )
 
 type userDetail struct {
@@ -46,33 +44,15 @@ func newMyselfCmd() *cobra.Command {
 		Example: `  # Show current user
   ytr user myself
 
-  # Get current user as JSON
+  # Only the UID, name, login and email
   ytr user myself --json uid,display,login,email
 
   # Get just the UID
-  ytr user myself --quiet`,
+  ytr user myself --jq .uid`,
 		Call: func(ctx context.Context, c *tracker.Client, _ []string) (*tracker.User, error) {
 			user, _, err := c.Users.Myself(ctx)
 			return user, err
 		},
-		Item:   toUserDetail,
-		Detail: userCard,
-		Quiet:  userUID,
+		Item: toUserDetail,
 	}.Command()
-}
-
-func userUID(user *tracker.User) string {
-	return strconv.Itoa(api.DerefInt(user.UID, 0))
-}
-
-func userCard(d *output.DetailPrinter, _ *output.Options, user *tracker.User) {
-	d.Field("UID", userUID(user))
-	d.Field("Display", api.DerefString(user.Display, "-"))
-	d.Field("Login", api.DerefString(user.Login, "-"))
-	d.Field("Email", api.DerefString(user.Email, "-"))
-	d.Field("First Name", api.DerefString(user.FirstName, "-"))
-	d.Field("Last Name", api.DerefString(user.LastName, "-"))
-	d.Field("Dismissed", strconv.FormatBool(api.DerefBool(user.Dismissed, false)))
-	d.Field("Has License", strconv.FormatBool(api.DerefBool(user.HasLicense, false)))
-	d.Field("External", strconv.FormatBool(api.DerefBool(user.External, false)))
 }
