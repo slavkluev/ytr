@@ -23,8 +23,14 @@ import (
 
 const (
 	initialBackoff = 1 * time.Second
-	maxBackoff     = 30 * time.Second
-	defaultTimeout = 5 * time.Minute
+
+	// The wait ends well before an agent's tool timeout, 2 minutes for
+	// Claude Code's Bash tool, at which the harness kills the command before
+	// it can print the operation ID. Polls keep coming through the last
+	// stretch of it, so the state the wait ends with is recent.
+	defaultTimeout = 60 * time.Second
+	maxBackoff     = 10 * time.Second
+
 	bulkStatusDone = "COMPLETED"
 	bulkStatusFail = "FAILED"
 )

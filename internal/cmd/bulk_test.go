@@ -195,6 +195,10 @@ func TestBulkMove(t *testing.T) {
 			stdout:    "op-1\n",
 		},
 		{
+			name: "Default wait is one minute", args: move("--help"),
+			holds: []string{"Maximum time to wait for the operation to finish (default 1m0s)"},
+		},
+		{
 			name: "No operation ID", args: move("PROJ-1", "--queue", "TARGET", "--json", "id"),
 			exchanges: []faketracker.Exchange{trackerPOST("/v3/bulkchange/_move", `{"status": "CREATED"}`)},
 			code:      ytrerrors.ExitUserError,

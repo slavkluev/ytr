@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "23.0"
+  version: "24.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -209,8 +209,8 @@ ytr bulk move PROJ-1 PROJ-2 PROJ-3 --queue TARGET
 # Bulk update via stdin pipe
 printf 'PROJ-1\nPROJ-2\n' | ytr bulk update --field priority=critical
 
-# Bulk transition with timeout
-ytr bulk transition PROJ-1 PROJ-2 --transition close --timeout 10m
+# Bulk transition with a shorter wait; keep --timeout well under your tool's own timeout
+ytr bulk transition PROJ-1 PROJ-2 --transition close --timeout 30s
 
 # Check bulk operation status
 ytr bulk status 6543210abcdef
@@ -228,9 +228,9 @@ is the only source of keys: key arguments beside it exit 1 with
 `cannot combine --from-json with issue keys`, and stdin is not read for keys
 (with `--from-json -` it carries the body itself).
 
-`bulk move`, `bulk update` and `bulk transition` wait up to `--timeout` for
-the operation they start. Exit 0 means Tracker accepted the change; the
-document's `status` says whether it has finished:
+`bulk move`, `bulk update` and `bulk transition` wait up to `--timeout`
+(default 1m) for the operation they start. Exit 0 means Tracker accepted the
+change; the document's `status` says whether it has finished:
 
 - `COMPLETED`: the change is done, and `suggestion` is empty.
 - Any other status, such as `CREATED`: the wait ended before Tracker reported
@@ -592,4 +592,4 @@ the help text to stdout and exit 0, even on a mistyped command path
 | `--limit N` | Paginated list commands | Results per page, 1 to 1000 (default 50); any other value exits 1 |
 | `--all` | Paginated list commands | Fetch all pages automatically |
 | `--cursor` | Paginated list commands | Pagination cursor (pass the `pagination.cursor` value from the previous response) |
-| `--timeout` | Bulk commands | Max wait time (default 5m); an operation still running then exits 0 with its status and `suggestion` |
+| `--timeout` | Bulk commands | Max wait time (default 1m); an operation not finished by then exits 0 with its status and `suggestion` |
