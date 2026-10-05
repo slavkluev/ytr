@@ -75,7 +75,7 @@ func (c change[Req]) run(cmd *cobra.Command, args []string) error {
 }
 
 // flagRequest decodes into req the body the issue keys and the request flags
-// give, one key per flag, before the field hint and auth. It leaves req to
+// give, one key per flag, before the --json check and auth. It leaves req to
 // jsonRequest when --from-json gives the body, whose "issues" stdin cannot add
 // to: stdin may be the body itself.
 func (c change[Req]) flagRequest(cmd *cobra.Command, args []string, req *Req) error {

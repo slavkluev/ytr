@@ -242,11 +242,11 @@ func named(name string, row leafRow) leafRow {
 	return row
 }
 
-// fieldHintRow wants --json= on the leaf at path, given args, refused before
-// any request with a document that names its fields in order.
-func fieldHintRow(path string, args []string, fields ...string) leafRow {
+// emptySelectionRow wants --json= on the leaf at path, given args, refused
+// before any request with a document that names its fields in order.
+func emptySelectionRow(path string, args []string, fields ...string) leafRow {
 	return leafRow{
-		name: "Field hint", args: slices.Concat(strings.Fields(path), args, []string{"--json="}),
+		name: "Empty selection", args: slices.Concat(strings.Fields(path), args, []string{"--json="}),
 		code:   ytrerrors.ExitUserError,
 		stderr: []string{noFieldsDocument(fields)},
 	}

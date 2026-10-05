@@ -10,8 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/spf13/cobra"
-
 	"github.com/slavkluev/ytr/internal/api"
 	"github.com/slavkluev/ytr/internal/config"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
@@ -137,8 +135,7 @@ func assertOneDocument(t *testing.T, argv []string, res cliResult) {
 }
 
 // asksForText reports whether argv asks for one of the outputs that stay text
-// when the run succeeds: help, a completion script, the completions cobra's
-// hidden __complete prints, or a --jq stream.
+// when the run succeeds: help or a --jq stream.
 func asksForText(argv []string) bool {
 	command := ""
 	for _, arg := range argv {
@@ -152,5 +149,5 @@ func asksForText(argv []string) bool {
 		}
 	}
 
-	return slices.Contains([]string{"help", "completion", cobra.ShellCompRequestCmd}, command)
+	return command == helpCommandName
 }

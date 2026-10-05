@@ -154,7 +154,7 @@ func TestHandleInvocationError_ExitError_NoSuggestion(t *testing.T) {
 	}
 }
 
-func TestWantsFieldHint(t *testing.T) {
+func TestHasEmptySelection(t *testing.T) {
 	tests := []struct {
 		name            string
 		jsonFlagChanged bool
@@ -167,15 +167,15 @@ func TestWantsFieldHint(t *testing.T) {
 		{"--json with fields", true, []string{"key"}, "", false},
 		{"--jq only (no --json)", false, nil, ".x", false},
 		{"--json fields + --jq", true, []string{"key"}, ".x", false},
-		{"--json= + --jq (jq wins, no hint)", true, nil, ".x", false},
+		{"--json= + --jq (still selects no field)", true, nil, ".x", true},
 		{"fields set directly without flag (e.g. tests)", false, []string{"key"}, "", false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := output.Options{JSONFields: tc.jsonFields, JQFilter: tc.jqFilter}
 
-			if got := opts.WantsFieldHint(tc.jsonFlagChanged); got != tc.want {
-				t.Errorf("WantsFieldHint(%v) = %v, want %v", tc.jsonFlagChanged, got, tc.want)
+			if got := opts.HasEmptySelection(tc.jsonFlagChanged); got != tc.want {
+				t.Errorf("HasEmptySelection(%v) = %v, want %v", tc.jsonFlagChanged, got, tc.want)
 			}
 		})
 	}

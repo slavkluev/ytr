@@ -12,7 +12,6 @@ import (
 	"github.com/slavkluev/ytr/internal/cmd/bulk"
 	"github.com/slavkluev/ytr/internal/cmd/checklist"
 	"github.com/slavkluev/ytr/internal/cmd/comment"
-	"github.com/slavkluev/ytr/internal/cmd/completion"
 	"github.com/slavkluev/ytr/internal/cmd/component"
 	"github.com/slavkluev/ytr/internal/cmd/field"
 	"github.com/slavkluev/ytr/internal/cmd/issue"
@@ -21,7 +20,6 @@ import (
 	"github.com/slavkluev/ytr/internal/cmd/priority"
 	"github.com/slavkluev/ytr/internal/cmd/queue"
 	"github.com/slavkluev/ytr/internal/cmd/resolution"
-	"github.com/slavkluev/ytr/internal/cmd/runner"
 	"github.com/slavkluev/ytr/internal/cmd/status"
 	"github.com/slavkluev/ytr/internal/cmd/user"
 	versioncmd "github.com/slavkluev/ytr/internal/cmd/version"
@@ -29,13 +27,29 @@ import (
 	"github.com/slavkluev/ytr/internal/output"
 )
 
-const (
-	groupIssueTracking = "issue-tracking"
-	groupReferenceData = "reference-data"
-	groupOrganization  = "organization"
-	groupAccount       = "account"
-	groupSystem        = "system"
-)
+// usageTemplate is cobra's default usage template without the group titles,
+// the Global Flags block and the closing footer. Root's persistent flags are
+// its local flags, so root help lists them once, and every other page leaves
+// them out instead of repeating them.
+const usageTemplate = `Usage:{{if .Runnable}}
+  {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
+  {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
+
+Aliases:
+  {{.NameAndAliases}}{{end}}{{if .HasExample}}
+
+Examples:
+{{.Example}}{{end}}{{if .HasAvailableSubCommands}}
+
+Available Commands:{{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+
+Flags:
+{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasHelpSubCommands}}
+
+Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
+  {{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}
+`
 
 // Every call returns an independent tree. pflag writes a parsed value into the
 // variable the flag was bound to and remembers that the flag was Changed, and
@@ -46,27 +60,18 @@ func newRootCmd(opts *output.Options) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "ytr",
 		Short:         "Yandex Tracker CLI",
-		Long:          "Command-line client for Yandex Tracker. Designed for LLM agents and human developers.",
+		Long:          "Command-line client for Yandex Tracker. Designed for LLM agents.",
 		SilenceErrors: true,
 		SilenceUsage:  true,
+		// Cobra adds its own completion command on every Execute unless told
+		// not to.
+		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 	}
 
 	addPersistentFlags(rootCmd, opts)
-	addCommandGroups(rootCmd)
-
-	// Must precede SetHelpCommandGroupID, which only reaches a help command
-	// that is already installed.
 	rootCmd.SetHelpCommand(newHelpCmd())
-	rootCmd.SetHelpCommandGroupID(groupSystem)
-
+	rootCmd.SetUsageTemplate(usageTemplate)
 	registerSubcommands(rootCmd)
-
-	_ = rootCmd.RegisterFlagCompletionFunc("json",
-		func(cmd *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
-			fields, _ := runner.Fields(cmd)
-			return fields, cobra.ShellCompDirectiveNoFileComp
-		},
-	)
 
 	// Cobra adds the help command to the tree when it executes; doing it here
 	// means the tree this returns is the tree that runs, so the contract below
@@ -87,50 +92,34 @@ func addPersistentFlags(rootCmd *cobra.Command, opts *output.Options) {
 		StringVar(&opts.JQFilter, "jq", "", "Filter JSON output with a jq expression (implies --json)")
 	rootCmd.PersistentFlags().
 		BoolVar(&opts.Debug, "debug", false, "Emit sanitized debug diagnostics to stderr")
+	// Hidden from help: the agents who read help have no use for it, but it
+	// still parses for whoever diagnoses a run.
+	_ = rootCmd.PersistentFlags().MarkHidden("debug")
 
 	rootCmd.PersistentFlags().String("token", "", "Authentication token (use with --org-id and --org-type)")
 	rootCmd.PersistentFlags().String("org-id", "", "Tracker organization ID (use with --token and --org-type)")
 	rootCmd.PersistentFlags().String("org-type", "", "Organization type, 360 or cloud (use with --token and --org-id)")
 }
 
-func addCommandGroups(rootCmd *cobra.Command) {
-	rootCmd.AddGroup(
-		&cobra.Group{ID: groupIssueTracking, Title: "Issue Tracking:"},
-		&cobra.Group{ID: groupReferenceData, Title: "Reference Data:"},
-		&cobra.Group{ID: groupOrganization, Title: "Organization:"},
-		&cobra.Group{ID: groupAccount, Title: "Account:"},
-		&cobra.Group{ID: groupSystem, Title: "System:"},
-	)
-}
-
-func addGroupedCommand(rootCmd, cmd *cobra.Command, groupID string) {
-	cmd.GroupID = groupID
-	rootCmd.AddCommand(cmd)
-}
-
 func registerSubcommands(rootCmd *cobra.Command) {
-	addGroupedCommand(rootCmd, issue.NewCmd(), groupIssueTracking)
-	addGroupedCommand(rootCmd, comment.NewCmd(), groupIssueTracking)
-	addGroupedCommand(rootCmd, link.NewCmd(), groupIssueTracking)
-	addGroupedCommand(rootCmd, worklog.NewCmd(), groupIssueTracking)
-	addGroupedCommand(rootCmd, checklist.NewCmd(), groupIssueTracking)
-	addGroupedCommand(rootCmd, bulk.NewCmd(), groupIssueTracking)
-
-	addGroupedCommand(rootCmd, status.NewCmd(), groupReferenceData)
-	addGroupedCommand(rootCmd, priority.NewCmd(), groupReferenceData)
-	addGroupedCommand(rootCmd, resolution.NewCmd(), groupReferenceData)
-	addGroupedCommand(rootCmd, issuetype.NewCmd(), groupReferenceData)
-	addGroupedCommand(rootCmd, field.NewCmd(), groupReferenceData)
-
-	addGroupedCommand(rootCmd, queue.NewCmd(), groupOrganization)
-	addGroupedCommand(rootCmd, component.NewCmd(), groupOrganization)
-
-	addGroupedCommand(rootCmd, user.NewCmd(), groupAccount)
-	addGroupedCommand(rootCmd, auth.NewCmd(), groupAccount)
-
-	addGroupedCommand(rootCmd, versioncmd.NewCmd(), groupSystem)
-
-	addGroupedCommand(rootCmd, completion.NewCmd(rootCmd), groupSystem)
+	rootCmd.AddCommand(
+		issue.NewCmd(),
+		comment.NewCmd(),
+		link.NewCmd(),
+		worklog.NewCmd(),
+		checklist.NewCmd(),
+		bulk.NewCmd(),
+		status.NewCmd(),
+		priority.NewCmd(),
+		resolution.NewCmd(),
+		issuetype.NewCmd(),
+		field.NewCmd(),
+		queue.NewCmd(),
+		component.NewCmd(),
+		user.NewCmd(),
+		auth.NewCmd(),
+		versioncmd.NewCmd(),
+	)
 }
 
 // Execute runs the root command and returns the appropriate exit code.

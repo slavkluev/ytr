@@ -42,29 +42,12 @@ func TestDebugFlagRegistered(t *testing.T) {
 
 	root := cmd.RootCmd()
 
-	if flag := root.PersistentFlags().Lookup("debug"); flag == nil {
+	flag := root.PersistentFlags().Lookup("debug")
+	if flag == nil {
 		t.Fatal("expected persistent --debug flag to be registered")
 	}
-}
-
-func TestCommandGroups(t *testing.T) {
-	t.Parallel()
-
-	root := cmd.RootCmd()
-	groups := root.Groups()
-	if len(groups) < 5 {
-		t.Fatalf("expected at least 5 command groups, got %d", len(groups))
-	}
-
-	expectedGroups := []string{"issue-tracking", "reference-data", "organization", "account", "system"}
-	groupIDs := make(map[string]bool)
-	for _, g := range groups {
-		groupIDs[g.ID] = true
-	}
-	for _, id := range expectedGroups {
-		if !groupIDs[id] {
-			t.Errorf("missing command group %q", id)
-		}
+	if !flag.Hidden {
+		t.Error("--debug is not hidden, so root help lists it")
 	}
 }
 
@@ -98,10 +81,6 @@ func TestBulkRegistered(t *testing.T) {
 
 	if bulkCmd == nil {
 		t.Fatal("'bulk' not registered on root command")
-	}
-
-	if bulkCmd.GroupID != "issue-tracking" {
-		t.Errorf("bulk command GroupID = %q, want %q", bulkCmd.GroupID, "issue-tracking")
 	}
 
 	// Verify bulk subcommands.
@@ -150,19 +129,5 @@ func TestQueueContextRegistered(t *testing.T) {
 	if !ok || !slices.Equal(fields, queue.QueueContextFields) {
 		t.Errorf("runner.Fields(%q) = %q (set %v), want %q",
 			contextCmd.CommandPath(), fields, ok, queue.QueueContextFields)
-	}
-}
-
-func TestAllCommandsGrouped(t *testing.T) {
-	t.Parallel()
-
-	root := cmd.RootCmd()
-	for _, c := range root.Commands() {
-		if c.Name() == "help" {
-			continue // The help command is grouped via SetHelpCommandGroupID
-		}
-		if c.GroupID == "" {
-			t.Errorf("command %q has no GroupID, will appear under 'Additional Commands'", c.Name())
-		}
 	}
 }

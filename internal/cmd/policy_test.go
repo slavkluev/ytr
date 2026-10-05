@@ -70,10 +70,11 @@ var policies = []policy{
 	{"Debug", func(*policyTarget) bool { return true }, checkDebugForms},
 	{"Args", (*policyTarget).isLeaf, checkArgsDeclared},
 	{"Example", (*policyTarget).isLeaf, checkExample},
-	{"Field hint", func(p *policyTarget) bool { return p.fields != nil && p.inv != nil }, checkFieldHint},
+	{"Empty selection", func(p *policyTarget) bool { return p.fields != nil && p.inv != nil }, checkEmptySelection},
 	{"Unknown field", func(p *policyTarget) bool { return p.fields != nil && p.inv != nil }, checkUnknownField},
 	{"JSON FIELDS", (*policyTarget).isLeaf, checkJSONFieldsHelp},
 	{"No SEE ALSO", func(*policyTarget) bool { return true }, checkNoSeeAlso},
+	{"Help page", func(*policyTarget) bool { return true }, checkHelpPage},
 	{"All with cursor", appliesAllWithCursor, checkAllWithCursor},
 	{"Limit range", appliesLimitRange, checkLimitRange},
 	{"Tracker 500", (*policyTarget).reachesTracker, checkTrackerFailure},
@@ -328,27 +329,30 @@ func checkExample(t *testing.T, p *policyTarget) {
 	}
 }
 
-// checkFieldHint wants a --json that names no field refused with the fields
-// the command has, in order, so the caller can pick from the document alone.
-func checkFieldHint(t *testing.T, p *policyTarget) {
-	argv := slices.Concat(p.inv.args, []string{"--json="})
-	label := commandLine(argv)
-	got := runProbe(t, argv)
+// checkEmptySelection wants a --json that selects no field refused, also
+// under --jq, with the fields the command has, in order, so the caller can
+// pick from the document alone.
+func checkEmptySelection(t *testing.T, p *policyTarget) {
+	for _, selection := range [][]string{{"--json="}, {"--json", ""}, {"--json=", "--jq", "."}} {
+		argv := slices.Concat(p.inv.args, selection)
+		label := commandLine(argv)
+		got := runProbe(t, argv)
 
-	if got.Code != ytrerrors.ExitUserError {
-		t.Errorf("%s: exit = %d, want %d", label, got.Code, ytrerrors.ExitUserError)
-	}
-	assertEmpty(t, label+": stdout", got.Stdout)
+		if got.Code != ytrerrors.ExitUserError {
+			t.Errorf("%s: exit = %d, want %d", label, got.Code, ytrerrors.ExitUserError)
+		}
+		assertEmpty(t, label+": stdout", got.Stdout)
 
-	doc := decodeOneJSONErrorCoded(t, label, got.Stderr, ytrerrors.CodeInvalidField)
-	if doc.Message != "no fields specified" {
-		t.Errorf("%s: message = %q, want %q", label, doc.Message, "no fields specified")
-	}
-	if !slices.Equal(doc.ValidFields, p.fields) {
-		t.Errorf("%s: validFields = %q, want %q", label, doc.ValidFields, p.fields)
-	}
-	if want := "Valid fields: " + strings.Join(p.fields, ", "); doc.Suggestion != want {
-		t.Errorf("%s: suggestion = %q, want %q", label, doc.Suggestion, want)
+		doc := decodeOneJSONErrorCoded(t, label, got.Stderr, ytrerrors.CodeInvalidField)
+		if doc.Message != "no fields specified" {
+			t.Errorf("%s: message = %q, want %q", label, doc.Message, "no fields specified")
+		}
+		if !slices.Equal(doc.ValidFields, p.fields) {
+			t.Errorf("%s: validFields = %q, want %q", label, doc.ValidFields, p.fields)
+		}
+		if want := "Valid fields: " + strings.Join(p.fields, ", "); doc.Suggestion != want {
+			t.Errorf("%s: suggestion = %q, want %q", label, doc.Suggestion, want)
+		}
 	}
 }
 
@@ -389,6 +393,112 @@ func checkNoSeeAlso(t *testing.T, p *policyTarget) {
 	got := runProbe(t, slices.Concat(p.path, []string{"--help"}))
 	if strings.Contains(got.Stdout, "\nSEE ALSO\n") {
 		t.Errorf("%s --help has a SEE ALSO section; group help already lists every command", p.label())
+	}
+}
+
+// checkHelpPage wants --help to carry nothing an agent cannot use: no Global
+// Flags block repeating root's flags, no hidden --debug, no footer pointing
+// back at --help. `ytr help` with the same path must print the same page, and
+// root help must list every top-level command in one list.
+func checkHelpPage(t *testing.T, p *policyTarget) {
+	argv := slices.Concat(p.path, []string{"--help"})
+	label := commandLine(argv)
+	got := runProbe(t, argv)
+
+	for _, unwanted := range []string{"Global Flags:", "--debug", "for more information about a command"} {
+		if strings.Contains(got.Stdout, unwanted) {
+			t.Errorf("%s: help holds %q", label, unwanted)
+		}
+	}
+
+	topic := slices.Concat([]string{helpCommandName}, p.path)
+	if viaTopic := runProbe(t, topic); viaTopic.Stdout != got.Stdout {
+		t.Errorf("%s and %s disagree:\n%q\n%q", commandLine(topic), label, viaTopic.Stdout, got.Stdout)
+	}
+
+	if !p.cmd.HasParent() {
+		checkRootCommandList(t, p.cmd, got.Stdout)
+		return
+	}
+	checkNoInheritedFlags(t, p.path, label, got.Stdout)
+}
+
+// checkNoInheritedFlags wants the Flags block of a page below root to name none
+// of root's persistent flags, which root help lists once. A flag the command
+// defines itself under the same name, as auth login does --token, belongs
+// there.
+func checkNoInheritedFlags(t *testing.T, path []string, label, help string) {
+	t.Helper()
+
+	// A tree of its own, because LocalFlags merges the inherited flags into the
+	// command it asks, and the other checks of this command run in parallel.
+	root := newRootCmd(&output.Options{})
+	cmd, _, err := root.Find(path)
+	if err != nil {
+		t.Fatalf("%s: finding %q: %v", label, path, err)
+	}
+	own := cmd.LocalFlags()
+
+	for _, flag := range helpFlags(help) {
+		name := strings.TrimPrefix(flag, "--")
+		if root.PersistentFlags().Lookup(name) != nil && own.Lookup(name) == nil {
+			t.Errorf("%s: Flags lists %s, which only root help lists", label, flag)
+		}
+	}
+}
+
+// helpFlags returns the long name, with its --, of each flag the Flags block
+// of help lists.
+func helpFlags(help string) []string {
+	_, block, found := strings.Cut(help, "\nFlags:\n")
+	if !found {
+		return nil
+	}
+
+	var listed []string
+	for line := range strings.Lines(block) {
+		if !strings.HasPrefix(line, "  ") {
+			break
+		}
+		for _, word := range strings.Fields(line) {
+			if strings.HasPrefix(word, "--") {
+				listed = append(listed, word)
+				break
+			}
+		}
+	}
+
+	return listed
+}
+
+// checkRootCommandList wants root help to list every top-level command, help
+// included, alphabetically under its one Available Commands heading, with no
+// group title beside it.
+func checkRootCommandList(t *testing.T, root *cobra.Command, help string) {
+	t.Helper()
+
+	_, usage, _ := strings.Cut(help, "\nUsage:\n")
+
+	var headings, listed []string
+	inList := false
+	for line := range strings.Lines(usage) {
+		line = strings.TrimSuffix(line, "\n")
+		switch {
+		case line == "":
+			inList = false
+		case !strings.HasPrefix(line, " "):
+			headings = append(headings, line)
+			inList = line == "Available Commands:"
+		case inList:
+			listed = append(listed, strings.Fields(line)[0])
+		}
+	}
+
+	if want := []string{"Available Commands:", "Flags:"}; !slices.Equal(headings, want) {
+		t.Errorf("ytr --help has the headings %q after Usage, want %q", headings, want)
+	}
+	if want := availableSubcommands(root); !slices.Equal(listed, want) {
+		t.Errorf("ytr --help lists %q under Available Commands, want %q", listed, want)
 	}
 }
 

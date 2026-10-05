@@ -47,17 +47,15 @@ func (o *Options) HasFieldSelection() bool {
 	return len(o.JSONFields) > 0
 }
 
-// WantsFieldHint reports whether a field-selecting command should fail with
-// its field list instead of producing output. This is the case when the user
-// asked for JSON via --json (including the empty form `--json=`, which pflag
-// parses to an empty slice) but named no concrete fields and gave no --jq
-// filter.
+// HasEmptySelection reports whether --json was given but selects no field, as
+// `--json=` and `--json ""` do, with or without --jq: pflag parses both to an
+// empty slice.
 //
 // jsonFlagChanged must be cmd.Flags().Changed("json"). It is required because
-// `--json=` and "no --json at all" both leave JSONFields empty, so JSONFields
-// alone cannot distinguish them.
-func (o *Options) WantsFieldHint(jsonFlagChanged bool) bool {
-	return jsonFlagChanged && !o.HasFieldSelection() && o.JQFilter == ""
+// an empty selection and no --json at all both leave JSONFields empty, so
+// JSONFields alone cannot distinguish them.
+func (o *Options) HasEmptySelection(jsonFlagChanged bool) bool {
+	return jsonFlagChanged && !o.HasFieldSelection()
 }
 
 // HandleInvocationError writes err to w as one JSON document, whatever the

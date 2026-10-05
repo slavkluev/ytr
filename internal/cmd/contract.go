@@ -226,9 +226,8 @@ func newHelpCmd() *cobra.Command {
 Simply type ytr help [path to command] for full details.`,
 		Example: `  # Show the help of a command
   ytr help issue list`,
-		Args:              cobra.ArbitraryArgs,
-		ValidArgsFunction: completeHelpTopics,
-		RunE:              runHelp,
+		Args: cobra.ArbitraryArgs,
+		RunE: runHelp,
 	}
 }
 
@@ -258,36 +257,11 @@ func runHelp(cmd *cobra.Command, args []string) error {
 	return target.Help()
 }
 
-func completeHelpTopics(
-	cmd *cobra.Command,
-	args []string,
-	toComplete string,
-) ([]cobra.Completion, cobra.ShellCompDirective) {
-	// Leftovers mean a name in args resolved to nothing, so there is no command
-	// whose subcommands would be the topics to offer.
-	target, rest, err := cmd.Root().Find(args)
-	if err != nil || target == nil || len(rest) > 0 {
-		return nil, cobra.ShellCompDirectiveNoFileComp
-	}
-
-	var completions []cobra.Completion
-	for _, sub := range target.Commands() {
-		if !isTypeable(sub) {
-			continue
-		}
-		if strings.HasPrefix(sub.Name(), toComplete) {
-			completions = append(completions, cobra.CompletionWithDesc(sub.Name(), sub.Short))
-		}
-	}
-
-	return completions, cobra.ShellCompDirectiveNoFileComp
-}
-
 // isTypeable reports whether sub is a name a caller may type after its parent.
-// IsAvailableCommand leaves the help command out, and cobra's own help template
-// puts it back with the same `or .IsAvailableCommand (eq .Name "help")` rule:
-// `ytr --help` lists it under System, so the failure for a bare `ytr` has to
-// list it too.
+// IsAvailableCommand leaves the help command out, and the usage template puts
+// it back with the same `or .IsAvailableCommand (eq .Name "help")` rule:
+// `ytr --help` lists it under Available Commands, so the failure for a bare
+// `ytr` has to list it too.
 func isTypeable(sub *cobra.Command) bool {
 	return sub.IsAvailableCommand() || sub.Name() == helpCommandName
 }
@@ -326,6 +300,11 @@ func closestFlag(cmd *cobra.Command, typed string) string {
 	// Flag parsing has already merged the inherited persistent flags into this
 	// set, which is why --json and --token are candidates too.
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		// A hidden flag stays out of help, so a suggestion must not name it.
+		if flag.Hidden {
+			return
+		}
+
 		distance := editDistance(typed, flag.Name)
 		near := distance <= maxSuggestionDistance && distance < utf8.RuneCountInString(typed)
 		if !near && !strings.HasPrefix(flag.Name, typed) {

@@ -40,7 +40,7 @@ type BodyFlag struct {
 	Check func(string) error
 }
 
-// CheckFlags checks the flags changed reports as set, before the field hint
+// CheckFlags checks the flags changed reports as set, before the --json check
 // and auth: no request flag next to --from-json, and without --from-json
 // every required flag, and on an update at least one flag.
 func (b Body) CheckFlags(changed func(name string) bool) error {

@@ -85,8 +85,8 @@ func TestFieldList(t *testing.T) {
 			code:      ytrerrors.ExitUserError, stderr: []string{optionDecodeError(t)},
 		},
 		named(
-			"Field hint for local fields",
-			fieldHintRow("field list", []string{"--queue", "PROJ"}, "id", "key", "name", "schema", "items",
+			"Empty selection for local fields",
+			emptySelectionRow("field list", []string{"--queue", "PROJ"}, "id", "key", "name", "schema", "items",
 				"readonly", "options", "queueOptions", "defaultOptions"),
 		),
 		notFoundRow("/v3/queues/NOPE/localFields", "field", "list", "--queue", "NOPE"),

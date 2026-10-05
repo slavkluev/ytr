@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/slavkluev/ytr/internal/cmd/issue"
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
 )
 
@@ -57,8 +56,8 @@ func TestBareRootNamesItsSubcommands(t *testing.T) {
 	// Pinned in full, not by Contains: the list has to be the one `ytr --help`
 	// advertises, down to `help`, which cobra's IsAvailableCommand leaves out.
 	want := `{"code":"user_error","message":"\"ytr\" needs a subcommand: auth, bulk, checklist, comment, ` +
-		`completion, component, field, help, issue, issuetype, link, priority, queue, resolution, status, user, ` +
-		`version, worklog","suggestion":"Run \"ytr --help\" for details."}` + "\n"
+		`component, field, help, issue, issuetype, link, priority, queue, resolution, status, user, version, ` +
+		`worklog","suggestion":"Run \"ytr --help\" for details."}` + "\n"
 	if got.Stderr != want {
 		t.Errorf("stderr = %q, want %q", got.Stderr, want)
 	}
@@ -107,6 +106,42 @@ func TestQuietIsAnUnknownFlag(t *testing.T) {
 	}
 }
 
+// TestCompletionIsAnUnknownCommand pins that completion is gone, cobra's
+// default command included, rather than answering with a script.
+func TestCompletionIsAnUnknownCommand(t *testing.T) {
+	t.Parallel()
+
+	for _, argv := range [][]string{{"completion"}, {"completion", "bash"}, {"help", "completion"}} {
+		label := commandLine(argv)
+		got := runProbe(t, argv)
+
+		if got.Code != ytrerrors.ExitUserError {
+			t.Errorf("%s: exit = %d, want %d (stderr: %s)", label, got.Code, ytrerrors.ExitUserError, got.Stderr)
+		}
+		assertEmpty(t, label+": stdout", got.Stdout)
+		if doc := decodeOneJSONError(t, label, got.Stderr); doc.Message != `unknown command "completion" for "ytr"` {
+			t.Errorf("%s: message = %q, want %q", label, doc.Message, `unknown command "completion" for "ytr"`)
+		}
+	}
+}
+
+// TestRootHelpIsForAgents wants root help to name its users and to list, once,
+// the global flags no other page repeats, without the hidden --debug.
+func TestRootHelpIsForAgents(t *testing.T) {
+	t.Parallel()
+
+	got := runProbe(t, []string{"--help"})
+
+	if !strings.HasPrefix(got.Stdout, "Command-line client for Yandex Tracker. Designed for LLM agents.\n") {
+		t.Errorf("stdout = %q, want it to open by naming LLM agents as ytr's users", got.Stdout)
+	}
+
+	listed := helpFlags(got.Stdout)
+	if want := []string{"--help", "--jq", "--json", "--org-id", "--org-type", "--token"}; !slices.Equal(listed, want) {
+		t.Errorf("ytr --help lists the flags %q, want %q", listed, want)
+	}
+}
+
 func TestUnknownFlagNamesTheClosestFlag(t *testing.T) {
 	t.Parallel()
 
@@ -118,6 +153,19 @@ func TestUnknownFlagNamesTheClosestFlag(t *testing.T) {
 	}
 	if doc.Suggestion != "Did you mean: --limit" {
 		t.Errorf("suggestion = %q, want %q", doc.Suggestion, "Did you mean: --limit")
+	}
+}
+
+// TestUnknownFlagNeverSuggestsAHiddenFlag pins that a typo near --debug is not
+// answered with --debug, which help hides.
+func TestUnknownFlagNeverSuggestsAHiddenFlag(t *testing.T) {
+	t.Parallel()
+
+	got := runProbe(t, []string{"issue", "list", "--debu"})
+
+	doc := decodeOneJSONError(t, "ytr issue list --debu", got.Stderr)
+	if strings.Contains(doc.Suggestion, "--debug") {
+		t.Errorf("suggestion = %q, want it not to name the hidden --debug", doc.Suggestion)
 	}
 }
 
@@ -488,47 +536,13 @@ func TestMistypedHelpCommandIsSuggested(t *testing.T) {
 	}
 }
 
-func TestHelpTopicCompletionOffersSubcommands(t *testing.T) {
-	t.Parallel()
-
-	got := runProbe(t, []string{"__complete", "help", ""})
-
-	for _, want := range []string{"issue\t", "queue\t", "help\t"} {
-		if !strings.Contains(got.Stdout, want) {
-			t.Errorf("stdout = %q, want it to offer %q", got.Stdout, want)
-		}
-	}
-}
-
-func TestHelpTopicCompletionOffersNothingForAnUnknownTopic(t *testing.T) {
-	t.Parallel()
-
-	got := runProbe(t, []string{"__complete", "help", "nosuch", ""})
-
-	// Only cobra's trailing directive line is expected.
-	if offered := strings.TrimSpace(strings.TrimSuffix(got.Stdout, ":4\n")); offered != "" {
-		t.Errorf("stdout = %q, want no completions for an unresolvable topic", got.Stdout)
-	}
-}
-
-func TestJSONCompletionOffersTheFieldsSetOnACommandOutsideTheRunner(t *testing.T) {
-	t.Parallel()
-
-	got := runProbe(t, []string{"__complete", "issue", "changelog", "--json", ""})
-
-	offered, _, _ := strings.Cut(got.Stdout, "\n:")
-	if fields := strings.Split(offered, "\n"); !slices.Equal(fields, issue.IssueChangelogFields) {
-		t.Errorf("completion offers %q, want issue changelog's fields %q", fields, issue.IssueChangelogFields)
-	}
-}
-
 func TestDispatchOnlyCommandsDoNotAdvertiseTheirBareForm(t *testing.T) {
 	t.Parallel()
 
 	// The contract gives every group a RunE so cobra stops answering a bare
 	// group with help and exit 0. Cobra prints a `ytr issue [flags]` usage line
 	// for anything it considers runnable, and running that line exits 1.
-	for _, argv := range [][]string{{"--help"}, {"issue", "--help"}, {"completion", "--help"}} {
+	for _, argv := range [][]string{{"--help"}, {"issue", "--help"}, {"queue", "--help"}} {
 		label := "ytr " + strings.Join(argv, " ")
 		got := runProbe(t, argv)
 
@@ -550,5 +564,12 @@ func TestLeafCommandsStillAdvertiseTheirFlags(t *testing.T) {
 
 	if !strings.Contains(got.Stdout, "\n  ytr issue list [flags]\n") {
 		t.Errorf("stdout = %q, want the usage line for a command that really runs", got.Stdout)
+	}
+
+	// The usage template drops what repeats root help, not what the leaf owns.
+	for _, want := range []string{"\nExamples:\n", "\nFlags:\n", "(default 50)"} {
+		if !strings.Contains(got.Stdout, want) {
+			t.Errorf("stdout = %q, want it to keep %q", got.Stdout, want)
+		}
 	}
 }

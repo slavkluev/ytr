@@ -82,7 +82,7 @@ func TestComponentGet(t *testing.T) {
 			stderr: []string{`"message":"invalid component ID \"abc\": expected a positive integer"`},
 		},
 		{
-			name: "Bad arg before the hint", args: []string{"component", "get", "abc", "--json="},
+			name: "Bad arg before --json=", args: []string{"component", "get", "abc", "--json="},
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid component ID \"abc\"`},
 		},
 		notFoundRow(path, "component", "get", "42"),

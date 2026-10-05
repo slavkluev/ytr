@@ -27,7 +27,7 @@ import (
 )
 
 // A constructor cannot know the path its parent will give the command, so
-// completion finds the fields on the command itself.
+// Fields finds the fields on the command itself.
 const fieldsAnnotation = "ytr:json-fields"
 
 // List declares a command that fetches a list of T from Tracker and prints it
@@ -77,7 +77,7 @@ type Pages[T, Item any] struct {
 	Use, Short, Long, Example string
 
 	// Check, when set, refuses flags that cannot go together or values that
-	// do not parse, ahead of the field hint and auth. It may keep what it
+	// do not parse, ahead of the --json check and auth. It may keep what it
 	// parses for Page and All, which run only after it succeeds.
 	Check func(*pflag.FlagSet) error
 
@@ -392,7 +392,7 @@ func (f Flag) define(flags *pflag.FlagSet) {
 }
 
 // flagRequest checks the request flags a run set and decodes the body they
-// give, one key per flag, into req, before the field hint and auth. It leaves
+// give, one key per flag, into req, before the --json check and auth. It leaves
 // req to jsonRequest when --from-json gives the body.
 func flagRequest(set *pflag.FlagSet, body validate.Body, flags []Flag, req any) error {
 	if err := body.CheckFlags(set.Changed); err != nil {
@@ -480,7 +480,7 @@ func Fields(cmd *cobra.Command) ([]string, bool) {
 }
 
 // SetFields records fields as the --json fields of cmd, a command Command did
-// not build, so completion and Fields find them as they find any other's.
+// not build, so Fields finds them as it finds any other's.
 func SetFields(cmd *cobra.Command, fields []string) {
 	if cmd.Annotations == nil {
 		cmd.Annotations = make(map[string]string, 1)
@@ -556,7 +556,7 @@ type steps[V any] struct {
 	args   []Arg
 	fields []string
 
-	// check runs once the arguments pass, ahead of the field hint and auth.
+	// check runs once the arguments pass, ahead of the --json check and auth.
 	check func() error
 
 	// prepare runs once auth resolves, ahead of call. Its error is the
@@ -609,15 +609,15 @@ func run[V any](cmd *cobra.Command, raw []string, s steps[V]) error {
 
 // SelectFields returns the output options of a run of cmd, a command whose
 // --json fields are fields, with the fields the run selected: those --json
-// names, or every one without it. It refuses a bare --json= with an error that
-// carries the fields.
+// names, or every one without it. It refuses a --json that selects no field,
+// such as --json=, also under --jq.
 //
 // It returns a copy: the options in cmd's context are the ones the root flags
 // are bound to, and they keep what the flags set.
 func SelectFields(cmd *cobra.Command, fields []string) (*output.Options, error) {
 	flags := output.FromContext(cmd.Context())
 
-	if flags.WantsFieldHint(cmd.Flags().Changed("json")) {
+	if flags.HasEmptySelection(cmd.Flags().Changed("json")) {
 		return nil, errors.NewNoFieldsError(fields)
 	}
 

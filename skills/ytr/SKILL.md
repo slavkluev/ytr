@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "26.1"
+  version: "27.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -46,7 +46,7 @@ Notes:
 - `ytr auth login` is the exception: it can detect the organization type when `--org-type` is omitted.
 - `auth status`, `auth login` and `auth logout` take `--json` fields and `--jq` like any other
   command. `--json=`, which names no field, and an unknown field both exit 1 before any request
-  or config change, with the command's fields in `validFields`.
+  or config change; the unknown-field error lists the command's fields in `validFields`.
 - Config is stored in `~/.config/ytr/config.yaml`.
 
 ## Command Reference
@@ -121,9 +121,6 @@ Notes:
 | Command | Description | Key Flags |
 |---------|-------------|-----------|
 | `ytr version` | Show ytr version information | `--json`, `--jq` |
-| `ytr completion bash` | Generate bash completion script | |
-| `ytr completion zsh` | Generate zsh completion script | |
-| `ytr completion fish` | Generate fish completion script | |
 | `ytr help [command]` | Show help for any command | |
 
 ## Workflow Examples
@@ -372,9 +369,9 @@ ytr comment list PROJ-123 --json body --jq '.[].body'
 
 ## Output Shape
 
-Every command except `completion` and help (`ytr help`, `--help`) prints its
-result as one line of compact JSON on stdout, the same whether stdout is a
-terminal, a pipe or a file.
+Every command except help (`ytr help`, `--help`) prints its result as one
+line of compact JSON on stdout, the same whether stdout is a terminal, a pipe
+or a file.
 
 - Without `--json`, the result holds every field the command's `JSON FIELDS`
   lists; `--json a,b` keeps only those, and `--jq` filters the result.
@@ -398,9 +395,9 @@ ytr issue view PROJ-123 --json key,summary
 
 Most resource commands support `--json field1,field2` field selection.
 Run `ytr <command> --help` and look for the `JSON FIELDS` section to see
-the available field names for that command. A `--json` that names no field
-(`--json=`) or an unknown one exits 1 before any request, and its error
-document names them too, in `validFields`.
+the available field names for that command; the error for an unknown field
+names them too, in `validFields`. A `--json` that names no field
+(`--json=`, even beside `--jq`) or an unknown one exits 1 before any request.
 
 ### Streams
 
@@ -409,7 +406,7 @@ nothing at all to stdout and one JSON document to stderr, with or without
 `--json` or `--jq`: `code`, `message`, and `suggestion` when the error has
 one. Read together, the two streams therefore hold exactly one JSON document,
 the result on stdout or the failure on stderr, never both -- unless the run
-asked for a `--jq` stream, `--debug` lines or help, which are text:
+asked for a `--jq` stream or help, which are text:
 
 - Without `--jq`, stdout on success is exactly one JSON document.
 - `--jq` is a stream, not a document: one line per result with an implicit
@@ -417,8 +414,6 @@ asked for a `--jq` stream, `--debug` lines or help, which are text:
   nothing and exits 0. A filter that fails writes nothing and exits 1 -- never
   the results it had already produced -- so a partial stream is not a shape you
   have to handle.
-- `--debug` writes its `[debug]` diagnostics to stderr, where they share the
-  stream with the error document. It moves nothing to stdout.
 - `--help` and `ytr help <command>` are not command output: they write plain
   text to stdout and exit 0 even under `--json`.
 
@@ -542,7 +537,6 @@ the help text to stdout and exit 0, even on a mistyped command path
 |------|-------|-------------|
 | `--json f1,f2` | Global on most commands | Print only the selected fields; without it, every field |
 | `--jq expr` | Global | Filter the JSON output with a jq expression |
-| `--debug` | Global | Emit sanitized debug diagnostics to stderr, alongside the error document; stdout is unaffected |
 | `--token` | Global auth override | Override auth token |
 | `--org-id` | Global auth override | Override organization ID |
 | `--org-type` | Global auth override | Override organization type: `360` or `cloud` |

@@ -266,8 +266,8 @@ func TestShellCommands(t *testing.T) {
 		},
 		{
 			name: "substitution in a redirection target",
-			line: "ytr completion bash > $(brew --prefix)/etc/bash_completion.d/ytr",
-			want: [][]string{{"brew", "--prefix"}, {"ytr", "completion", "bash"}},
+			line: "ytr version > $(brew --prefix)/etc/ytr-version.json",
+			want: [][]string{{"brew", "--prefix"}, {"ytr", "version"}},
 		},
 		{
 			name: "redirections",
@@ -298,7 +298,7 @@ func TestShellCommands(t *testing.T) {
 		{name: "unquoted [", line: "ytr issue list --jq .items[].key", wantErr: `unquoted '[' at column 27`},
 		{name: "unquoted *", line: "ytr x a*", wantErr: `unquoted '*' at column 8`},
 		{name: "unquoted ?", line: "ytr x ?", wantErr: `unquoted '?' at column 7`},
-		{name: "process substitution", line: "source <(ytr completion bash)", wantErr: `unquoted '('`},
+		{name: "process substitution", line: "diff <(ytr version) old.json", wantErr: `unquoted '('`},
 		{name: "open single quote", line: "ytr x 'abc", wantErr: "quote at column 7 is never closed"},
 		{name: "open double quote", line: `ytr x "abc`, wantErr: "quote at column 7 is never closed"},
 		{name: "open substitution", line: "ytr user get $(ytr user myself", wantErr: "$( has no closing )"},

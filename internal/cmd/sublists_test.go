@@ -56,7 +56,7 @@ func TestWorklogList(t *testing.T) {
 			stderr: []string{`"message":"invalid issue key \"bad\": expected format QUEUE-123"`},
 		},
 		{
-			name: "Bad arg before the hint", args: []string{"worklog", "list", "bad", "--json="},
+			name: "Bad arg before --json=", args: []string{"worklog", "list", "bad", "--json="},
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"bad\"`},
 		},
 		notFoundRow(path, "worklog", "list", "PROJ-1"),

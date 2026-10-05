@@ -171,10 +171,10 @@ func invocationError(words []string) error {
 	}
 	fields, hasFields := runner.Fields(cmd)
 
-	// A leaf with fields answers a --json that names none, and no --jq, with
-	// its field list and exit 1, as output.Options.WantsFieldHint has it.
-	if jq, _ := cmd.Flags().GetString("jq"); hasFields && len(selected) == 0 && jq == "" {
-		return fmt.Errorf("--json selects no field, so %s prints its field list and exits 1", cmd.CommandPath())
+	// A leaf with fields refuses a --json that names none, --jq or not, as
+	// output.Options.HasEmptySelection has it.
+	if hasFields && len(selected) == 0 {
+		return fmt.Errorf("--json selects no field, which %s refuses", cmd.CommandPath())
 	}
 
 	if err = output.ValidateFields(selected, fields); err != nil {
@@ -620,23 +620,21 @@ func TestSkillCheckNamesWhyAnInvocationFails(t *testing.T) {
 			line: "ytr issue list --json key,nosuch",
 			want: `probe: ytr issue list --json key,nosuch: --json: unknown field: "nosuch"; the fields of ytr issue list are`,
 		},
-		{
-			line: "ytr completion bash --json key",
-			want: `probe: ytr completion bash --json key: --json: unknown field: "key"; ` +
-				`the fields of ytr completion bash are []`,
-		},
 		{line: "ytr issue view K-1 K-2", want: "probe: ytr issue view K-1 K-2: accepts 1 arg(s), received 2"},
 		{line: "ytr issue list --quiet", want: "probe: ytr issue list --quiet: unknown flag: --quiet"},
 		{
 			line: "ytr issue list --json ''",
-			want: "probe: ytr issue list --json '': --json selects no field, so ytr issue list prints its field list",
+			want: "probe: ytr issue list --json '': --json selects no field, which ytr issue list refuses",
 		},
 		{
 			line: "ytr issue list --json=",
-			want: "probe: ytr issue list --json=: --json selects no field, so ytr issue list prints its field list",
+			want: "probe: ytr issue list --json=: --json selects no field, which ytr issue list refuses",
 		},
-		{line: "ytr issue list --json= --jq .items"},
-		{line: "ytr completion bash --json="},
+		{
+			line: "ytr issue list --json= --jq .items",
+			want: "probe: ytr issue list --json= --jq .items: --json selects no field, which ytr issue list refuses",
+		},
+		{line: "ytr completion bash", want: `probe: ytr completion bash: unknown command "completion" for "ytr"`},
 		{line: "ytr issue list K-1", want: `probe: ytr issue list K-1: unknown command "K-1" for "ytr issue list"`},
 	}
 

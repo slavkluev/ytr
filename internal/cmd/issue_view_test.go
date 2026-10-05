@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
@@ -23,21 +24,35 @@ func TestIssueView(t *testing.T) {
 	const markdown = "See <b>R&D</b>: `a && b > c`"
 	withMarkdown := trackerGET(path, `{"key": "PROJ-123", "description": "`+markdown+`"}`)
 	const serverText = "<html><body>R&D-404 > archived</body></html>"
+	everyField := `{"key": "PROJ-123", "summary": "Fix login bug", "status": "In Progress",
+		"priority": "Critical", "type": "Bug", "author": "Иван Петров", "authorId": "uid-author",
+		"assignee": "Иван Петров", "assigneeId": "uid-assignee", "createdAt": "2026-09-17T09:05:00+03:00",
+		"updatedAt": "2026-09-18T10:00:00Z", "description": "` + description + `"}`
 
 	runLeafRows(t, []leafRow{
 		{
 			name: "Every field", args: []string{"issue", "view", "PROJ-123"},
-			exchanges: []faketracker.Exchange{issue},
-			json: `{"key": "PROJ-123", "summary": "Fix login bug", "status": "In Progress", "priority": "Critical",
-				"type": "Bug", "author": "Иван Петров", "authorId": "uid-author", "assignee": "Иван Петров",
-				"assigneeId": "uid-assignee", "createdAt": "2026-09-17T09:05:00+03:00",
-				"updatedAt": "2026-09-18T10:00:00Z", "description": "` + description + `"}`,
+			exchanges: []faketracker.Exchange{issue}, json: everyField,
 		},
 		{
 			name: "A bare issue", args: []string{"issue", "view", "PROJ-123"},
 			exchanges: []faketracker.Exchange{bare},
 			json: `{"key": "PROJ-123", "summary": "Minimal issue", "status": "", "authorId": "",
 				"assigneeId": ""}`,
+		},
+		{
+			name: "Hidden --debug still writes its lines", args: []string{"issue", "view", "PROJ-123", "--debug"},
+			exchanges: []faketracker.Exchange{issue}, json: everyField,
+			stderr: []string{"[debug] request GET " + path, "[debug] response 200 method=GET path=" + path},
+			check: func(t *testing.T, res cliResult) {
+				t.Helper()
+
+				for line := range strings.Lines(res.Stderr) {
+					if !strings.HasPrefix(line, "[debug] ") {
+						t.Errorf("stderr line %q is not a debug line", line)
+					}
+				}
+			},
 		},
 		{
 			name: "jq", args: []string{"issue", "view", "PROJ-123", "--json", "description", "--jq", ".description"},

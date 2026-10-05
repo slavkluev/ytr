@@ -180,7 +180,7 @@ func TestIssueChangelog(t *testing.T) {
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"123\"`},
 		},
 		{
-			name: "Conflict before the hint", args: changelog("--all", "--cursor", "2", "--json="), signedOut: true,
+			name: "Conflict before --json=", args: changelog("--all", "--cursor", "2", "--json="), signedOut: true,
 			code: ytrerrors.ExitUserError, stderr: []string{`"message":"cannot combine --all with --cursor"`},
 		},
 		{
@@ -188,7 +188,7 @@ func TestIssueChangelog(t *testing.T) {
 			signedOut: true, code: ytrerrors.ExitUserError, stderr: []string{"cannot combine --all with --cursor"},
 		},
 		{
-			name: "Bad arg before the hint", args: []string{"issue", "changelog", "123", "--json="},
+			name: "Bad arg before --json=", args: []string{"issue", "changelog", "123", "--json="},
 			code: ytrerrors.ExitUserError, stderr: []string{`invalid issue key \"123\"`},
 		},
 		failureRow(withQuery(trackerNotFound("/v3/issues/PROJ-123/changelog"), firstPage),

@@ -122,7 +122,7 @@ func TestAuthLogin(t *testing.T) {
 			check:  assertNoConfigFile,
 		},
 		{
-			name: "Field hint before any request", args: login("--org-id", "O", "--json="), signedOut: true,
+			name: "Empty selection before any request", args: login("--org-id", "O", "--json="), signedOut: true,
 			stdin: "tok\n", code: ytrerrors.ExitUserError,
 			stderr: []string{noFieldsDocument([]string{"status", "user", "org_id", "org_type", "config_path"})},
 			check:  assertNoConfigFile,
@@ -283,7 +283,7 @@ func TestAuthStatus(t *testing.T) {
 			exchanges: []faketracker.Exchange{myselfAnswer("Flag User")}, stdout: "Flag User\n",
 		},
 		{
-			name: "Field hint signed out", args: []string{"auth", "status", "--json="}, signedOut: true,
+			name: "Empty selection signed out", args: []string{"auth", "status", "--json="}, signedOut: true,
 			code: ytrerrors.ExitUserError,
 			stderr: []string{
 				noFieldsDocument([]string{"status", "user", "org_id", "org_type", "token_source"}),
@@ -334,7 +334,7 @@ func TestAuthLogout(t *testing.T) {
 			holds: []string{`"status":"logged_out"`}, check: assertJSONNamesTheConfig(`{"status": "logged_out"}`),
 		},
 		{
-			name: "Field hint before the config is written", args: []string{"auth", "logout", "--json="},
+			name: "Empty selection before the config is written", args: []string{"auth", "logout", "--json="},
 			config: signedIn, code: ytrerrors.ExitUserError,
 			stderr: []string{noFieldsDocument([]string{"status", "config_path"})},
 			check:  assertConfigFile(signedIn),

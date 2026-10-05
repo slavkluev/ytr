@@ -73,7 +73,7 @@ func TestUserGet(t *testing.T) {
 			stderr: []string{"invalid user ID: expected a non-empty value"},
 		},
 		{
-			name: "Bad arg before the hint", args: []string{"user", "get", " ", "--json="},
+			name: "Bad arg before --json=", args: []string{"user", "get", " ", "--json="},
 			code: ytrerrors.ExitUserError, stderr: []string{"invalid user ID"},
 		},
 		notFoundRow(path, "user", "get", "12345"),

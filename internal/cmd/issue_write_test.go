@@ -97,7 +97,7 @@ func TestIssueCreate(t *testing.T) {
 			stderr: []string{`"message":"control character U+0000 at position 1 in summary"`},
 		},
 		{
-			name: "Bad value before the hint", args: create("--queue", "PROJ", "--summary", "a\x00", "--json="),
+			name: "Bad value before --json=", args: create("--queue", "PROJ", "--summary", "a\x00", "--json="),
 			signedOut: true, code: ytrerrors.ExitUserError,
 			stderr: []string{`"message":"control character U+0000 at position 1 in summary"`},
 		},
@@ -188,7 +188,7 @@ func TestIssueUpdate(t *testing.T) {
 			stderr: []string{`"message":"control character U+0000 at position 1 in description"`},
 		},
 		{
-			name: "Bad description before the hint", args: update("--description", "a\x00", "--json="),
+			name: "Bad description before --json=", args: update("--description", "a\x00", "--json="),
 			signedOut: true, code: ytrerrors.ExitUserError,
 			stderr: []string{`"message":"control character U+0000 at position 1 in description"`},
 		},

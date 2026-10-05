@@ -170,7 +170,7 @@ func TestBulkMove(t *testing.T) {
 			code: ytrerrors.ExitUserError, stderr: []string{`"message":"invalid issue key or ID \"bad\"`},
 		},
 		{
-			name: "Bad key before the hint", args: move("bad", "--queue", "TARGET", "--json="),
+			name: "Bad key before --json=", args: move("bad", "--queue", "TARGET", "--json="),
 			code: ytrerrors.ExitUserError, stderr: []string{`"message":"invalid issue key or ID \"bad\"`},
 		},
 		{
@@ -459,7 +459,7 @@ func TestBulkStatus(t *testing.T) {
 			stderr: []string{"invalid operation ID: expected a non-empty value"},
 		},
 		{
-			name: "Bad arg before the hint", args: []string{"bulk", "status", " ", "--json="},
+			name: "Bad arg before --json=", args: []string{"bulk", "status", " ", "--json="},
 			code: ytrerrors.ExitUserError, stderr: []string{"invalid operation ID: expected a non-empty value"},
 		},
 		{

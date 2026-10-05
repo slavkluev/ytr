@@ -14,7 +14,6 @@ A command-line client for [Yandex Tracker](https://tracker.yandex.ru/) — Yande
 - Components and queue management
 - User lookup and organization listing
 - Structured JSON output with `--json` field selection and `--jq` filtering
-- Shell completions (bash, zsh, fish)
 - Designed for LLM agents with predictable output and semantic exit codes
 
 ## Installation

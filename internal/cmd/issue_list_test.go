@@ -252,7 +252,7 @@ func TestIssueList(t *testing.T) {
 			},
 		},
 		{
-			name: "Conflict before the hint", args: list("--order-asc", "--json="), code: ytrerrors.ExitUserError,
+			name: "Conflict before --json=", args: list("--order-asc", "--json="), code: ytrerrors.ExitUserError,
 			stderr: []string{`"message":"--order-asc requires --order-by"`},
 		},
 		{

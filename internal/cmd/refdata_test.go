@@ -32,12 +32,10 @@ type refdataLeaf struct {
 	pages   int
 }
 
-// refdataRow is one behavior every refdata leaf must show, run as prefix, the
-// leaf's noun, then args. A nil exchanges means the run must send no request
-// at all.
+// refdataRow is one behavior every refdata leaf must show, run as the leaf's
+// noun, then args. A nil exchanges means the run must send no request at all.
 type refdataRow struct {
 	name      string
-	prefix    []string
 	args      []string
 	exchanges func(t *testing.T, leaf refdataLeaf) []faketracker.Exchange
 	code      int
@@ -66,7 +64,7 @@ func TestRefdataList(t *testing.T) {
 		}
 
 		for _, row := range refdataRows() {
-			argv := slices.Concat(row.prefix, []string{leaf.noun}, row.args)
+			argv := slices.Concat([]string{leaf.noun}, row.args)
 
 			t.Run(leaf.noun+"/"+row.name, func(t *testing.T) {
 				t.Parallel()
@@ -158,18 +156,6 @@ func refdataRows() []refdataRow {
 
 				if res.Stdout != "[]\n" {
 					t.Errorf("stdout = %q, want an empty JSON array", res.Stdout)
-				}
-			},
-		},
-		{
-			name: "Completion", prefix: []string{"__complete"}, args: []string{"list", "--json", ""},
-			check: func(t *testing.T, _ refdataLeaf, _ []refdataItem, res cliResult) {
-				t.Helper()
-
-				// Cobra ends the offers with a ":<directive>" line.
-				offered, _, _ := strings.Cut(res.Stdout, "\n:")
-				if got := strings.Split(offered, "\n"); !slices.Equal(got, []string{"id", "key", "name"}) {
-					t.Errorf("completion offers %q, want id, key and name (stdout: %q)", got, res.Stdout)
 				}
 			},
 		},
