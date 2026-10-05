@@ -25,7 +25,7 @@ func TestJSONCompletionOffersEveryLeafItsFields(t *testing.T) {
 	checklist := []string{"id", "text", "checked", "assignee", "assigneeId"}
 	bulk := []string{
 		"id", "status", "statusText", "totalIssues", "totalCompletedIssues",
-		"executionIssuePercent", "executionChunkPercent", "createdBy", "createdById", "createdAt",
+		"executionIssuePercent", "executionChunkPercent", "createdBy", "createdById", "createdAt", "suggestion",
 	}
 	component := []string{"id", "name", "queue", "lead", "leadId", "description", "assignAuto"}
 	deleted := []string{"id", "deleted"}

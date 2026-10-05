@@ -22,6 +22,7 @@ type bulkChangeDetail struct {
 	CreatedBy             string `json:"createdBy"`
 	CreatedByID           string `json:"createdById"`
 	CreatedAt             string `json:"createdAt"`
+	Suggestion            string `json:"suggestion"`
 }
 
 // BulkStatusFields are the --json fields of every bulk command.
@@ -44,6 +45,10 @@ func toBulkChangeDetail(bc *tracker.BulkChange) bulkChangeDetail {
 		detail.CreatedAt = bc.CreatedAt.Format(time.RFC3339)
 	}
 
+	if !finished(detail.Status) && detail.ID != "" {
+		detail.Suggestion = "ytr bulk status " + detail.ID
+	}
+
 	return detail
 }
 
@@ -57,8 +62,8 @@ func NewCmd() *cobra.Command {
 Bulk commands accept issue keys or 24-character hexadecimal issue IDs as
 positional arguments or via stdin pipe (one per line). With --from-json, the
 body's "issues" is the only source of issues: issue arguments are refused and
-stdin is not read for issues. Commands wait for completion by default with
-progress display.`,
+stdin is not read for issues. Commands wait up to --timeout for the operation
+to finish, showing progress on a terminal.`,
 	}
 
 	cmd.AddCommand(newStatusCmd())

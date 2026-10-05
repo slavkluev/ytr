@@ -2,7 +2,9 @@ package bulk
 
 import (
 	"bufio"
+	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -139,33 +141,51 @@ func clearProgress(w io.Writer) {
 	fmt.Fprintf(w, "\r%-60s\r", "")
 }
 
+// errWaitEnded is what pollUntilDone returns when its context ends before the
+// operation finishes. A poll's own HTTP timeout also matches
+// context.DeadlineExceeded, so the end of the wait cannot be told by that.
+var errWaitEnded = errors.New("the wait ended before the bulk operation finished")
+
+func finished(status string) bool {
+	return status == bulkStatusDone || status == bulkStatusFail
+}
+
+// pollUntilDone returns the operation start began once it has finished. When
+// ctx ends first, it returns errWaitEnded with the last state Tracker
+// reported: start itself if no poll had answered yet.
 func pollUntilDone(
 	ctx context.Context,
 	getter *tracker.BulkChangeService,
+	start *tracker.BulkChange,
 	operationID string,
 	stderr io.Writer,
 ) (*tracker.BulkChange, error) {
-	backoff := initialBackoff
+	defer clearProgress(stderr)
+
+	last, backoff := start, initialBackoff
 
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return last, errWaitEnded
 		case <-time.After(backoff):
 		}
 
 		bc, _, err := getter.GetStatus(ctx, operationID)
+		if err != nil && ctx.Err() != nil {
+			return last, errWaitEnded
+		}
 		if err != nil {
 			return nil, api.MapAPIError(err)
 		}
 
 		showProgress(stderr, bc)
 
-		status := api.DerefString(bc.Status, "")
-		if status == bulkStatusDone || status == bulkStatusFail {
-			clearProgress(stderr)
+		if finished(api.DerefString(bc.Status, "")) {
 			return bc, nil
 		}
+
+		last = bc
 
 		backoff *= 2
 		if backoff > maxBackoff {
@@ -196,23 +216,12 @@ func awaitBulkCompletion(
 	defer cancel()
 
 	progress := cmd.ErrOrStderr() //nolint:forbidigo // progress shows on a terminal while the change runs, before the result
-	result, err := pollUntilDone(ctx, getter, operationID, progress)
-	if err != nil {
-		return handlePollError(ctx, err, timeout, operationID)
+	result, err := pollUntilDone(ctx, getter, bc, operationID, progress)
+	if err != nil && !errors.Is(err, errWaitEnded) {
+		return err
 	}
 
 	return finalizeBulkResult(cmd, opts, result, operationID)
-}
-
-func handlePollError(ctx context.Context, err error, timeout time.Duration, operationID string) error {
-	if ctx.Err() != nil {
-		return ytrerrors.NewUserError(
-			fmt.Sprintf("bulk operation timed out after %s (operation ID: %s)", timeout, operationID),
-			"ytr bulk status "+operationID,
-		)
-	}
-
-	return err
 }
 
 // A failed operation renders nothing: a run that ends non-zero must leave
@@ -221,6 +230,11 @@ func handlePollError(ctx context.Context, err error, timeout time.Duration, oper
 // in the error instead, and reach stderr with it. `bulk status` is a query and
 // calls renderBulkOutput directly, so it still reports a FAILED operation as a
 // document at exit 0.
+//
+// An operation still running when the wait ends renders like a finished one,
+// at exit 0: Tracker has accepted the change, and a failure would invite a
+// retry that starts a second operation. Its status says it has not finished,
+// and its suggestion is the command that checks it again.
 func finalizeBulkResult(cmd *cobra.Command, opts *output.Options, bc *tracker.BulkChange, operationID string) error {
 	if api.DerefString(bc.Status, "") == bulkStatusFail {
 		return ytrerrors.NewBulkFailedError(
@@ -245,17 +259,29 @@ func renderBulkOutput(cmd *cobra.Command, opts *output.Options, bc *tracker.Bulk
 			return nil
 		}
 
+		detail := toBulkChangeDetail(bc)
 		tbl := opts.NewTable(w)
-		tbl.AddHeader("ID", "STATUS", "TOTAL", "DONE", "PERCENT")
+		tbl.AddHeader("ID", "STATUS", "TOTAL", "DONE", "PERCENT", "SUGGESTION")
 		tbl.AddRow(
 			api.DerefFlexString(bc.ID, "-"),
 			api.DerefString(bc.Status, "-"),
-			strconv.Itoa(api.DerefInt(bc.TotalIssues, 0)),
-			strconv.Itoa(api.DerefInt(bc.TotalCompletedIssues, 0)),
-			fmt.Sprintf("%d%%", api.DerefInt(bc.ExecutionIssuePercent, 0)),
+			cell(bc.TotalIssues, ""),
+			cell(bc.TotalCompletedIssues, ""),
+			cell(bc.ExecutionIssuePercent, "%"),
+			cmp.Or(detail.Suggestion, "-"),
 		)
 		tbl.Render()
 
 		return nil
 	})
+}
+
+// cell is n followed by unit, or "-" when Tracker did not send n, as the
+// response that starts an operation does not send its counts.
+func cell(n *int, unit string) string {
+	if n == nil {
+		return "-"
+	}
+
+	return strconv.Itoa(*n) + unit
 }

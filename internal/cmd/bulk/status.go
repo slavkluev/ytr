@@ -16,11 +16,14 @@ func newStatusCmd() *cobra.Command {
 
 Displays progress information including total issues, completed issues,
 and completion percentage. Use the operation ID returned by bulk move,
-bulk update, or bulk transition commands.
+bulk update, or bulk transition commands. While the operation has not
+finished, suggestion is this command again; it is empty once the operation is
+COMPLETED or FAILED.
 
 JSON FIELDS
   id, status, statusText, totalIssues, totalCompletedIssues,
-  executionIssuePercent, executionChunkPercent, createdBy, createdById, createdAt`,
+  executionIssuePercent, executionChunkPercent, createdBy, createdById, createdAt,
+  suggestion`,
 		Example: `  # Check operation status
   ytr bulk status 593cd211ef7e8a0000000001
 

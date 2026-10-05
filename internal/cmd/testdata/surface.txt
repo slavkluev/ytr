@@ -1,4 +1,4 @@
-version 22.0
+version 23.0
 command ytr
 command ytr auth
 command ytr auth login
@@ -86,6 +86,7 @@ field ytr bulk move executionIssuePercent
 field ytr bulk move id
 field ytr bulk move status
 field ytr bulk move statusText
+field ytr bulk move suggestion
 field ytr bulk move totalCompletedIssues
 field ytr bulk move totalIssues
 field ytr bulk status createdAt
@@ -96,6 +97,7 @@ field ytr bulk status executionIssuePercent
 field ytr bulk status id
 field ytr bulk status status
 field ytr bulk status statusText
+field ytr bulk status suggestion
 field ytr bulk status totalCompletedIssues
 field ytr bulk status totalIssues
 field ytr bulk transition createdAt
@@ -106,6 +108,7 @@ field ytr bulk transition executionIssuePercent
 field ytr bulk transition id
 field ytr bulk transition status
 field ytr bulk transition statusText
+field ytr bulk transition suggestion
 field ytr bulk transition totalCompletedIssues
 field ytr bulk transition totalIssues
 field ytr bulk update createdAt
@@ -116,6 +119,7 @@ field ytr bulk update executionIssuePercent
 field ytr bulk update id
 field ytr bulk update status
 field ytr bulk update statusText
+field ytr bulk update suggestion
 field ytr bulk update totalCompletedIssues
 field ytr bulk update totalIssues
 field ytr checklist create assignee

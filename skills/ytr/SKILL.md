@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "22.0"
+  version: "23.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -228,12 +228,29 @@ is the only source of keys: key arguments beside it exit 1 with
 `cannot combine --from-json with issue keys`, and stdin is not read for keys
 (with `--from-json -` it carries the body itself).
 
-`bulk move`, `bulk update` and `bulk transition` wait for the operation and
-exit 1 when it ends `FAILED`, writing nothing to stdout in any mode, `--quiet`
-included. Under `--json` the error document on stderr carries `operationId`,
-`statusText`, `totalIssues` and `totalCompletedIssues`, so it still says how
-much of the change landed; in text mode the error message states the same
-counts. The `suggestion` is a runnable `ytr bulk status <operationId>`:
+`bulk move`, `bulk update` and `bulk transition` wait up to `--timeout` for
+the operation they start. Exit 0 means Tracker accepted the change; the
+document's `status` says whether it has finished:
+
+- `COMPLETED`: the change is done, and `suggestion` is empty.
+- Any other status, such as `CREATED`: the wait ended before Tracker reported
+  the operation finished. Do not run the command again, which would start a
+  second operation; run its `suggestion`, `ytr bulk status <id>`, to check it
+  later. The text table shows the same status and a `SUGGESTION` column.
+  `--quiet` prints only the ID either way, so after it, check
+  `ytr bulk status <id> --json status` before relying on the change.
+
+```bash
+ytr bulk move PROJ-1 PROJ-2 --queue TARGET --json id,status,suggestion
+# {"id":"6543210abcdef","status":"CREATED","suggestion":"ytr bulk status 6543210abcdef"}
+```
+
+They exit 1 when the operation ends `FAILED`, writing nothing to stdout in any
+mode, `--quiet` included. Under `--json` the error document on stderr carries
+`operationId`, `statusText`, `totalIssues` and `totalCompletedIssues`, so it
+still says how much of the change landed; in text mode the error message
+states the same counts. The `suggestion` is a runnable
+`ytr bulk status <operationId>`:
 
 ```bash
 ytr bulk move PROJ-1 PROJ-2 --queue TARGET --json id,status
@@ -244,7 +261,9 @@ ytr bulk move PROJ-1 PROJ-2 --queue TARGET --json id,status
 ```
 
 `bulk status` only reads, so it is not a failure: it reports a `FAILED`
-operation as one document on stdout and exits 0.
+operation as one document on stdout and exits 0. Its `suggestion` is the
+same command while the operation is unfinished, and empty once it is
+`COMPLETED` or `FAILED`.
 
 ### Issue History
 
@@ -573,4 +592,4 @@ the help text to stdout and exit 0, even on a mistyped command path
 | `--limit N` | Paginated list commands | Results per page, 1 to 1000 (default 50); any other value exits 1 |
 | `--all` | Paginated list commands | Fetch all pages automatically |
 | `--cursor` | Paginated list commands | Pagination cursor (pass the `pagination.cursor` value from the previous response) |
-| `--timeout` | Bulk commands | Max wait time (default 5m) |
+| `--timeout` | Bulk commands | Max wait time (default 5m); an operation still running then exits 0 with its status and `suggestion` |

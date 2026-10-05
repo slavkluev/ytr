@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"net/http"
 	"slices"
 	"testing"
@@ -16,10 +17,10 @@ const (
 		"createdBy": {"id": "uid-a", "display": "Иван Петров"}, "createdAt": "2026-03-30T12:00:00.000+0000"}`
 	bulkCompletedJSON = `{"id": "op-1", "status": "COMPLETED", "statusText": "Operation COMPLETED", "totalIssues": 2,
 		"totalCompletedIssues": 2, "executionIssuePercent": 100, "executionChunkPercent": 100,
-		"createdBy": "Иван Петров", "createdById": "uid-a", "createdAt": "2026-03-30T12:00:00Z"}`
+		"createdBy": "Иван Петров", "createdById": "uid-a", "createdAt": "2026-03-30T12:00:00Z", "suggestion": ""}`
 	bulkFields = "id,status,statusText,totalIssues,totalCompletedIssues,executionIssuePercent," +
-		"executionChunkPercent,createdBy,createdById,createdAt"
-	bulkTable = "ID\tSTATUS\tTOTAL\tDONE\tPERCENT\nop-1\tCOMPLETED\t2\t2\t100%\n"
+		"executionChunkPercent,createdBy,createdById,createdAt,suggestion"
+	bulkTable = "ID\tSTATUS\tTOTAL\tDONE\tPERCENT\tSUGGESTION\nop-1\tCOMPLETED\t2\t2\t100%\t-\n"
 )
 
 // bulkStarted answers the bulk change op starts, such as _move, with a
@@ -27,6 +28,12 @@ const (
 func bulkStarted(op string) faketracker.Exchange {
 	return trackerPOST("/v3/bulkchange/"+op, `{"id": "op-1", "status": "CREATED"}`)
 }
+
+// bulkStillRunning is the document of a change still running as bulkStarted
+// left it, once the wait for it has ended.
+const bulkStillRunning = `{"id": "op-1", "status": "CREATED", "statusText": "", "totalIssues": 0,
+	"totalCompletedIssues": 0, "executionIssuePercent": 0, "executionChunkPercent": 0, "createdBy": "",
+	"createdById": "", "createdAt": "", "suggestion": "ytr bulk status op-1"}`
 
 func bulkStatusAnswer(body string) faketracker.Exchange {
 	return trackerGET("/v3/bulkchange/op-1", body)
@@ -166,11 +173,26 @@ func TestBulkMove(t *testing.T) {
 			code: ytrerrors.ExitUserError, stderr: []string{`Error: invalid issue key or ID "bad"`},
 		},
 		{
-			name: "Timeout", args: move("PROJ-1", "--queue", "TARGET", "--timeout", "1ms"),
-			exchanges: []faketracker.Exchange{started}, code: ytrerrors.ExitUserError,
-			stderr: []string{
-				"Error: bulk operation timed out after 1ms (operation ID: op-1)\nytr bulk status op-1\n",
-			},
+			name: "Wait ends before the change does", args: move("PROJ-1", "--queue", "TARGET", "--timeout", "1ms"),
+			exchanges: []faketracker.Exchange{started},
+			stdout:    "ID\tSTATUS\tTOTAL\tDONE\tPERCENT\tSUGGESTION\nop-1\tCREATED\t-\t-\t-\tytr bulk status op-1\n",
+		},
+		{
+			name: "Wait ends before the change does, JSON", args: move("PROJ-1", "--queue", "TARGET", "--timeout", "0",
+				"--json", bulkFields),
+			exchanges: []faketracker.Exchange{started}, json: bulkStillRunning,
+		},
+		{
+			name:      "Wait ends before the change does, jq",
+			args:      move("PROJ-1", "--queue", "TARGET", "--timeout", "1ms", "--jq", ".suggestion"),
+			exchanges: []faketracker.Exchange{started},
+			stdout:    "ytr bulk status op-1\n",
+		},
+		{
+			name:      "Wait ends before the change does, quiet",
+			args:      move("PROJ-1", "--queue", "TARGET", "--timeout", "1ms", "--quiet"),
+			exchanges: []faketracker.Exchange{started},
+			stdout:    "op-1\n",
 		},
 		{
 			name: "No operation ID", args: move("PROJ-1", "--queue", "TARGET", "--json", "id"),
@@ -200,6 +222,10 @@ func TestBulkUpdate(t *testing.T) {
 
 	started := bulkStarted("_update")
 	update := func(extra ...string) []string { return slices.Concat([]string{"bulk", "update"}, extra) }
+	unfinished := bulkStatusAnswer(`{"id": "op-1", "status": "CREATED", "statusText": "Bulk change task created.",
+		"totalIssues": 2, "totalCompletedIssues": 0}`)
+	stillRunningAfterPoll := `{"id": "op-1", "status": "CREATED", "statusText": "Bulk change task created.",
+		"totalIssues": 2, "suggestion": "ytr bulk status op-1"}`
 
 	runLeafRows(t, []leafRow{
 		{
@@ -215,6 +241,20 @@ func TestBulkUpdate(t *testing.T) {
 				bulkStatusAnswer(bulkCompleted),
 			},
 			json: bulkCompletedJSON,
+		},
+		{
+			name: "Wait ends after a poll", args: update("PROJ-1", "--field", "a=b", "--timeout", "2s",
+				"--json", "id,status,statusText,totalIssues,suggestion"),
+			exchanges: []faketracker.Exchange{started, unfinished},
+			json:      stillRunningAfterPoll,
+		},
+		{
+			name: "Wait ends during a poll", args: update("PROJ-1", "--field", "a=b", "--timeout", "4s",
+				"--json", "id,status,statusText,totalIssues,suggestion"),
+			exchanges: []faketracker.Exchange{
+				started, unfinished, {Method: http.MethodGet, Path: "/v3/bulkchange/op-1", Stall: true},
+			},
+			json: stillRunningAfterPoll,
 		},
 		{
 			name: "JSON body on stdin", args: update("--from-json", "-", "--quiet"),
@@ -338,6 +378,14 @@ func TestBulkTransition(t *testing.T) {
 			code: ytrerrors.ExitUserError, stderr: []string{`"message":"Boom"`}, check: assertOneErrorDocument("Boom"),
 		},
 		{
+			name: "Poll's own HTTP timeout fails like any poll",
+			args: transition("PROJ-1", "--transition", "close", "--timeout", "1m", "--json", "id"),
+			exchanges: []faketracker.Exchange{
+				started, {Method: http.MethodGet, Path: "/v3/bulkchange/op-1", Err: context.DeadlineExceeded},
+			},
+			code: ytrerrors.ExitUserError, stderr: []string{"API request failed", "context deadline exceeded"},
+		},
+		{
 			name: "JSON issues are sent as given",
 			args: transition(
 				"--from-json",
@@ -386,15 +434,21 @@ func TestBulkStatus(t *testing.T) {
 			exchanges: []faketracker.Exchange{bulkStatusAnswer(`{"id": "op-1"}`)},
 			json: `{"id": "op-1", "status": "", "statusText": "", "totalIssues": 0, "totalCompletedIssues": 0,
 				"executionIssuePercent": 0, "executionChunkPercent": 0, "createdBy": "", "createdById": "",
-				"createdAt": ""}`,
+				"createdAt": "", "suggestion": "ytr bulk status op-1"}`,
 		},
 		{
 			name: "Quiet", args: status("--quiet"), exchanges: []faketracker.Exchange{completed}, stdout: "op-1\n",
 		},
 		{
-			name: "A failed change is an answer", args: status("--json", "status,totalIssues,totalCompletedIssues"),
+			name:      "A failed change is an answer",
+			args:      status("--json", "status,totalIssues,totalCompletedIssues,suggestion"),
 			exchanges: []faketracker.Exchange{bulkFailed("10", "3")},
-			stdout:    `{"status":"FAILED","totalCompletedIssues":3,"totalIssues":10}` + "\n",
+			stdout:    `{"status":"FAILED","suggestion":"","totalCompletedIssues":3,"totalIssues":10}` + "\n",
+		},
+		{
+			name: "An unfinished change suggests checking again", args: status("--jq", ".suggestion"),
+			exchanges: []faketracker.Exchange{bulkStatusAnswer(`{"id": "op-1", "status": "CREATED"}`)},
+			stdout:    "ytr bulk status op-1\n",
 		},
 		{
 			name: "Padded ID", args: []string{"bulk", "status", " op-1 ", "--quiet"},

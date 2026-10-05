@@ -17,12 +17,16 @@ bulk operation.
 Issues can be given as keys (PROJ-1) or 24-character hexadecimal issue IDs,
 as positional arguments or piped via stdin (one per line). With --from-json,
 the body's "issues" is the only source of issues: issue arguments are refused
-and stdin is not read for issues. The command waits for the operation to
-complete by default.
+and stdin is not read for issues. The command waits up to --timeout for the
+operation to finish. One still running then is not a failure: the command
+exits 0 with the status Tracker last reported, and suggestion is the
+ytr bulk status command that checks it again. Running the command again would
+start a second operation.
 
 JSON FIELDS
   id, status, statusText, totalIssues, totalCompletedIssues,
-  executionIssuePercent, executionChunkPercent, createdBy, createdById, createdAt`,
+  executionIssuePercent, executionChunkPercent, createdBy, createdById, createdAt,
+  suggestion`,
 		Example: `  # Move issues to another queue
   ytr bulk move PROJ-1 PROJ-2 PROJ-3 --queue TARGET
 

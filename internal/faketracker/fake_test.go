@@ -1,6 +1,7 @@
 package faketracker
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 )
@@ -127,6 +129,71 @@ func TestFakeServesStatusHeadersAndBody(t *testing.T) {
 	}
 	if resp.Request != req {
 		t.Error("response does not carry the request it answers")
+	}
+}
+
+// roundTripOp1 sends GET /v3/bulkchange/op-1 through fake under ctx.
+func roundTripOp1(t *testing.T, ctx context.Context, fake *Fake) (*http.Response, error) {
+	t.Helper()
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		"https://api.tracker.yandex.net/v3/bulkchange/op-1",
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+
+	resp, err := fake.RoundTrip(req)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
+
+	return resp, err
+}
+
+func TestFakeStallsARequestUntilItsContextEnds(t *testing.T) {
+	fake := New(t, []Exchange{{Method: http.MethodGet, Path: "/v3/bulkchange/op-1", Stall: true}})
+
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
+	defer cancel()
+
+	resp, err := roundTripOp1(t, ctx, fake)
+	if resp != nil || !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("RoundTrip = %v, %v, want no response and the context's error", resp, err)
+	}
+	if got := fake.Requests(); len(got) != 1 {
+		t.Errorf("requests = %+v, want the stalled one recorded", got)
+	}
+}
+
+func TestFakeFailsARequestWithItsErr(t *testing.T) {
+	refused := errors.New("connection refused")
+	fake := New(t, []Exchange{{Method: http.MethodGet, Path: "/v3/bulkchange/op-1", Err: refused}})
+
+	resp, err := roundTripOp1(t, t.Context(), fake)
+	if resp != nil || !errors.Is(err, refused) {
+		t.Errorf("RoundTrip = %v, %v, want no response and the exchange's Err", resp, err)
+	}
+	if got := fake.Requests(); len(got) != 1 {
+		t.Errorf("requests = %+v, want the failed one recorded", got)
+	}
+}
+
+func TestFakeRejectsAnExchangeWithNoResponseBesideOne(t *testing.T) {
+	for _, ex := range []Exchange{
+		{Method: http.MethodGet, Path: "/v3/bulkchange/op-1", Stall: true, Status: http.StatusOK},
+		{Method: http.MethodGet, Path: "/v3/bulkchange/op-1", Err: errors.New("refused"), Body: []byte(`{}`)},
+		{Method: http.MethodGet, Path: "/v3/bulkchange/op-1", Stall: true, Err: errors.New("refused")},
+	} {
+		tb := &recordingTB{}
+		New(tb, []Exchange{ex})
+
+		if len(tb.failures) != 1 || !strings.Contains(tb.failures[0], "exchange 0 sets Stall or Err") {
+			t.Errorf("failures = %q, want one naming exchange 0 for %+v", tb.failures, ex)
+		}
 	}
 }
 
