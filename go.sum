@@ -8,8 +8,8 @@ github.com/itchyny/timefmt-go v0.1.8/go.mod h1:5E46Q+zj7vbTgWY8o5YkMeYb4I6GeWLFn
 github.com/mattn/go-isatty v0.0.21 h1:xYae+lCNBP7QuW4PUnNG61ffM4hVIfm+zUzDuSzYLGs=
 github.com/mattn/go-isatty v0.0.21/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
-github.com/slavkluev/go-yandex-tracker v0.6.0 h1:aKzAv30W9sCStWwAVpZ5G1JJ/V+xDET2Zf20+yyEpJA=
-github.com/slavkluev/go-yandex-tracker v0.6.0/go.mod h1:0+B5rqA0C7HIeiALH/QWFZkSFyGvmIlZsM0lQ58oIws=
+github.com/slavkluev/go-yandex-tracker v0.7.0 h1:SZqn7SYEOABmIOh82ERxhIyauiXcEjjAVni06oWUMW0=
+github.com/slavkluev/go-yandex-tracker v0.7.0/go.mod h1:0+B5rqA0C7HIeiALH/QWFZkSFyGvmIlZsM0lQ58oIws=
 github.com/spf13/cobra v1.10.2 h1:DMTTonx5m65Ic0GOoRY2c16WCbHxOOw6xxezuLaBpcU=
 github.com/spf13/cobra v1.10.2/go.mod h1:7C1pvHqHw5A4vrJfjNwvOdzYu0Gml16OCs2GRiTUUS4=
 github.com/spf13/pflag v1.0.9 h1:9exaQaMOCwffKiiiYk6/BndUBv+iRViNW+4lEMi0PvY=
