@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"cmp"
 	"context"
 	"time"
 
@@ -87,7 +88,7 @@ func issueKey(issue *tracker.Issue) string {
 func issueCard(d *output.DetailPrinter, opts *output.Options, issue *tracker.Issue) {
 	d.Field("Key", api.DerefString(issue.Key, "-"))
 	d.Field("Title", api.DerefString(issue.Summary, "-"))
-	d.Field("Status", issueStatusDisplay(issue))
+	d.Field("Status", cmp.Or(issueStatusDisplay(issue), "-"))
 
 	priority := "-"
 	if issue.Priority != nil {

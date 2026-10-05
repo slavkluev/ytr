@@ -35,7 +35,7 @@ func TestWorklogList(t *testing.T) {
 				 "start": "2026-03-30T10:00:00Z", "comment": "Bug fix"},
 				{"id": "102", "author": "Иван Петров", "authorId": "uid-b", "duration": "PT45M",
 				 "start": "2026-09-17T09:05:00+03:00"},
-				{"id": "103", "author": "", "authorId": "", "duration": "-", "start": ""}
+				{"id": "103", "author": "", "authorId": "", "duration": "", "start": ""}
 			]`,
 		},
 		{
@@ -57,7 +57,7 @@ func TestWorklogList(t *testing.T) {
 		},
 		{
 			name: "jq", args: []string{"worklog", "list", "PROJ-1", "--jq", ".[].duration"},
-			exchanges: []faketracker.Exchange{worklogs}, stdout: "PT1H30M\nPT45M\n-\n",
+			exchanges: []faketracker.Exchange{worklogs}, stdout: "PT1H30M\nPT45M\n\n",
 		},
 		{
 			name: "Empty", args: []string{"worklog", "list", "PROJ-1"},
@@ -102,7 +102,7 @@ func TestLinkList(t *testing.T) {
 				{"id": "101", "type": "depends on", "issue": "PROJ-456", "summary": "Setup database"},
 				{"id": "202", "type": "relates to", "issue": "PROJ-789", "summary": "Add tests"},
 				{"id": "303", "type": "duplicates", "issue": "PROJ-2", "summary": ""},
-				{"id": "", "type": "-", "issue": "", "summary": ""}
+				{"id": "", "type": "", "issue": "", "summary": ""}
 			]`,
 		},
 		{

@@ -72,7 +72,7 @@ func TestIssueList(t *testing.T) {
 		{
 			name: "JSON of a bare issue", args: list("--json", all),
 			exchanges: []faketracker.Exchange{issueSearch(1, 50, 1, `[{"key": "NIL-1", "summary": "Bare"}]`)},
-			json: `{"items": [{"key": "NIL-1", "summary": "Bare", "status": "-", "assigneeId": ""}],
+			json: `{"items": [{"key": "NIL-1", "summary": "Bare", "status": "", "assigneeId": ""}],
 				"pagination": {"hasMore": false, "total": 1}}`,
 		},
 		{

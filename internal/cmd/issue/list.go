@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"iter"
@@ -194,7 +195,7 @@ func parseFilterFlags(flags []string) (map[string]any, error) {
 }
 
 func issueRow(opts *output.Options, issue *tracker.Issue) []string {
-	status := issueStatusDisplay(issue)
+	status := cmp.Or(issueStatusDisplay(issue), "-")
 	if opts.Colors {
 		status = colorizeStatus(issue, status)
 	}
@@ -234,15 +235,12 @@ func toListItem(issue *tracker.Issue) issueListItem {
 
 func issueStatusDisplay(issue *tracker.Issue) string {
 	if issue.Status == nil {
-		return "-"
+		return ""
 	}
 	if issue.Status.Display != nil {
 		return *issue.Status.Display
 	}
-	if issue.Status.Key != nil {
-		return *issue.Status.Key
-	}
-	return "-"
+	return api.DerefString(issue.Status.Key, "")
 }
 
 func colorizeStatus(issue *tracker.Issue, statusText string) string {

@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"cmp"
 	"context"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
@@ -66,5 +67,5 @@ func textFlag(name, usage string) runner.Flag {
 func writtenIssueCard(d *output.DetailPrinter, _ *output.Options, issue *tracker.Issue) {
 	d.Field("Key", api.DerefString(issue.Key, "-"))
 	d.Field("Summary", api.DerefString(issue.Summary, "-"))
-	d.Field("Status", issueStatusDisplay(issue))
+	d.Field("Status", cmp.Or(issueStatusDisplay(issue), "-"))
 }

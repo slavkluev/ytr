@@ -1,6 +1,7 @@
 package worklog
 
 import (
+	"cmp"
 	"context"
 	"time"
 
@@ -53,7 +54,12 @@ func worklogRow(opts *output.Options, wl *tracker.Worklog) []string {
 		start = opts.FormatTime(wl.Start.Time)
 	}
 
-	return []string{api.DerefFlexString(wl.ID, "-"), wl.CreatedBy.DisplayOr("-"), formatDuration(wl.Duration), start}
+	return []string{
+		api.DerefFlexString(wl.ID, "-"),
+		wl.CreatedBy.DisplayOr("-"),
+		cmp.Or(formatDuration(wl.Duration), "-"),
+		start,
+	}
 }
 
 func toWorklogItem(wl *tracker.Worklog) worklogItem {
@@ -74,7 +80,7 @@ func toWorklogItem(wl *tracker.Worklog) worklogItem {
 
 func formatDuration(d *tracker.Duration) string {
 	if d == nil {
-		return "-"
+		return ""
 	}
 
 	return d.String()

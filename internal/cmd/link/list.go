@@ -1,6 +1,7 @@
 package link
 
 import (
+	"cmp"
 	"context"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
@@ -20,16 +21,16 @@ type linkItem struct {
 
 func linkTypeDisplay(link *tracker.IssueLink) string {
 	if link.Type == nil || link.Direction == nil {
-		return "-"
+		return ""
 	}
 
 	switch api.DerefString(link.Direction, "") {
 	case "inward":
-		return api.DerefString(link.Type.Inward, "-")
+		return api.DerefString(link.Type.Inward, "")
 	case "outward":
-		return api.DerefString(link.Type.Outward, "-")
+		return api.DerefString(link.Type.Outward, "")
 	default:
-		return api.DerefFlexString(link.Type.ID, "-")
+		return api.DerefFlexString(link.Type.ID, "")
 	}
 }
 
@@ -70,7 +71,7 @@ func newListCmd() *cobra.Command {
 		Header: []string{"ID", "TYPE", "ISSUE", "SUMMARY"},
 		Row: func(_ *output.Options, link *tracker.IssueLink) []string {
 			item := toLinkItem(link)
-			return []string{item.ID, item.Type, item.Issue, item.Summary}
+			return []string{item.ID, cmp.Or(item.Type, "-"), item.Issue, item.Summary}
 		},
 		Quiet: func(link *tracker.IssueLink) string { return api.DerefFlexString(link.ID, "") },
 	}.Command()

@@ -44,7 +44,7 @@ func TestIssueView(t *testing.T) {
 		{
 			name: "JSON of a bare issue", args: []string{"issue", "view", "PROJ-123", "--json", all},
 			exchanges: []faketracker.Exchange{bare},
-			json: `{"key": "PROJ-123", "summary": "Minimal issue", "status": "-", "authorId": "",
+			json: `{"key": "PROJ-123", "summary": "Minimal issue", "status": "", "authorId": "",
 				"assigneeId": ""}`,
 		},
 		{
