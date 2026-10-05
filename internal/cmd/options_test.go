@@ -25,12 +25,14 @@ func TestOutputOptionsDoNotLeakIntoTheNextRun(t *testing.T) {
 		t.Fatalf("second run: exit = %d, stderr = %q, want 0", second.Code, second.Stderr)
 	}
 
-	var items []map[string]any
-	if err := json.Unmarshal([]byte(second.Stdout), &items); err != nil || len(items) == 0 {
-		t.Fatalf("second run stdout = %q, want a JSON array of statuses (%v)", second.Stdout, err)
+	var page struct {
+		Items []map[string]any `json:"items"`
 	}
-	if _, ok := items[0]["name"]; !ok {
-		t.Errorf("second run item = %v, want every field, not the first run's id alone", items[0])
+	if err := json.Unmarshal([]byte(second.Stdout), &page); err != nil || len(page.Items) == 0 {
+		t.Fatalf("second run stdout = %q, want the envelope of a list of statuses (%v)", second.Stdout, err)
+	}
+	if _, ok := page.Items[0]["name"]; !ok {
+		t.Errorf("second run item = %v, want every field, not the first run's id alone", page.Items[0])
 	}
 }
 

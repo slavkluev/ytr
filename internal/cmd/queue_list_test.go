@@ -41,13 +41,13 @@ func TestQueueList(t *testing.T) {
 			json: `{"items": [
 				{"key": "PROJ", "name": "Queue PROJ", "lead": "lead-PROJ", "leadId": "uid-PROJ"},
 				{"key": "TEST", "name": "Queue TEST", "lead": "lead-TEST", "leadId": "uid-TEST"}],
-				"pagination": {"hasMore": false, "total": 2}}`,
+				"pagination": {"cursor": "", "hasMore": false, "total": 2}}`,
 		},
 		{
 			name: "A bare queue", args: list(),
 			exchanges: []faketracker.Exchange{queuePage(1, 50, 1, `[{"key": "NIL-Q", "name": "Queue with nils"}]`)},
 			json: `{"items": [{"key": "NIL-Q", "name": "Queue with nils", "leadId": ""}],
-				"pagination": {"hasMore": false, "total": 1}}`,
+				"pagination": {"cursor": "", "hasMore": false, "total": 1}}`,
 		},
 		{
 			name: "Namesakes keep their lead IDs", args: list("--jq", "[.items[].leadId]"),
@@ -61,6 +61,11 @@ func TestQueueList(t *testing.T) {
 			exchanges: []faketracker.Exchange{queuePage(1, 2, 5, "["+listedQueue("PROJ")+","+listedQueue("TEST")+"]")},
 			json: `{"items": [{"key": "PROJ"}, {"key": "TEST"}],
 				"pagination": {"cursor": "2", "hasMore": true, "total": 5}}`,
+		},
+		{
+			name: "The last page has no cursor", args: list("--cursor", "2", "--limit", "3", "--json", "key"),
+			exchanges: []faketracker.Exchange{queuePage(2, 3, 4, "["+listedQueue("D")+"]")},
+			stdout:    `{"items":[{"key":"D"}],"pagination":{"cursor":"","hasMore":false,"total":4}}` + "\n",
 		},
 		{
 			name: "jq", args: list("--jq", ".items[].name"), exchanges: []faketracker.Exchange{two},
@@ -106,7 +111,7 @@ func TestQueueList(t *testing.T) {
 				queuePage(1, 2, 3, "["+listedQueue("A")+","+listedQueue("B")+"]"),
 				queuePage(2, 2, 3, "["+listedQueue("C")+"]"),
 			},
-			json: `{"items": [{"key": "A"}, {"key": "B"}, {"key": "C"}], "pagination": {"hasMore": false, "total": 3}}`,
+			json: wholeList(`[{"key": "A"}, {"key": "B"}, {"key": "C"}]`, 3),
 		},
 		{
 			name: "A later page fails", args: list("--all", "--limit", "2"),
@@ -122,7 +127,7 @@ func TestQueueList(t *testing.T) {
 		},
 		{
 			name: "Empty", args: list(), exchanges: []faketracker.Exchange{empty},
-			json: `{"items": [], "pagination": {"hasMore": false}}`,
+			json: `{"items": [], "pagination": {"cursor": "", "hasMore": false, "total": 0}}`,
 		},
 		failureRow(withQuery(trackerNotFound("/v3/queues"), pageQuery(1, 50)),
 			list()...),

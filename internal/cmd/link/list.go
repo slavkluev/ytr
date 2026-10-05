@@ -58,7 +58,7 @@ func newListCmd() *cobra.Command {
   ytr link list PROJ-123 --json id,type,issue
 
   # Extract link types with jq
-  ytr link list PROJ-123 --json type --jq '.[].type'`,
+  ytr link list PROJ-123 --json type --jq '.items[].type'`,
 		Args: []runner.Arg{runner.IssueKey},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) ([]*tracker.IssueLink, error) {
 			links, _, err := c.Issues.GetLinks(ctx, args[0])

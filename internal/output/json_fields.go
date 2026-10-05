@@ -143,7 +143,7 @@ func ApplyJQ(w io.Writer, data any, expression string) error {
 	if err != nil {
 		return errors.NewUserError(
 			fmt.Sprintf("invalid jq expression: %s", err),
-			"Check jq syntax. Example: --jq '.[] | .key'",
+			"Check jq syntax. Example: --jq '.items[] | .key'",
 		)
 	}
 

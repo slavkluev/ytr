@@ -1,7 +1,6 @@
 package output
 
-// PaginatedResult wraps list command results with pagination metadata
-// for JSON output. The envelope format is:
+// PaginatedResult is the envelope every list command prints:
 // {"items": [...], "pagination": {"cursor": "...", "hasMore": true, "total": N}}.
 type PaginatedResult struct {
 	// Items contains the list of results.
@@ -11,16 +10,25 @@ type PaginatedResult struct {
 	Pagination PaginationMeta `json:"pagination"`
 }
 
-// PaginationMeta holds pagination state for list commands.
-// Cursor is omitted from JSON when empty (first page or no cursor-based pagination).
-// Total is omitted when zero (API did not provide a count).
+// PaginationMeta is the pagination of an envelope. Every key is present on
+// every page, an empty or last one included, so a reader never has to tell a
+// missing key from a value.
 type PaginationMeta struct {
-	// Cursor is the opaque pagination token for the next page.
-	Cursor string `json:"cursor,omitempty"`
+	// Cursor is the value --cursor takes to fetch the next page, "" when there
+	// is none.
+	Cursor string `json:"cursor"`
 
 	// HasMore indicates whether more results are available.
 	HasMore bool `json:"hasMore"`
 
-	// Total is the total number of results, if known.
-	Total int `json:"total,omitempty"`
+	// Total is the number of items in the whole list: what Tracker counted for
+	// a page, the item count for a list fetched whole. It is nil, printed as
+	// null, only for a page of a list Tracker sends no count for.
+	Total *int `json:"total"`
+}
+
+// WholeList is the pagination of a list fetched to its end, which holds count
+// items: no next page, and no cursor to fetch one.
+func WholeList(count int) PaginationMeta {
+	return PaginationMeta{Total: &count}
 }

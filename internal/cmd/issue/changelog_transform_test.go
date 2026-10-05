@@ -188,7 +188,7 @@ func TestChangelogDocument(t *testing.T) {
 	    {"date": "2024-03-16T14:30:00Z", "author": "bob", "authorId": "", "type": "",
 	     "fields": [{"field": "status", "to": {"display": "Done", "key": "done"}}]}
 	  ],
-	  "pagination": {"cursor": "cl-002", "hasMore": true}
+	  "pagination": {"cursor": "cl-002", "hasMore": true, "total": null}
 	}`)
 }
 
@@ -230,14 +230,14 @@ func TestChangelogDocumentAllTypes(t *testing.T) {
 	                             "linkType": "depends", "linkTypeName": "Depends on",
 	                             "resolution": "fixed", "resolutionDisplay": "Resolved"}]}
 	  ],
-	  "pagination": {"hasMore": false}
+	  "pagination": {"cursor": "", "hasMore": false, "total": null}
 	}`)
 }
 
 func TestChangelogDocumentEmpty(t *testing.T) {
 	assertDocument(t, changelogDocument(t, nil, IssueChangelogFields, output.PaginationMeta{}), `{
 	  "items": [],
-	  "pagination": {"hasMore": false}
+	  "pagination": {"cursor": "", "hasMore": false, "total": null}
 	}`)
 }
 
@@ -254,7 +254,7 @@ func TestChangelogNamesakesKeepDistinctAuthorIDs(t *testing.T) {
 	    {"author": "Иван Петров", "authorId": "uid-a"},
 	    {"author": "Иван Петров", "authorId": "uid-b"}
 	  ],
-	  "pagination": {"hasMore": false}
+	  "pagination": {"cursor": "", "hasMore": false, "total": null}
 	}`)
 }
 
@@ -283,7 +283,7 @@ func TestChangelogFieldSelectionOmitsEmptySections(t *testing.T) {
 	     "links": [{"to": {"direction": "outward", "issue": "SIG-1", "linkType": "relates"}}]},
 	    {"date": "2026-03-15T10:30:00Z"}
 	  ],
-	  "pagination": {"hasMore": false}
+	  "pagination": {"cursor": "", "hasMore": false, "total": null}
 	}`)
 }
 
@@ -312,7 +312,7 @@ func TestChangelogNilElementsDoNotPanic(t *testing.T) {
 	    {"date": "", "author": "", "authorId": "", "type": "IssueWorkflow",
 	     "fields": [{"field": "status", "from": "open", "to": "closed"}]}
 	  ],
-	  "pagination": {"hasMore": false}
+	  "pagination": {"cursor": "", "hasMore": false, "total": null}
 	}`)
 }
 

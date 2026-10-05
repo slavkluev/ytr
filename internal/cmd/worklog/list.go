@@ -32,7 +32,7 @@ func newListCmd() *cobra.Command {
   ytr worklog list PROJ-123 --json id,duration,start
 
   # Extract durations with jq
-  ytr worklog list PROJ-123 --jq '.[].duration'`,
+  ytr worklog list PROJ-123 --jq '.items[].duration'`,
 		Args: []runner.Arg{runner.IssueKey},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) ([]*tracker.Worklog, error) {
 			worklogs, _, err := c.Issues.ListWorklogs(ctx, args[0])

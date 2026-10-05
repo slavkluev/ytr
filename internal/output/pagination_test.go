@@ -13,7 +13,7 @@ func TestPaginatedResult_JSON(t *testing.T) {
 		Pagination: output.PaginationMeta{
 			Cursor:  "cursor123",
 			HasMore: true,
-			Total:   42,
+			Total:   new(42),
 		},
 	}
 
@@ -35,28 +35,30 @@ func TestPaginatedResult_JSON(t *testing.T) {
 	}
 }
 
-func TestPaginationMeta_OmitsEmpty(t *testing.T) {
-	meta := output.PaginationMeta{
-		HasMore: false,
-		Total:   10,
+func TestPaginationMeta_KeepsEveryKey(t *testing.T) {
+	tests := []struct {
+		name string
+		meta output.PaginationMeta
+		want string
+	}{
+		{"whole list", output.WholeList(3), `{"cursor":"","hasMore":false,"total":3}`},
+		{"empty whole list", output.WholeList(0), `{"cursor":"","hasMore":false,"total":0}`},
+		{
+			"uncounted page",
+			output.PaginationMeta{Cursor: "c", HasMore: true},
+			`{"cursor":"c","hasMore":true,"total":null}`,
+		},
 	}
 
-	data, err := json.Marshal(meta)
-	if err != nil {
-		t.Fatalf("Marshal() error: %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.meta)
+			if err != nil {
+				t.Fatalf("Marshal() error: %v", err)
+			}
+			if string(data) != tt.want {
+				t.Errorf("JSON = %s, want %s", data, tt.want)
+			}
+		})
 	}
-
-	jsonStr := string(data)
-	if contains(jsonStr, `"cursor"`) {
-		t.Errorf("JSON contains 'cursor' key when empty: %s", jsonStr)
-	}
-}
-
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

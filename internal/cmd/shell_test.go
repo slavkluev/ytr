@@ -258,10 +258,10 @@ func TestShellCommands(t *testing.T) {
 		},
 		{
 			name: "substitution in double quotes",
-			line: `ytr user get "$(ytr comment list K-1 --json authorId --jq '.[0].authorId')"`,
+			line: `ytr user get "$(ytr comment list K-1 --json authorId --jq '.items[0].authorId')"`,
 			want: [][]string{
-				{"ytr", "comment", "list", "K-1", "--json", "authorId", "--jq", ".[0].authorId"},
-				{"ytr", "user", "get", "$(ytr comment list K-1 --json authorId --jq '.[0].authorId')"},
+				{"ytr", "comment", "list", "K-1", "--json", "authorId", "--jq", ".items[0].authorId"},
+				{"ytr", "user", "get", "$(ytr comment list K-1 --json authorId --jq '.items[0].authorId')"},
 			},
 		},
 		{

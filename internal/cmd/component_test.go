@@ -23,28 +23,28 @@ func TestComponentList(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "Every field", args: []string{"component", "list"}, exchanges: []faketracker.Exchange{components},
-			json: `[
+			json: wholeList(`[
 				{"id": "1", "name": "Backend", "queue": "PROJ", "lead": "Иван Петров", "leadId": "uid-a",
 				 "description": "Backend services", "assignAuto": true},
 				{"id": "2", "name": "Frontend", "queue": "WEB", "lead": "Иван Петров", "leadId": "uid-b",
 				 "assignAuto": false},
 				{"id": "5", "name": "Orphan", "leadId": "", "assignAuto": false},
 				{"id": "", "name": "", "leadId": "", "assignAuto": false}
-			]`,
+			]`, 4),
 		},
 		{
 			name: "JSON", args: []string{"component", "list", "--json", "id,leadId"},
 			exchanges: []faketracker.Exchange{components},
-			json: `[{"id": "1", "leadId": "uid-a"}, {"id": "2", "leadId": "uid-b"}, {"id": "5", "leadId": ""},
-				{"id": "", "leadId": ""}]`,
+			json: wholeList(`[{"id": "1", "leadId": "uid-a"}, {"id": "2", "leadId": "uid-b"}, {"id": "5", "leadId": ""},
+				{"id": "", "leadId": ""}]`, 4),
 		},
 		{
-			name: "jq", args: []string{"component", "list", "--jq", ".[].name"},
+			name: "jq", args: []string{"component", "list", "--jq", ".items[].name"},
 			exchanges: []faketracker.Exchange{components}, stdout: "Backend\nFrontend\nOrphan\n\n",
 		},
 		{
 			name: "Empty", args: []string{"component", "list"},
-			exchanges: []faketracker.Exchange{trackerGET(path, `[]`)}, json: `[]`,
+			exchanges: []faketracker.Exchange{trackerGET(path, `[]`)}, json: wholeList(`[]`, 0),
 		},
 		notFoundRow(path, "component", "list"),
 	})

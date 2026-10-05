@@ -100,13 +100,13 @@ func TestUserList(t *testing.T) {
 			json: `{"items": [
 				{"uid": 100, "display": "Alice", "login": "alice", "email": "alice@example.com"},
 				{"uid": 200, "display": "Bob", "login": "bob", "email": "bob@example.com"}],
-				"pagination": {"hasMore": false, "total": 2}}`,
+				"pagination": {"cursor": "", "hasMore": false, "total": 2}}`,
 		},
 		{
 			name:      "A bare user",
 			args:      list(),
 			exchanges: []faketracker.Exchange{userPage(1, 50, 1, `[{}]`)},
-			json:      `{"items": [{"uid": 0, "display": "", "login": ""}], "pagination": {"hasMore": false, "total": 1}}`,
+			json:      wholeList(`[{"uid": 0, "display": "", "login": ""}]`, 1),
 		},
 		{
 			name: "A full page has more", args: list("--limit", "2", "--json", "uid"),
@@ -156,7 +156,7 @@ func TestUserList(t *testing.T) {
 			exchanges: []faketracker.Exchange{
 				userPage(1, 2, 3, users), userPage(2, 2, 3, `[{"uid": 300, "login": "carol"}]`),
 			},
-			json: `{"items": [{"uid": 100}, {"uid": 200}, {"uid": 300}], "pagination": {"hasMore": false, "total": 3}}`,
+			json: wholeList(`[{"uid": 100}, {"uid": 200}, {"uid": 300}]`, 3),
 		},
 		{
 			name: "A later page fails", args: list("--all", "--limit", "2"),
@@ -172,7 +172,7 @@ func TestUserList(t *testing.T) {
 		},
 		{
 			name: "Empty", args: list(), exchanges: []faketracker.Exchange{empty},
-			json: `{"items": [], "pagination": {"hasMore": false}}`,
+			json: `{"items": [], "pagination": {"cursor": "", "hasMore": false, "total": 0}}`,
 		},
 		failureRow(withQuery(trackerNotFound("/v3/users"), pageQuery(1, 50)), list()...),
 	})

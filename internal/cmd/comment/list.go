@@ -36,7 +36,7 @@ func newListCmd() *cobra.Command {
   ytr comment list PROJ-123 --json id,author,body
 
   # Extract comment bodies with jq
-  ytr comment list PROJ-123 --json body --jq '.[].body'`,
+  ytr comment list PROJ-123 --json body --jq '.items[].body'`,
 		Args: []runner.Arg{runner.IssueKey},
 		Call: func(ctx context.Context, c *tracker.Client, args []string) ([]*tracker.Comment, error) {
 			opts := &tracker.CommentListOptions{PerPage: commentPageSize}

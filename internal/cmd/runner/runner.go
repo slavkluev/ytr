@@ -30,9 +30,10 @@ import (
 // Fields finds the fields on the command itself.
 const fieldsAnnotation = "ytr:json-fields"
 
-// List declares a command that fetches a list of T from Tracker and prints it
-// as a JSON array. Item is the flat struct an element becomes; its json tags
-// are the fields the command accepts, in order.
+// List declares a command that fetches a whole list of T from Tracker and
+// prints it in the {items, pagination} envelope, with the pagination of a list
+// that has no next page. Item is the flat struct an element becomes; its json
+// tags are the fields the command accepts, in order.
 type List[T, Item any] struct {
 	// Long is the description; Command adds the JSON FIELDS section after it.
 	Use, Short, Long, Example string
@@ -54,7 +55,7 @@ func (l List[T, Item]) Command() *cobra.Command {
 }
 
 func (l List[T, Item]) render(w io.Writer, opts *output.Options, _ []string, values []T) error {
-	return printJSON(w, opts, cut(opts, items(l.Item, values)))
+	return printPage(w, opts, items(l.Item, values), output.WholeList(len(values)))
 }
 
 func items[T, Item any](item func(T) Item, values []T) []Item {
@@ -151,12 +152,14 @@ func (p Pages[T, Item]) fetchPage(ctx context.Context, c *tracker.Client, o trac
 		return listPage[T]{}, err
 	}
 
-	meta := output.PaginationMeta{HasMore: len(values) == o.PerPage}
+	total := 0
+	if resp != nil {
+		total = resp.TotalCount
+	}
+
+	meta := output.PaginationMeta{HasMore: len(values) == o.PerPage, Total: &total}
 	if meta.HasMore {
 		meta.Cursor = strconv.Itoa(o.Page + 1)
-	}
-	if resp != nil {
-		meta.Total = resp.TotalCount
 	}
 
 	return listPage[T]{values: values, meta: meta}, nil
@@ -169,7 +172,7 @@ func (p Pages[T, Item]) fetchAll(ctx context.Context, c *tracker.Client, o track
 		return listPage[T]{}, err
 	}
 
-	return listPage[T]{values: values, meta: output.PaginationMeta{Total: len(values)}}, nil
+	return listPage[T]{values: values, meta: output.WholeList(len(values))}, nil
 }
 
 func (p Pages[T, Item]) render(w io.Writer, opts *output.Options, _ []string, page listPage[T]) error {

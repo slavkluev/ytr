@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-10-05 against e345658. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-10-05 against 0d7f2b1. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## ytr
 
@@ -14,7 +14,7 @@ Yandex Tracker CLI for LLM agents; a person only runs `auth login`: Go 1.26, cob
 
 ## Where things are
 
-- New command: copy the declaration of its shape under `internal/cmd/` — `worklog/list.go` (`runner.List`; `status/list.go` when the endpoint pages, through `runner.Collect`), `queue/list.go` (`runner.Pages`, for the `{items, pagination}` envelope with `--limit`, `--cursor` and `--all`), `component/get.go` (`runner.Get`), `worklog/create.go` (`runner.Write` with `Required`), `worklog/edit.go` (`runner.Write` with `Update`), `worklog/delete.go` (`runner.Delete`); every `runner.Write` takes `--from-json`. A group file such as `worklog/worklog.go` holds only the group command.
+- New command: copy the declaration of its shape under `internal/cmd/` — `worklog/list.go` (`runner.List`; `status/list.go` when the endpoint pages, through `runner.Collect`), `queue/list.go` (`runner.Pages`, when the list takes `--limit`, `--cursor` and `--all`), `component/get.go` (`runner.Get`), `worklog/create.go` (`runner.Write` with `Required`), `worklog/edit.go` (`runner.Write` with `Update`), `worklog/delete.go` (`runner.Delete`); every `runner.Write` takes `--from-json`. A group file such as `worklog/worklog.go` holds only the group command.
 - Procedural, because no shape fits them: `auth`, `bulk`, `issue changelog`, `queue context`, `version`. Copy one only for a command no shape fits. All take shared pieces from `internal/cmd/runner/runner.go` (`Client`, `SetFields`, `ItemFields`, `SelectFields`, `PrintJSON`, `PrintPage`, `Collect`).
 
 ## Running and verifying
@@ -40,7 +40,7 @@ Yandex Tracker CLI for LLM agents; a person only runs `auth login`: Go 1.26, cob
 - Never do less than asked silently: reject unknown or conflicting input with a user error, paginate to the end instead of capping, pass the server's error text through. This class has been fixed a dozen times (`--from-json` dropping keys, `--all` ignoring `--cursor`, the 50-comment cap).
 - Do not encode assumed API behavior in a test's Tracker exchanges: check the API reference or make a read-only call to the real Tracker first. Wrong assumptions "verified" by mocks shipped eight times (default page size, where 422 details live, what a field's `type` means).
 - The exit code must say whether the change happened: non-zero on failure, and 0 after a successful non-idempotent write even if a follow-up step fails — a false failure makes agents retry and create duplicates.
-- Sub-resource lists (comment, link, worklog, checklist) return bare JSON arrays; only `issue list`, `queue list`, `user list`, and `issue changelog` use the `{items, pagination}` envelope. Changing a shape or flag semantics is a breaking change: its own commit with `!` and a `BREAKING CHANGE:` footer.
+- Every list prints `{items, pagination}` with `cursor`, `hasMore` and `total` on every page — `runner.List` and `runner.Pages` do it, and a procedural list prints through `runner.PrintPage`, never a bare array through `PrintJSON`. Changing a shape or flag semantics is a breaking change: its own commit with `!` and a `BREAKING CHANGE:` footer.
 - Pass Tracker identifiers through unchanged (field ids like `storyPoints`, `<queueId>--<key>`); use `EqualFold` only for ytr's own field names — case-folding once silently returned zero results.
 
 <!-- /bmad:context -->

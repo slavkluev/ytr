@@ -169,13 +169,15 @@ func TestRecordFixtureWritesWhatReplayServes(t *testing.T) {
 		t.Fatalf("replay exit = %d, stderr %q", res.Code, res.Stderr)
 	}
 
-	var items []map[string]string
-	if err := json.Unmarshal([]byte(res.Stdout), &items); err != nil {
-		t.Fatalf("replay stdout is not a JSON array: %v\n%s", err, res.Stdout)
+	var page struct {
+		Items []map[string]string `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(res.Stdout), &page); err != nil {
+		t.Fatalf("replay stdout is not a JSON envelope: %v\n%s", err, res.Stdout)
 	}
 	want := []map[string]string{{"id": "1", "key": "open", "name": "Open"}}
-	if !reflect.DeepEqual(items, want) {
-		t.Errorf("replay items = %v, want %v", items, want)
+	if !reflect.DeepEqual(page.Items, want) {
+		t.Errorf("replay items = %v, want %v", page.Items, want)
 	}
 }
 

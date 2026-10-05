@@ -98,19 +98,21 @@ func runChangelog(
 
 	query := &tracker.ChangelogOptions{ID: cursor, PerPage: limit, Field: fieldFilter, Type: typeFilter}
 
-	var (
-		entries []*tracker.Changelog
-		page    output.PaginationMeta
-	)
+	var entries []*tracker.Changelog
 	if all {
 		entries, err = runner.Collect(client.Issues.GetChangelogIter(cmd.Context(), args[0], query))
 	} else {
 		entries, _, err = client.Issues.GetChangelog(cmd.Context(), args[0], query)
-		page = changelogPagination(entries, limit)
 	}
 	if err != nil {
 		return api.MapAPIError(err)
 	}
 
-	return runner.PrintPage(cmd, opts, normalizeChangelog(entries), page)
+	items := normalizeChangelog(entries)
+	page := output.WholeList(len(items))
+	if !all {
+		page = changelogPagination(entries, limit)
+	}
+
+	return runner.PrintPage(cmd, opts, items, page)
 }

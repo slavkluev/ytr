@@ -95,14 +95,17 @@ func refdataRows() []refdataRow {
 				assertEmpty(t, "stderr", res.Stderr)
 				assertOneLine(t, res.Stdout)
 
-				var items []refdataItem
-				if err := json.Unmarshal([]byte(res.Stdout), &items); err != nil {
-					t.Fatalf("stdout is not a JSON array of items: %v\n%s", err, res.Stdout)
+				var page struct {
+					Items []refdataItem `json:"items"`
 				}
-				if !slices.Equal(items, recorded) {
-					t.Errorf("items = %+v,\nwant the fixture's %+v", items, recorded)
+				if err := json.Unmarshal([]byte(res.Stdout), &page); err != nil {
+					t.Fatalf("stdout is not a JSON envelope of items: %v\n%s", err, res.Stdout)
 				}
-				for _, item := range items {
+				if !slices.Equal(page.Items, recorded) {
+					t.Errorf("items = %+v,\nwant the fixture's %+v", page.Items, recorded)
+				}
+				assertObjects(t, res.Stdout, refdataObjects(recorded))
+				for _, item := range page.Items {
 					if item.Key == "" || item.Name == "" {
 						t.Errorf("item %+v has an empty key or name", item)
 					}
@@ -123,7 +126,7 @@ func refdataRows() []refdataRow {
 			},
 		},
 		{
-			name: "jq default", args: []string{"list", "--jq", ".[].key"}, exchanges: loadRefdataFixture,
+			name: "jq default", args: []string{"list", "--jq", ".items[].key"}, exchanges: loadRefdataFixture,
 			check: func(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
 				t.Helper()
 				assertEmpty(t, "stderr", res.Stderr)
@@ -140,12 +143,7 @@ func refdataRows() []refdataRow {
 			check: func(t *testing.T, _ refdataLeaf, recorded []refdataItem, res cliResult) {
 				t.Helper()
 				assertEmpty(t, "stderr", res.Stderr)
-
-				want := make([]map[string]any, len(recorded))
-				for i, item := range recorded {
-					want[i] = map[string]any{"id": item.ID, "key": item.Key, "name": item.Name}
-				}
-				assertObjects(t, res.Stdout, want)
+				assertObjects(t, res.Stdout, refdataObjects(recorded))
 			},
 		},
 		{
@@ -154,8 +152,8 @@ func refdataRows() []refdataRow {
 				t.Helper()
 				assertEmpty(t, "stderr", res.Stderr)
 
-				if res.Stdout != "[]\n" {
-					t.Errorf("stdout = %q, want an empty JSON array", res.Stdout)
+				if want := `{"items":[],"pagination":{"cursor":"","hasMore":false,"total":0}}` + "\n"; res.Stdout != want {
+					t.Errorf("stdout = %q, want the envelope of an empty list %q", res.Stdout, want)
 				}
 			},
 		},
@@ -226,16 +224,36 @@ func assertEmpty(t *testing.T, stream, got string) {
 	}
 }
 
+// assertObjects wants stdout to be the envelope of a list fetched whole, whose
+// items are want.
 func assertObjects(t *testing.T, stdout string, want []map[string]any) {
 	t.Helper()
 
-	var got []map[string]any
+	var got struct {
+		Items      []map[string]any `json:"items"`
+		Pagination map[string]any   `json:"pagination"`
+	}
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
-		t.Fatalf("stdout is not a JSON array of objects: %v\n%s", err, stdout)
+		t.Fatalf("stdout is not a JSON envelope of objects: %v\n%s", err, stdout)
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("objects = %v,\nwant %v", got, want)
+	if !reflect.DeepEqual(got.Items, want) {
+		t.Errorf("objects = %v,\nwant %v", got.Items, want)
 	}
+
+	whole := map[string]any{"cursor": "", "hasMore": false, "total": float64(len(want))}
+	if !reflect.DeepEqual(got.Pagination, whole) {
+		t.Errorf("pagination = %v, want %v", got.Pagination, whole)
+	}
+}
+
+// refdataObjects is items as the objects a refdata list prints for them.
+func refdataObjects(items []refdataItem) []map[string]any {
+	objects := make([]map[string]any, len(items))
+	for i, item := range items {
+		objects[i] = map[string]any{"id": item.ID, "key": item.Key, "name": item.Name}
+	}
+
+	return objects
 }
 
 func assertLines(t *testing.T, stdout string, want []string) {

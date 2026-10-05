@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -234,6 +235,13 @@ func failureRow(ex faketracker.Exchange, args ...string) leafRow {
 			}
 		},
 	}
+}
+
+// wholeList is the envelope a list fetched to its end prints: items, a JSON
+// array of count elements, and no next page.
+func wholeList(items string, count int) string {
+	return `{"items": ` + items + `, "pagination": {"cursor": "", "hasMore": false, "total": ` +
+		strconv.Itoa(count) + `}}`
 }
 
 func named(name string, row leafRow) leafRow {

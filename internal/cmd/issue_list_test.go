@@ -61,12 +61,12 @@ func TestIssueList(t *testing.T) {
 					"assigneeId": "uid-PROJ-1"},
 				{"key": "PROJ-2", "summary": "Summary for PROJ-2", "status": "Open", "assignee": "userPROJ-2",
 					"assigneeId": "uid-PROJ-2"}],
-				"pagination": {"hasMore": false, "total": 2}}`,
+				"pagination": {"cursor": "", "hasMore": false, "total": 2}}`,
 		},
 		{
 			name: "Every field", args: list(),
 			exchanges: []faketracker.Exchange{issueSearch(1, 50, 1, "["+fullIssue+"]")},
-			json:      `{"items": [` + fullItem + `], "pagination": {"hasMore": false, "total": 1}}`,
+			json:      `{"items": [` + fullItem + `], "pagination": {"cursor": "", "hasMore": false, "total": 1}}`,
 		},
 		{
 			name: "A bare issue", args: list(),
@@ -75,7 +75,7 @@ func TestIssueList(t *testing.T) {
 			},
 			json: `{"items": [{"key": "NIL-1", "summary": "Bare", "status": "", "assigneeId": ""},
 				{"key": "NIL-2", "summary": "", "status": "", "assigneeId": ""}],
-				"pagination": {"hasMore": false, "total": 2}}`,
+				"pagination": {"cursor": "", "hasMore": false, "total": 2}}`,
 		},
 		{
 			name: "Namesakes keep their assignee IDs", args: list("--jq", "[.items[].assigneeId]"),
@@ -108,7 +108,7 @@ func TestIssueList(t *testing.T) {
 		{
 			name: "Cursor", args: list("--cursor", "3", "--json", "key"),
 			exchanges: []faketracker.Exchange{issueSearch(3, 50, 0, `[]`)},
-			json:      `{"items": [], "pagination": {"hasMore": false}}`,
+			json:      `{"items": [], "pagination": {"cursor": "", "hasMore": false, "total": 0}}`,
 		},
 		{
 			name: "Not a page cursor", args: list("--cursor", "abc"), signedOut: true, code: ytrerrors.ExitUserError,
@@ -139,7 +139,7 @@ func TestIssueList(t *testing.T) {
 				issueSearch(2, 2, 3, "["+listedIssue("A-3")+"]"),
 			},
 			json: `{"items": [{"key": "A-1"}, {"key": "A-2"}, {"key": "A-3"}],
-				"pagination": {"hasMore": false, "total": 3}}`,
+				"pagination": {"cursor": "", "hasMore": false, "total": 3}}`,
 		},
 		{
 			name: "A later page fails", args: list("--all", "--limit", "2"),
@@ -188,11 +188,11 @@ func TestIssueList(t *testing.T) {
 		},
 		{
 			name: "Empty", args: list("--filter", "queue=PROJ"), exchanges: []faketracker.Exchange{empty},
-			json: `{"items": [], "pagination": {"hasMore": false}}`,
+			json: `{"items": [], "pagination": {"cursor": "", "hasMore": false, "total": 0}}`,
 		},
 		{
 			name: "Empty as JSON", args: list("--json", "key"), exchanges: []faketracker.Exchange{empty},
-			json: `{"items": [], "pagination": {"hasMore": false}}`,
+			json: `{"items": [], "pagination": {"cursor": "", "hasMore": false, "total": 0}}`,
 		},
 		{
 			name: "Query", args: list("--query", "Queue: PROJ AND Status: open", "--jq", ".items[].key"),
@@ -258,7 +258,7 @@ func TestIssueList(t *testing.T) {
 		{
 			name: "Long summary whole", args: list("--json", "summary,status"), exchanges: []faketracker.Exchange{long},
 			json: `{"items": [{"summary": "` + longSummary + `", "status": "open"}],
-				"pagination": {"hasMore": false, "total": 1}}`,
+				"pagination": {"cursor": "", "hasMore": false, "total": 1}}`,
 		},
 		{
 			name: "Signed out", args: list("--filter", "queue=Q"), signedOut: true, code: ytrerrors.ExitAuthError,

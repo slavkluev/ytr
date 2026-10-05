@@ -49,7 +49,7 @@ func TestFieldList(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "Every field", args: []string{"field", "list"}, exchanges: []faketracker.Exchange{fields},
-			json: `[
+			json: wholeList(`[
 				{"id": "summary", "key": "summary", "name": "Summary", "schema": "string", "readonly": true},
 				{"id": "tags", "key": "tags", "name": "Tags", "schema": "array", "items": "string", "readonly": false},
 				{"id": "possibleSpam", "key": "possibleSpam", "name": "Possible spam", "schema": "integer",
@@ -58,26 +58,27 @@ func TestFieldList(t *testing.T) {
 				 "queueOptions": {"ALPHA": ["A1"], "DIRECT": ["Test", "Beta"]}, "defaultOptions": ["Test"]},
 				{"id": "team", "key": "team", "name": "Team", "readonly": false},
 				{"id": "", "key": "", "name": "", "readonly": false}
-			]`,
+			]`, 6),
 		},
 		{
 			name: "Local fields", args: []string{"field", "list", "--queue", "PROJ"},
 			exchanges: []faketracker.Exchange{local},
-			json: `[{"id": "5d0e4f1a2b3c4d5e6f708192--size", "key": "size", "name": "Size", "schema": "string",
-				"readonly": false, "options": ["S", "M", "L"]}]`,
+			json: wholeList(`[{"id": "5d0e4f1a2b3c4d5e6f708192--size", "key": "size", "name": "Size",
+				"schema": "string", "readonly": false, "options": ["S", "M", "L"]}]`, 1),
 		},
 		{
 			name: "Local fields JSON", args: []string{"field", "list", "--queue", "PROJ", "--json", "id,key,options"},
 			exchanges: []faketracker.Exchange{local},
-			json:      `[{"id": "5d0e4f1a2b3c4d5e6f708192--size", "key": "size", "options": ["S", "M", "L"]}]`,
+			json: wholeList(`[{"id": "5d0e4f1a2b3c4d5e6f708192--size", "key": "size",
+				"options": ["S", "M", "L"]}]`, 1),
 		},
 		{
-			name: "jq", args: []string{"field", "list", "--jq", ".[2].options"},
+			name: "jq", args: []string{"field", "list", "--jq", ".items[2].options"},
 			exchanges: []faketracker.Exchange{fields}, stdout: "[0,1]\n",
 		},
 		{
 			name: "Empty", args: []string{"field", "list"},
-			exchanges: []faketracker.Exchange{trackerGET(path, `[]`)}, json: `[]`,
+			exchanges: []faketracker.Exchange{trackerGET(path, `[]`)}, json: wholeList(`[]`, 0),
 		},
 		{
 			name: "Options Tracker cannot send", args: []string{"field", "list"},

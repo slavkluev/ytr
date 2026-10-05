@@ -53,18 +53,19 @@ func TestCommentList(t *testing.T) {
 	runLeafRows(t, []leafRow{
 		{
 			name: "Every field", args: list(), exchanges: thread,
-			json: `[{"id": "101", "author": "john.doe", "authorId": "uid-a", "body": "Fixed in abc123",
+			json: `{"items": [{"id": "101", "author": "john.doe", "authorId": "uid-a", "body": "Fixed in abc123",
 					"createdAt": "2026-09-19T14:22:31+03:00", "updatedAt": "2026-09-20T10:00:00Z"},
 				{"id": "202", "author": "jane.doe", "authorId": "uid-b", "body": "Thanks",
-					"createdAt": "2026-09-20T09:00:00Z"}]`,
+					"createdAt": "2026-09-20T09:00:00Z"}],
+				"pagination": {"cursor": "", "hasMore": false, "total": 2}}`,
 		},
 		{
 			name: "A comment without an author", args: list(),
 			exchanges: commentThread(`[{"id": 7}]`, "7"),
-			json:      `[{"id": "7", "author": "", "authorId": "", "body": "", "createdAt": ""}]`,
+			json:      wholeList(`[{"id": "7", "author": "", "authorId": "", "body": "", "createdAt": ""}]`, 1),
 		},
 		{
-			name: "Namesakes keep their author IDs", args: list("--jq", "[.[].authorId]"),
+			name: "Namesakes keep their author IDs", args: list("--jq", "[.items[].authorId]"),
 			exchanges: commentThread(`[
 				{"id": 1, "createdBy": {"id": "uid-a", "display": "Иван Петров"}},
 				{"id": 2, "createdBy": {"id": "uid-b", "display": "Иван Петров"}}]`, "2"),
@@ -72,16 +73,17 @@ func TestCommentList(t *testing.T) {
 		},
 		{
 			name: "Author ID alone", args: list("--json", "authorId"), exchanges: thread,
-			json: `[{"authorId": "uid-a"}, {"authorId": "uid-b"}]`,
+			json: wholeList(`[{"authorId": "uid-a"}, {"authorId": "uid-b"}]`, 2),
 		},
 		{
 			name: "Empty", args: list(), exchanges: []faketracker.Exchange{commentPage("", `[]`)},
-			json: `[]`,
+			json: wholeList(`[]`, 0),
 		},
 		{
 			name: "Body with line breaks on one line", args: list("--json", "body"),
 			exchanges: commentThread(`[{"id": 101, "text": "first\nsecond\tthird"}]`, "101"),
-			stdout:    `[{"body":"first\nsecond\tthird"}]` + "\n",
+			stdout: `{"items":[{"body":"first\nsecond\tthird"}],` +
+				`"pagination":{"cursor":"","hasMore":false,"total":1}}` + "\n",
 		},
 		{
 			name: "A short page is not the last", args: list("--json", "id"),
@@ -90,7 +92,7 @@ func TestCommentList(t *testing.T) {
 				commentPage("2", numberedComments([]string{"3"})),
 				commentPage("3", `[]`),
 			},
-			json:  `[{"id": "1"}, {"id": "2"}, {"id": "3"}]`,
+			json:  wholeList(`[{"id": "1"}, {"id": "2"}, {"id": "3"}]`, 3),
 			check: assertRequestOrder("perPage=100", "id=2&perPage=100", "id=3&perPage=100"),
 		},
 		{

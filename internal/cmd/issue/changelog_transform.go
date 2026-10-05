@@ -87,6 +87,8 @@ const (
 	dirInward  = "inward"
 )
 
+// changelogPagination leaves Total nil, printed as null: Tracker sends no count
+// for the changelog, neither in the body nor in a header.
 func changelogPagination(entries []*tracker.Changelog, limit int) output.PaginationMeta {
 	if len(entries) != limit {
 		return output.PaginationMeta{}

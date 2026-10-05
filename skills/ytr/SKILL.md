@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "29.0"
+  version: "30.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -356,7 +356,7 @@ ytr field get assignee --json id,key,name,schema,options
 ### JSON Pipeline
 
 ```bash
-# Paginated list commands return {"items":[...],"pagination":{...}}
+# Every list returns {"items":[...],"pagination":{"cursor":"...","hasMore":true,"total":N}}
 ytr issue list --filter queue=PROJ --json key,summary,status
 ytr issue list --filter queue=PROJ --jq '.items[].key'
 
@@ -364,8 +364,8 @@ ytr issue list --filter queue=PROJ --jq '.items[].key'
 ytr issue changelog PROJ-123 --json date,author,type,fields,comments,links
 ytr issue changelog PROJ-123 --json date,type,fields --jq '.items[] | select(.type=="IssueWorkflow")'
 
-# Non-paginated sub-resource lists return arrays
-ytr comment list PROJ-123 --json body --jq '.[].body'
+# Sub-resource and reference-data lists return the same envelope
+ytr comment list PROJ-123 --json body --jq '.items[].body'
 ```
 
 ## Output Shape
@@ -377,8 +377,8 @@ or a file.
 - Without `--json`, the result holds every field the command's `JSON FIELDS`
   lists; `--json a,b` keeps only those, and `--jq` filters the result.
 - A write prints the item Tracker answers with, a delete prints
-  `{"deleted":true,"id":"..."}`, and an empty list prints `[]` or its
-  envelope with `"items":[]`.
+  `{"deleted":true,"id":"..."}`, and an empty list prints its envelope with
+  `"items":[]`.
 - Times are RFC 3339 with the offset the server sent, such as
   `2026-09-19T14:22:31+03:00`.
 - A field Tracker sent no value for is left out of the item, or else prints
@@ -430,20 +430,31 @@ an empty string when the resource has no such user.
 ytr comment list PROJ-123 --json author,authorId
 
 # Resolve a comment author to a full user record
-ytr user get "$(ytr comment list PROJ-123 --json authorId --jq '.[0].authorId')"
+ytr user get "$(ytr comment list PROJ-123 --json authorId --jq '.items[0].authorId')"
 ```
 
 List shapes:
 
-- Paginated list commands such as `issue list`, `issue changelog`, `queue list`, and `user list` return an object with `items` and `pagination`.
-- Non-paginated sub-resource list commands such as `comment list`, `link list`, `worklog list`, and `checklist list` return arrays.
+Every list command returns an object with `items` and `pagination`, and
+`pagination` carries `cursor`, `hasMore` and `total` on every page, an empty
+one included. `--json` selects the fields of each item, and `--jq` runs on the
+whole object.
+
+- `issue list`, `issue changelog`, `queue list` and `user list` return one page
+  unless `--all` is given. `cursor` is what `--cursor` takes for the next page;
+  once a page comes back shorter than `--limit`, `cursor` is `""` and `hasMore`
+  is false. `total` is what Tracker counted; a page of `issue changelog` has
+  `"total":null`, because Tracker sends no count for it.
+- Every other list, such as `comment list` or `status list`, and any list under
+  `--all`, comes whole: `"cursor":""`, `"hasMore":false`, and `total` the number
+  of items.
 
 ```bash
 # Filter paginated issue-list output
 ytr issue list --filter queue=PROJ --json key --jq '.items[].key'
 
-# Filter sub-resource array output
-ytr comment list PROJ-123 --json body --jq '.[].body'
+# Filter sub-resource output
+ytr comment list PROJ-123 --json body --jq '.items[].body'
 ```
 
 ## Error Recovery
