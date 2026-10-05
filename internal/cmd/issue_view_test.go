@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -26,6 +27,9 @@ func TestIssueView(t *testing.T) {
 		"createdAt": "`+trackerTime(time.Now().Add(-73*time.Hour))+`",
 		"updatedAt": "`+trackerTime(time.Now().Add(-150*time.Minute))+`"}`)
 	bare := trackerGET(path, `{"key": "PROJ-123", "summary": "Minimal issue"}`)
+	const markdown = "See <b>R&D</b>: `a && b > c`"
+	withMarkdown := trackerGET(path, `{"key": "PROJ-123", "description": "`+markdown+`"}`)
+	const serverText = "<html><body>R&D-404 > archived</body></html>"
 	all := "key,summary,status,priority,type,author,authorId,assignee,assigneeId,createdAt,updatedAt,description"
 
 	runLeafRows(t, []leafRow{
@@ -79,5 +83,32 @@ func TestIssueView(t *testing.T) {
 			stderr: []string{"accepts 1 arg(s), received 2"},
 		},
 		notFoundRow("/v3/issues/NOEXIST-1", "issue", "view", "NOEXIST-1", "--json", "key"),
+		{
+			name: "JSON keeps <, > and & literal", args: []string{"issue", "view", "PROJ-123", "--json", "description"},
+			exchanges: []faketracker.Exchange{withMarkdown}, stdout: `{"description":"` + markdown + `"}` + "\n",
+		},
+		{
+			name: "Indented JSON keeps <, > and & literal", term: output.Options{TTY: true},
+			args:      []string{"issue", "view", "PROJ-123", "--json", "description"},
+			exchanges: []faketracker.Exchange{withMarkdown}, stdout: "{\n  \"description\": \"" + markdown + "\"\n}\n",
+		},
+		{
+			name:      "jq result keeps <, > and & literal",
+			args:      []string{"issue", "view", "PROJ-123", "--jq", "[.description]"},
+			exchanges: []faketracker.Exchange{withMarkdown}, stdout: `["` + markdown + `"]` + "\n",
+		},
+		{
+			name:      "Error document keeps <, > and & literal",
+			args:      []string{"issue", "view", "PROJ-404", "--json", "key"},
+			exchanges: []faketracker.Exchange{trackerNotFoundOn(http.MethodGet, "/v3/issues/PROJ-404", serverText)},
+			code:      ytrerrors.ExitNotFound,
+			stderr:    []string{`"message":"` + serverText + `"`},
+		},
+		{
+			name:   "Invalid field document keeps <, > and & literal",
+			args:   []string{"issue", "view", "PROJ-123", "--json", "R&D<x>"},
+			code:   ytrerrors.ExitUserError,
+			stderr: []string{`"message":"unknown field: \"R&D<x>\"","invalidField":"R&D<x>"`},
+		},
 	})
 }

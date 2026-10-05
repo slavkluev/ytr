@@ -83,7 +83,7 @@ func (b Body) Decode(data []byte, req any) error {
 	// What req sends, not data, says whether a key is set: decoding matches a
 	// key case-insensitively, and a null or empty value is left out of the
 	// request.
-	sent, err := json.Marshal(req)
+	sent, err := json.Marshal(req) //nolint:forbidigo // read back for its keys, never written out
 	if err != nil {
 		return err
 	}

@@ -1,8 +1,6 @@
 package api
 
 import (
-	"bytes"
-	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"net/http"
@@ -12,6 +10,7 @@ import (
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 
 	ytrerrors "github.com/slavkluev/ytr/internal/errors"
+	"github.com/slavkluev/ytr/internal/jsonenc"
 	"github.com/slavkluev/ytr/internal/output"
 )
 
@@ -125,30 +124,19 @@ func debugAPIError(err error) {
 }
 
 func formatStringSlice(values []string) string {
-	data, err := marshalDebugJSON(values)
+	data, err := jsonenc.Marshal(values)
 	if err != nil {
 		return "[]"
 	}
 
-	return data
+	return string(data)
 }
 
 func formatStringMap(values map[string]string) string {
-	data, err := marshalDebugJSON(values)
+	data, err := jsonenc.Marshal(values)
 	if err != nil {
 		return "{}"
 	}
 
-	return data
-}
-
-func marshalDebugJSON(value any) (string, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(value); err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(buf.String()), nil
+	return string(data)
 }

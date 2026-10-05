@@ -113,7 +113,7 @@ func (c change[Req]) flagRequest(cmd *cobra.Command, args []string, req *Req) er
 		}
 	}
 
-	data, err := json.Marshal(body)
+	data, err := json.Marshal(body) //nolint:forbidigo // decoded straight back into req, never written out
 	if err != nil {
 		return err
 	}

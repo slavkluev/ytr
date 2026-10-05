@@ -2,13 +2,13 @@ package queue
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"slices"
 
 	"github.com/slavkluev/go-yandex-tracker/tracker"
 
 	"github.com/slavkluev/ytr/internal/api"
+	"github.com/slavkluev/ytr/internal/jsonenc"
 	"github.com/slavkluev/ytr/internal/output"
 )
 
@@ -131,11 +131,11 @@ func (m transitionMap) MarshalJSON() ([]byte, error) {
 		if i > 0 {
 			buf.WriteByte(',')
 		}
-		key, err := json.Marshal(from)
+		key, err := jsonenc.Marshal(from)
 		if err != nil {
 			return nil, err
 		}
-		targets, err := json.Marshal(m.targets[from])
+		targets, err := jsonenc.Marshal(m.targets[from])
 		if err != nil {
 			return nil, err
 		}

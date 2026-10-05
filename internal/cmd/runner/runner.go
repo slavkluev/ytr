@@ -514,7 +514,7 @@ func flagRequest(set *pflag.FlagSet, body validate.Body, flags []Flag, req any) 
 		patch[f.key] = value
 	}
 
-	data, err := json.Marshal(patch)
+	data, err := json.Marshal(patch) //nolint:forbidigo // decoded straight back into req, never written out
 	if err != nil {
 		return err
 	}

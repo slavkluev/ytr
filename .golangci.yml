@@ -130,6 +130,9 @@ linters:
         - pattern: ^(fmt\.Print(|f|ln)|print|println)$
         - pattern: ^(os\.(Stdout|Stderr)|cobra\.Command\.(OutOrStdout|ErrOrStderr|OutOrStderr|Print|Printf|Println|PrintErr|PrintErrf|PrintErrln))$
           msg: command code writes through the runner's printers, or says in a nolint why it must name a stream
+        - pattern: ^json\.(Marshal|MarshalIndent|NewEncoder)$
+          pkg: ^encoding/json$
+          msg: JSON for a reader goes through jsonenc, which keeps <, > and & literal; a nolint says why these bytes are never written out
     funlen:
       lines: 100
       statements: 50
@@ -205,6 +208,13 @@ linters:
         linters:
           - forbidigo
         text: "writes through the runner's printers"
+      # Tests compare the JSON they build by value, not by bytes, the fake
+      # Tracker builds Tracker's side of an exchange, and jsonenc is the one
+      # place the reader's JSON is encoded.
+      - path: '(_test\.go$|^internal/faketracker/|^internal/jsonenc/)'
+        linters:
+          - forbidigo
+        text: "goes through jsonenc"
       # main.go is trivial -- exclude complexity linters.
       - path: 'cmd/ytr/main\.go'
         linters:

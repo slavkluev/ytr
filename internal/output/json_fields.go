@@ -12,6 +12,7 @@ import (
 	"github.com/itchyny/gojq"
 
 	"github.com/slavkluev/ytr/internal/errors"
+	"github.com/slavkluev/ytr/internal/jsonenc"
 )
 
 // ValidateFields checks requested fields against allowed fields.
@@ -144,7 +145,7 @@ func PrintFieldHint(w io.Writer, commandName string, fields []string) error {
 // lines: once written, they cannot be taken back, and a reader would take a
 // truncated stream for the whole answer.
 func ApplyJQ(w io.Writer, data any, expression string) error {
-	jsonBytes, err := json.Marshal(data)
+	jsonBytes, err := jsonenc.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("failed to marshal data for jq: %w", err)
 	}
@@ -186,7 +187,7 @@ func ApplyJQ(w io.Writer, data any, expression string) error {
 		if s, ok := v.(string); ok {
 			_, _ = fmt.Fprintln(&results, s)
 		} else {
-			jsonOut, err := json.Marshal(v)
+			jsonOut, err := jsonenc.Marshal(v)
 			if err != nil {
 				return fmt.Errorf("failed to marshal jq result: %w", err)
 			}

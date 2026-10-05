@@ -1,9 +1,10 @@
 package errors
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/slavkluev/ytr/internal/jsonenc"
 )
 
 // Machine-readable error codes used in ExitError.Code and JSON output.
@@ -43,7 +44,7 @@ func (e *ExitError) Error() string {
 // JSONError returns the JSON representation of the error for --json mode.
 // The suggestion field is omitted when empty.
 func (e *ExitError) JSONError() ([]byte, error) {
-	return json.Marshal(struct {
+	return jsonenc.Marshal(struct {
 		Code       string `json:"code"`
 		Message    string `json:"message"`
 		Suggestion string `json:"suggestion,omitempty"`
@@ -121,7 +122,7 @@ func (e *InvalidFieldError) Unwrap() error {
 
 // JSONError returns JSON with invalid_field code, the bad field, and valid field list.
 func (e *InvalidFieldError) JSONError() ([]byte, error) {
-	return json.Marshal(struct {
+	return jsonenc.Marshal(struct {
 		Code          string   `json:"code"`
 		Message       string   `json:"message"`
 		InvalidField  string   `json:"invalidField,omitempty"`
@@ -195,7 +196,7 @@ func (e *BulkFailedError) Unwrap() error {
 
 // JSONError returns JSON with the bulk_failed code and the operation's counts.
 func (e *BulkFailedError) JSONError() ([]byte, error) {
-	return json.Marshal(struct {
+	return jsonenc.Marshal(struct {
 		Code                 string `json:"code"`
 		Message              string `json:"message"`
 		OperationID          string `json:"operationId"`

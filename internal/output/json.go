@@ -1,9 +1,10 @@
 package output
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/slavkluev/ytr/internal/jsonenc"
 )
 
 // PrintJSON writes data as JSON to the writer, followed by a newline.
@@ -16,9 +17,9 @@ func (o *Options) PrintJSON(w io.Writer, data any) error {
 		err   error
 	)
 	if o.TTY {
-		bytes, err = json.MarshalIndent(data, "", "  ")
+		bytes, err = jsonenc.MarshalIndent(data, "", "  ")
 	} else {
-		bytes, err = json.Marshal(data)
+		bytes, err = jsonenc.Marshal(data)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)

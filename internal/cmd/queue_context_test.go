@@ -116,6 +116,14 @@ func TestQueueContext(t *testing.T) {
 			stdout:    appContextJSON + "\n",
 		},
 		{
+			name: "Document keeps <, > and & literal", args: context("APP"),
+			exchanges: []faketracker.Exchange{
+				queue, w200, componentsAnswer("APP", `[{"id": 55, "name": "R&D <core>"}]`),
+				queueFields, localFields, globalFields,
+			},
+			holds: []string{`"components":[{"id":"55","name":"R&D <core>"}]`},
+		},
+		{
 			name: "Whole document through jq", args: context("APP", "--jq", "."),
 			exchanges: []faketracker.Exchange{queue, w200, components, queueFields, localFields, globalFields},
 			json:      appContextJSON,
