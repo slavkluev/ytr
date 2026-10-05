@@ -228,8 +228,7 @@ func TestContextDocumentSelection(t *testing.T) {
 	    {"key": "task", "name": "Задача", "workflow": "W200"},
 	    {"key": "bug", "name": "Ошибка", "workflow": "W200"}
 	  ],
-	  "components": [{"id": "55", "name": "Hotfix"}],
-	  "incomplete": []
+	  "components": [{"id": "55", "name": "Hotfix"}]
 	}`)
 }
 
@@ -258,8 +257,7 @@ func TestContextDocumentRequiredFieldsATS(t *testing.T) {
 	    {"id": "type", "default": "task"},
 	    {"id": "priority", "default": "normal"},
 	    {"id": "createdBy"}
-	  ],
-	  "incomplete": []
+	  ]
 	}`)
 }
 
@@ -267,7 +265,7 @@ func TestContextDocumentQueueFieldsEmpty(t *testing.T) {
 	results := appResults()
 	results.queueFields = []*tracker.Field{}
 
-	doc := contextDocument(appQueue(), "APP", results, []string{"requiredFields"})
+	doc := contextDocument(appQueue(), "APP", results, []string{"requiredFields", "incomplete"})
 
 	assertJSONEqual(t, marshalDocument(t, doc), `{
 	  "requiredFields": [{"id": "summary"}],
@@ -351,7 +349,7 @@ func TestContextDocumentWorkflowFails(t *testing.T) {
 }
 
 func TestContextDocumentWorkflowFailsUnderSelection(t *testing.T) {
-	doc := contextDocument(twoWorkflowQueue(), "APP", failedW100Results(), []string{"workflows"})
+	doc := contextDocument(twoWorkflowQueue(), "APP", failedW100Results(), []string{"workflows", "incomplete"})
 
 	// statuses was not selected, so incomplete does not name it.
 	assertJSONEqual(t, marshalDocument(t, doc), `{
@@ -360,12 +358,17 @@ func TestContextDocumentWorkflowFailsUnderSelection(t *testing.T) {
 	}`)
 }
 
+func TestContextDocumentWorkflowFailsWithoutIncomplete(t *testing.T) {
+	doc := contextDocument(twoWorkflowQueue(), "APP", failedW100Results(), []string{"workflows"})
+
+	assertJSONEqual(t, marshalDocument(t, doc), `{"workflows": null}`)
+}
+
 func TestContextDocumentStatusesOnly(t *testing.T) {
 	doc := contextDocument(appQueue(), "APP", appResults(), []string{"statuses"})
 
 	assertJSONEqual(t, marshalDocument(t, doc), `{
-	  "statuses": [{"key": "open", "name": "Открыт"}, {"key": "closed", "name": "Закрыт"}],
-	  "incomplete": []
+	  "statuses": [{"key": "open", "name": "Открыт"}, {"key": "closed", "name": "Закрыт"}]
 	}`)
 }
 
@@ -384,8 +387,7 @@ func TestContextDocumentStatusesAcrossWorkflows(t *testing.T) {
 	  "workflows": [
 	    {"id": "W200", "initialStatus": "open", "transitions": {"open": ["closed"], "closed": []}},
 	    {"id": "W100", "initialStatus": "new", "transitions": {"new": ["open"], "open": ["closed"], "closed": []}}
-	  ],
-	  "incomplete": []
+	  ]
 	}`)
 }
 
@@ -393,8 +395,7 @@ func TestContextDocumentTerminalStep(t *testing.T) {
 	doc := marshalDocument(t, contextDocument(appQueue(), "APP", appResults(), []string{"workflows"}))
 
 	assertJSONEqual(t, doc, `{
-	  "workflows": [{"id": "W200", "initialStatus": "open", "transitions": {"open": ["closed"], "closed": []}}],
-	  "incomplete": []
+	  "workflows": [{"id": "W200", "initialStatus": "open", "transitions": {"open": ["closed"], "closed": []}}]
 	}`)
 	if !strings.Contains(doc, `"closed":[]`) {
 		t.Errorf("a step without actions must map to [], got:\n%s", doc)
@@ -442,8 +443,7 @@ func TestContextDocumentOptionTypes(t *testing.T) {
 	     "readonly": false, "options": ["Test", "Beta"]},
 	    {"id": "5d0e4f1a2b3c4d5e6f708192--bench", "key": "bench", "name": "База", "schema": "string",
 	     "readonly": true, "options": ["Not specified", "Trunk"]}
-	  ],
-	  "incomplete": []
+	  ]
 	}`)
 }
 
@@ -466,8 +466,7 @@ func TestContextDocumentOptionsByQueueID(t *testing.T) {
 	  "localFields": [
 	    {"id": "5d0e4f1a2b3c4d5e6f708192--stand", "key": "stand", "name": "Среда", "schema": "string",
 	     "readonly": false, "options": ["Test", "Beta"]}
-	  ],
-	  "incomplete": []
+	  ]
 	}`)
 }
 

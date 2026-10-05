@@ -161,18 +161,15 @@ type contextResults struct {
 	globalErr      error
 }
 
-// incomplete is always included, so a narrowed document still says which of its
-// parts are missing. With every part selected the document is not cut, which
-// keeps its parts in order rather than sorted by name.
+// With every part selected the document is not cut, which keeps its parts in
+// order rather than sorted by name.
 func contextDocument(q *tracker.Queue, queueKey string, results contextResults, fields []string) any {
 	wanted := wantedParts(fields)
 	doc := buildContext(q, queueKey, results, wanted)
 	if len(wanted) == len(QueueContextFields) {
 		return doc
 	}
-	selected := output.FilterFields(doc, fields)
-	selected["incomplete"] = doc.Incomplete
-	return selected
+	return output.FilterFields(doc, fields)
 }
 
 func wantedParts(fields []string) map[string]bool {

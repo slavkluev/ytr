@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "28.0"
+  version: "29.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -317,7 +317,7 @@ It prints one JSON document whose top-level keys are its parts:
   `options` are the allowed values in the JSON type Tracker sent.
 - `globalFields`: the editable global fields, `key` and `name` only. Run
   `ytr field get KEY` for a field's schema and allowed values.
-- `incomplete`: `{"part", "reason"}` for each part that is missing or may be missing entries.
+- `incomplete`: `{"part", "reason"}` for each selected part that is missing or may be missing entries.
 
 `key`, `name`, the defaults and `issueTypes` come from the queue request; `statuses`
 and `workflows` share the workflow requests; each other part has a request of its own.
@@ -325,14 +325,15 @@ A part whose request failed is `null`, and `incomplete` names it with the server
 error text; a part that was fetched but is empty is `[]`. The command exits 0 once the
 queue itself is found, so check `incomplete` before relying on a part. An unknown
 queue exits 4. `--json a,b` returns only those parts and makes only the requests they
-need; `incomplete` is always included.
+need; select `incomplete` beside them, as in `--json workflows,incomplete`, to learn
+which selected parts are `null` or may be missing entries.
 
 ```bash
 # Everything needed to work in a queue
 ytr queue context PROJ
 
-# Only issue types and their workflows
-ytr queue context PROJ --json issueTypes,workflows
+# Only issue types and their workflows, and why a part is null if its request failed
+ytr queue context PROJ --json issueTypes,workflows,incomplete
 
 # Statuses an issue in "open" can move to
 ytr queue context PROJ --json workflows --jq '.workflows[].transitions.open'

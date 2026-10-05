@@ -40,8 +40,10 @@ key, name, defaultType, defaultPriority, and issueTypes come from the queue
 request. statuses and workflows share the workflow requests, and each other
 part has a request of its own. A part whose request failed is null, and
 incomplete names it with the server's reason; a part that was fetched but is
-empty is []. incomplete is always present. Once the queue itself is fetched the
-command exits 0, so check incomplete before relying on a part.
+empty is []. Once the queue itself is fetched the command exits 0, so check
+incomplete before relying on a part: under --json, select incomplete beside the
+parts, as in --json workflows,incomplete, to learn which selected parts are null
+or may be missing entries.
 
 PARTS
   key, name        the queue's key and name
@@ -61,8 +63,8 @@ PARTS
                    options are the allowed values
   globalFields     editable global fields, key and name only; ytr field get KEY
                    shows a field's schema and values
-  incomplete       {part, reason} for each part that is null or may be missing
-                   entries
+  incomplete       {part, reason} for each selected part that is null or may be
+                   missing entries
 
 JSON FIELDS
   key, name, defaultType, defaultPriority, issueTypes, statuses, workflows, components, requiredFields, localFields, globalFields, incomplete`

@@ -142,6 +142,10 @@ func TestQueueContext(t *testing.T) {
 				"globalFields": [{"key": "tags", "name": "Теги"}], "incomplete": []}`,
 		},
 		{
+			name: "Narrowed to the queue's key", args: context("APP", "--json", "key"),
+			exchanges: []faketracker.Exchange{queue}, stdout: `{"key":"APP"}` + "\n",
+		},
+		{
 			name: "Every workflow of the queue, in order", args: context("APP", "--json", "statuses,workflows"),
 			exchanges: []faketracker.Exchange{
 				queueAnswer("APP", twoWorkflowQueueAnswer), w200, workflowAnswer("W100", w100Answer),
@@ -150,8 +154,7 @@ func TestQueueContext(t *testing.T) {
 					{"key": "new", "name": "Новый"}],
 				"workflows": [` + w200JSON + `,
 					{"id": "W100", "initialStatus": "new", "transitions": {"new": ["open"], "open": ["closed"],
-						"closed": []}}],
-				"incomplete": []}`,
+						"closed": []}}]}`,
 			check: assertRequestPaths("/v3/queues/APP", "/v3/workflows/W200", "/v3/workflows/W100"),
 		},
 		{
@@ -166,13 +169,13 @@ func TestQueueContext(t *testing.T) {
 					{"id": "start", "schema": {"required": false}}, {"id": "followers", "schema": {"type": "array"}}]`),
 			},
 			json: `{"requiredFields": [{"id": "summary"}, {"id": "type", "default": "task"},
-				{"id": "priority", "default": "normal"}, {"id": "createdBy"}], "incomplete": []}`,
+				{"id": "priority", "default": "normal"}, {"id": "createdBy"}]}`,
 		},
 		{
 			name:      "Statuses",
 			args:      context("APP", "--json", "statuses"),
 			exchanges: []faketracker.Exchange{queue, w200},
-			json:      `{"statuses": ` + appStatusesJSON + `, "incomplete": []}`,
+			json:      `{"statuses": ` + appStatusesJSON + `}`,
 		},
 		{
 			name: "Local fields by queue ID", args: context("140", "--json", "localFields"),
@@ -181,19 +184,17 @@ func TestQueueContext(t *testing.T) {
 				"optionsProvider": {"values": {"APP": ["Test", "Beta"], "DIRECT": ["Production"]},
 					"defaults": ["Not specified"]}}]`)},
 			json: `{"localFields": [{"id": "5d0e4f1a2b3c4d5e6f708192--stand", "key": "stand", "name": "Среда",
-				"schema": "string", "readonly": false, "options": ["Test", "Beta"]}], "incomplete": []}`,
+				"schema": "string", "readonly": false, "options": ["Test", "Beta"]}]}`,
 		},
 		{
 			name: "Issue types and components", args: context("APP", "--json", "issueTypes,components"),
 			exchanges: []faketracker.Exchange{queue, components},
-			json: `{"issueTypes": ` + appIssueTypesJSON + `, "components": [{"id": "55", "name": "Hotfix"}],
-				"incomplete": []}`,
+			json:      `{"issueTypes": ` + appIssueTypesJSON + `, "components": [{"id": "55", "name": "Hotfix"}]}`,
 		},
 		{
 			name: "Selection in any case", args: context("APP", "--json", "IssueTypes,COMPONENTS"),
 			exchanges: []faketracker.Exchange{queue, components},
-			json: `{"issueTypes": ` + appIssueTypesJSON + `, "components": [{"id": "55", "name": "Hotfix"}],
-				"incomplete": []}`,
+			json:      `{"issueTypes": ` + appIssueTypesJSON + `, "components": [{"id": "55", "name": "Hotfix"}]}`,
 		},
 		{
 			name: "jq", args: context("APP", "--jq", ".localFields[].id"),
@@ -201,7 +202,7 @@ func TestQueueContext(t *testing.T) {
 			stdout:    "5d0e4f1a2b3c4d5e6f708192--size\n",
 		},
 		{
-			name: "Queue fields forbidden", args: context("APP", "--json", "requiredFields,localFields"),
+			name: "Queue fields forbidden", args: context("APP", "--json", "requiredFields,localFields,incomplete"),
 			exchanges: []faketracker.Exchange{
 				queue, localFields,
 				trackerError(http.MethodGet, "/v3/queues/APP/fields", http.StatusForbidden,
@@ -211,7 +212,7 @@ func TestQueueContext(t *testing.T) {
 				"incomplete": [{"part": "requiredFields", "reason": "У вас недостаточно прав в очереди APP."}]}`,
 		},
 		{
-			name: "Queue fields empty", args: context("APP", "--json", "requiredFields"),
+			name: "Queue fields empty", args: context("APP", "--json", "requiredFields,incomplete"),
 			exchanges: []faketracker.Exchange{queue, queueFieldsAnswer("APP", `[]`)},
 			json: `{"requiredFields": [{"id": "summary"}], "incomplete": [{"part": "requiredFields",
 				"reason": "Tracker listed no queue fields, so other fields may be required"}]}`,
@@ -237,12 +238,20 @@ func TestQueueContext(t *testing.T) {
 				queueAnswer("APP", twoWorkflowQueueAnswer), w200, components,
 				trackerNotFoundOn(http.MethodGet, "/v3/workflows/W100", "Workflow W100 not found"),
 			},
-			json: `{"workflows": null, "components": [{"id": "55", "name": "Hotfix"}],
+			json: `{"workflows": null, "components": [{"id": "55", "name": "Hotfix"}]}`,
+		},
+		{
+			name: "Workflow fails with incomplete selected", args: context("APP", "--json", "workflows,incomplete"),
+			exchanges: []faketracker.Exchange{
+				queueAnswer("APP", twoWorkflowQueueAnswer), w200,
+				trackerNotFoundOn(http.MethodGet, "/v3/workflows/W100", "Workflow W100 not found"),
+			},
+			json: `{"workflows": null,
 				"incomplete": [{"part": "workflows", "reason": "workflow W100: Workflow W100 not found"}]}`,
 		},
 		{
 			name: "Failed parts under a selection",
-			args: context("APP", "--json", "statuses,components,requiredFields"),
+			args: context("APP", "--json", "statuses,components,requiredFields,incomplete"),
 			exchanges: []faketracker.Exchange{
 				queueAnswer("APP", twoWorkflowQueueAnswer), w200, queueFields,
 				trackerNotFoundOn(http.MethodGet, "/v3/workflows/W100", "Workflow W100 not found"),
