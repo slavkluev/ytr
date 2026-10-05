@@ -44,9 +44,8 @@ Notes:
 
 - For regular commands, flag-based and env-based auth require all three values together.
 - `ytr auth login` is the exception: it can detect the organization type when `--org-type` is omitted.
-- `auth status`, `auth login` and `auth logout` take `--json` fields and `--jq` like any other
-  command. `--json=`, which names no field, and an unknown field both exit 1 before any request
-  or config change; the unknown-field error lists the command's fields in `validFields`.
+- `auth login` and `auth logout` check `--json` before they touch the config, so `--json=` or
+  an unknown field exits 1 and leaves the config as it was.
 - Config is stored in `~/.config/ytr/config.yaml`.
 
 ## Command Reference
