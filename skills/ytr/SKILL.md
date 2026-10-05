@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "27.0"
+  version: "28.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -243,20 +243,21 @@ ytr bulk move --from-json '{"queue":"TARGET","issues":["PROJ-1","PROJ-2"]}' --js
 They exit 1 when the operation ends `FAILED`, writing nothing to stdout. The
 error document on stderr carries `operationId`, `statusText`, `totalIssues`
 and `totalCompletedIssues`, so it still says how much of the change landed.
-The `suggestion` is a runnable `ytr bulk status <operationId>`:
+Its `suggestion` is empty: the operation is final, and `bulk status` would
+only report the same failure:
 
 ```bash
 ytr bulk move --from-json '{"queue":"TARGET","issues":["PROJ-1","PROJ-2"]}' --json id,status
 # stdout: (empty)
 # stderr: {"code":"bulk_failed","message":"bulk operation 6543210abcdef failed: ... (1 of 2 issues completed)",
 #          "operationId":"6543210abcdef","statusText":"...","totalIssues":2,"totalCompletedIssues":1,
-#          "suggestion":"ytr bulk status 6543210abcdef"}
+#          "suggestion":""}
 ```
 
-`bulk status` only reads, so it is not a failure: it reports a `FAILED`
-operation as one document on stdout and exits 0. Its `suggestion` is the
-same command while the operation is unfinished, and empty once it is
-`COMPLETED` or `FAILED`.
+`bulk status` reports a `FAILED` operation the same way: exit 1, nothing on
+stdout, and the same `bulk_failed` document on stderr. Any other status prints
+its document at exit 0; its `suggestion` is the same command while the
+operation is unfinished, and empty once it is `COMPLETED`.
 
 ### Issue History
 

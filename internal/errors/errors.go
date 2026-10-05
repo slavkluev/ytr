@@ -231,7 +231,9 @@ func (e *BulkFailedError) JSONError() ([]byte, error) {
 
 // NewBulkFailedError creates an error for a bulk operation that reached the
 // FAILED state. The message repeats the counts, so a reader that takes only
-// the message learns as much as one that reads the document's own keys.
+// the message learns as much as one that reads the document's own keys. Its
+// suggestion is empty: the operation is final, and bulk status would only
+// repeat the failure.
 func NewBulkFailedError(
 	operationID, statusText string,
 	totalIssues, totalCompletedIssues int,
@@ -246,10 +248,9 @@ func NewBulkFailedError(
 
 	return &BulkFailedError{
 		ExitError: ExitError{
-			ExitCode:   ExitUserError,
-			Code:       CodeBulkFailed,
-			Message:    message,
-			Suggestion: "ytr bulk status " + operationID,
+			ExitCode: ExitUserError,
+			Code:     CodeBulkFailed,
+			Message:  message,
 		},
 		OperationID:          operationID,
 		StatusText:           statusText,

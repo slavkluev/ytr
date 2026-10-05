@@ -282,8 +282,8 @@ func TestHandleInvocationError_BulkFailedError(t *testing.T) {
 	if result["totalCompletedIssues"] != float64(3) {
 		t.Errorf("JSON totalCompletedIssues = %v, want 3", result["totalCompletedIssues"])
 	}
-	if result["suggestion"] != "ytr bulk status op-1" {
-		t.Errorf("JSON suggestion = %v, want a runnable ytr bulk status", result["suggestion"])
+	if suggestion, ok := result["suggestion"]; !ok || suggestion != "" {
+		t.Errorf("JSON suggestion = %v (present: %t), want \"\": the operation is final", suggestion, ok)
 	}
 }
 

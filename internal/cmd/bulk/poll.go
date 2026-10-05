@@ -197,9 +197,9 @@ func awaitBulkCompletion(
 // A failed operation renders nothing: a run that ends non-zero must leave
 // stdout empty, so a reader never has to decide whether the document it found
 // there describes a change that happened. The counts the result carried travel
-// in the error instead, and reach stderr with it. `bulk status` is a query and
-// calls renderBulkOutput directly, so it still reports a FAILED operation as a
-// document at exit 0.
+// in the error instead, and reach stderr with it. `bulk status` ends here too,
+// so the exit code says whether the change happened whichever command found it
+// FAILED.
 //
 // An operation still running when the wait ends renders like a finished one,
 // at exit 0: Tracker has accepted the change, and a failure would invite a

@@ -18,7 +18,8 @@ Displays progress information including total issues, completed issues,
 and completion percentage. Use the operation ID returned by bulk move,
 bulk update, or bulk transition commands. While the operation has not
 finished, suggestion is this command again; it is empty once the operation is
-COMPLETED or FAILED.
+COMPLETED. A FAILED operation exits 1 with stdout empty and the same
+bulk_failed error the bulk commands print, which carries the counts.
 
 JSON FIELDS
   id, status, statusText, totalIssues, totalCompletedIssues,
@@ -64,5 +65,5 @@ func runStatus(cmd *cobra.Command, arg string) error {
 		return api.MapAPIError(err)
 	}
 
-	return renderBulkOutput(cmd, opts, bc)
+	return finalizeBulkResult(cmd, opts, bc, operationID)
 }

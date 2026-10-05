@@ -141,7 +141,7 @@ func TestBulkMove(t *testing.T) {
 			stderr: []string{
 				`{"code":"bulk_failed","message":"bulk operation op-1 failed: Operation FAILED ` +
 					`(1 of 3 issues completed)","operationId":"op-1","statusText":"Operation FAILED",` +
-					`"totalIssues":3,"totalCompletedIssues":1,"suggestion":"ytr bulk status op-1"}` + "\n",
+					`"totalIssues":3,"totalCompletedIssues":1,"suggestion":""}` + "\n",
 			},
 		},
 		{
@@ -287,7 +287,7 @@ func TestBulkUpdate(t *testing.T) {
 			stderr: []string{
 				`{"code":"bulk_failed","message":"bulk operation op-1 failed: Operation FAILED ` +
 					`(0 of 2 issues completed)","operationId":"op-1","statusText":"Operation FAILED",` +
-					`"totalIssues":2,"totalCompletedIssues":0,"suggestion":"ytr bulk status op-1"}` + "\n",
+					`"totalIssues":2,"totalCompletedIssues":0,"suggestion":""}` + "\n",
 			},
 		},
 		{
@@ -378,7 +378,7 @@ func TestBulkTransition(t *testing.T) {
 			stderr: []string{
 				`{"code":"bulk_failed","message":"bulk operation op-1 failed: Operation FAILED ` +
 					`(0 of 2 issues completed)","operationId":"op-1","statusText":"Operation FAILED",` +
-					`"totalIssues":2,"totalCompletedIssues":0,"suggestion":"ytr bulk status op-1"}` + "\n",
+					`"totalIssues":2,"totalCompletedIssues":0,"suggestion":""}` + "\n",
 			},
 		},
 		{
@@ -440,10 +440,20 @@ func TestBulkStatus(t *testing.T) {
 				"createdAt": "", "suggestion": "ytr bulk status op-1"}`,
 		},
 		{
-			name:      "A failed change is an answer",
+			name:      "A failed change fails as the bulk commands do",
 			args:      status("--json", "status,totalIssues,totalCompletedIssues,suggestion"),
 			exchanges: []faketracker.Exchange{bulkFailed("10", "3")},
-			stdout:    `{"status":"FAILED","suggestion":"","totalCompletedIssues":3,"totalIssues":10}` + "\n",
+			code:      ytrerrors.ExitUserError,
+			stderr: []string{
+				`{"code":"bulk_failed","message":"bulk operation op-1 failed: Operation FAILED ` +
+					`(3 of 10 issues completed)","operationId":"op-1","statusText":"Operation FAILED",` +
+					`"totalIssues":10,"totalCompletedIssues":3,"suggestion":""}` + "\n",
+			},
+		},
+		{
+			name: "A failed change fails under --jq", args: status("--jq", ".status"),
+			exchanges: []faketracker.Exchange{bulkFailed("2", "0")}, code: ytrerrors.ExitUserError,
+			stderr: []string{`"code":"bulk_failed"`, `"suggestion":""`},
 		},
 		{
 			name: "An unfinished change suggests checking again", args: status("--jq", ".suggestion"),
