@@ -46,10 +46,6 @@ func TestWriteChecksShareOneWording(t *testing.T) {
 			message: "cannot combine --from-json with --assignee"},
 		{args: []string{"checklist", "edit", "PROJ-1", "item-2", "--checked=false", "--from-json", `{}`},
 			message: "cannot combine --from-json with --checked"},
-		{args: []string{"component", "create", "--assign-auto", "--name", "x", "--from-json", `{}`},
-			message: "cannot combine --from-json with --name, --assign-auto"},
-		{args: []string{"component", "edit", "42", "--lead", "uid-a", "--from-json", `{}`},
-			message: "cannot combine --from-json with --lead"},
 		{args: []string{"link", "create", "PROJ-1", "--issue", "PROJ-2", "--type", "relates", "--from-json", `{}`},
 			message: "cannot combine --from-json with --type, --issue"},
 		{args: []string{"bulk", "update", "PROJ-1", "--field", "a=b", "--from-json", `{}`},
@@ -78,6 +74,11 @@ func TestWriteChecksShareOneWording(t *testing.T) {
 			args:       []string{"issue", "create", "--from-json", `{"summary": "x", "queue": null}`},
 			message:    "missing --queue",
 			suggestion: `Pass it as a flag, or as the key "queue" in --from-json`,
+		},
+		{
+			args:       []string{"issue", "create", "--from-json", `{"QUEUE": "PROJ"}`},
+			message:    "missing --summary",
+			suggestion: `Pass it as a flag, or as the key "summary" in --from-json`,
 		},
 		{
 			args:       []string{"issue", "transition", "PROJ-1"},
@@ -123,16 +124,6 @@ func TestWriteChecksShareOneWording(t *testing.T) {
 			args:       []string{"checklist", "create", "PROJ-1", "--from-json", `{"assignee": "uid-b"}`},
 			message:    "missing --text",
 			suggestion: `Pass it as a flag, or as the key "text" in --from-json`,
-		},
-		{
-			args:       []string{"component", "create"},
-			message:    "missing --name, --queue",
-			suggestion: `Pass them as flags, or as the keys "name", "queue" in --from-json`,
-		},
-		{
-			args:       []string{"component", "create", "--from-json", `{"NAME": "Backend"}`},
-			message:    "missing --queue",
-			suggestion: `Pass it as a flag, or as the key "queue" in --from-json`,
 		},
 		{
 			args:       []string{"link", "create", "PROJ-1", "--issue", "PROJ-2"},
@@ -223,16 +214,6 @@ func TestWriteChecksShareOneWording(t *testing.T) {
 		{
 			args:       []string{"checklist", "edit", "PROJ-1", "item-2", "--from-json", `null`},
 			suggestion: "Pass at least one of --text, --checked, --assignee, or a --from-json object with at least one key",
-		},
-		{
-			args: []string{"component", "edit", "42"},
-			suggestion: "Pass at least one of --name, --queue, --description, --lead, --assign-auto, " +
-				"or a --from-json object with at least one key",
-		},
-		{
-			args: []string{"component", "edit", "42", "--from-json", `{}`},
-			suggestion: "Pass at least one of --name, --queue, --description, --lead, --assign-auto, " +
-				"or a --from-json object with at least one key",
 		},
 	}
 	for i := range nothing {

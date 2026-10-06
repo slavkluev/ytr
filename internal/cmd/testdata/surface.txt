@@ -1,4 +1,4 @@
-version 30.0
+version 31.0
 command ytr
 command ytr auth
 command ytr auth login
@@ -19,12 +19,6 @@ command ytr comment create
 command ytr comment delete
 command ytr comment edit
 command ytr comment list
-command ytr component
-command ytr component create
-command ytr component delete
-command ytr component edit
-command ytr component get
-command ytr component list
 command ytr field
 command ytr field get
 command ytr field list
@@ -155,36 +149,6 @@ field ytr comment list body
 field ytr comment list createdAt
 field ytr comment list id
 field ytr comment list updatedAt
-field ytr component create assignAuto
-field ytr component create description
-field ytr component create id
-field ytr component create lead
-field ytr component create leadId
-field ytr component create name
-field ytr component create queue
-field ytr component delete deleted
-field ytr component delete id
-field ytr component edit assignAuto
-field ytr component edit description
-field ytr component edit id
-field ytr component edit lead
-field ytr component edit leadId
-field ytr component edit name
-field ytr component edit queue
-field ytr component get assignAuto
-field ytr component get description
-field ytr component get id
-field ytr component get lead
-field ytr component get leadId
-field ytr component get name
-field ytr component get queue
-field ytr component list assignAuto
-field ytr component list description
-field ytr component list id
-field ytr component list lead
-field ytr component list leadId
-field ytr component list name
-field ytr component list queue
 field ytr field get category
 field ytr field get defaultOptions
 field ytr field get description
@@ -392,18 +356,6 @@ flag ytr comment create --body string
 flag ytr comment create --from-json string
 flag ytr comment edit --body string
 flag ytr comment edit --from-json string
-flag ytr component create --assign-auto bool
-flag ytr component create --description string
-flag ytr component create --from-json string
-flag ytr component create --lead string
-flag ytr component create --name string
-flag ytr component create --queue string
-flag ytr component edit --assign-auto bool
-flag ytr component edit --description string
-flag ytr component edit --from-json string
-flag ytr component edit --lead string
-flag ytr component edit --name string
-flag ytr component edit --queue string
 flag ytr field get --queue string
 flag ytr field list --queue string
 flag ytr issue changelog --all bool

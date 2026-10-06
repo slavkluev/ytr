@@ -12,7 +12,6 @@ import (
 	"github.com/slavkluev/ytr/internal/cmd/bulk"
 	"github.com/slavkluev/ytr/internal/cmd/checklist"
 	"github.com/slavkluev/ytr/internal/cmd/comment"
-	"github.com/slavkluev/ytr/internal/cmd/component"
 	"github.com/slavkluev/ytr/internal/cmd/field"
 	"github.com/slavkluev/ytr/internal/cmd/issue"
 	"github.com/slavkluev/ytr/internal/cmd/issuetype"
@@ -115,7 +114,6 @@ func registerSubcommands(rootCmd *cobra.Command) {
 		issuetype.NewCmd(),
 		field.NewCmd(),
 		queue.NewCmd(),
-		component.NewCmd(),
 		user.NewCmd(),
 		auth.NewCmd(),
 		versioncmd.NewCmd(),

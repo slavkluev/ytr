@@ -11,7 +11,7 @@ A command-line client for [Yandex Tracker](https://tracker.yandex.ru/) — Yande
 - Bulk operations (move, update, transition) with async polling
 - Reference data (statuses, priorities, resolutions, issue types)
 - Field discovery (global and queue-local fields)
-- Components and queue management
+- Queue discovery (list, view, context)
 - User lookup and organization listing
 - Structured JSON output with `--json` field selection and `--jq` filtering
 - Designed for LLM agents with predictable output and semantic exit codes

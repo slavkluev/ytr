@@ -8,7 +8,7 @@ license: MIT
 compatibility: Requires ytr binary in PATH
 metadata:
   author: slavkluev
-  version: "30.0"
+  version: "31.0"
 ---
 
 # ytr -- Yandex Tracker CLI
@@ -91,18 +91,13 @@ Notes:
 | `ytr field list` | List available fields | `--queue` |
 | `ytr field get FIELD-KEY` | Show field details | `--queue` |
 
-### Organization
+### Queues
 
 | Command | Description | Key Flags |
 |---------|-------------|-----------|
 | `ytr queue list` | List queues | `--limit`, `--all`, `--cursor` |
 | `ytr queue view QUEUE-KEY` | View queue details | |
 | `ytr queue context QUEUE-KEY` | Everything needed to create and move issues in a queue, as one JSON document | `--json` selects parts |
-| `ytr component create` | Create a component | `--name`, `--queue`, `--description`, `--lead`, `--assign-auto`, `--from-json` |
-| `ytr component edit COMPONENT-ID` | Edit a component | `--name`, `--queue`, `--description`, `--lead`, `--assign-auto`, `--from-json` |
-| `ytr component delete COMPONENT-ID` | Delete a component | |
-| `ytr component get COMPONENT-ID` | Show component details | |
-| `ytr component list` | List components | |
 
 ### Account
 
@@ -480,8 +475,8 @@ flag errors the same way, and each exits 1 before any request:
   `--from-json`, naming the flags you set. Pass the request one way or the other.
   Issue key arguments next to a bulk `--from-json` fail the same way, as
   `cannot combine --from-json with issue keys`.
-- `missing --name, --queue`: a create without a required flag, or a
-  `--from-json` without the matching key (here `"name"`, `"queue"`); the
+- `missing --queue, --summary`: a create without a required flag, or a
+  `--from-json` without the matching key (here `"queue"`, `"summary"`); the
   suggestion names the keys. `comment create --body` (key `"text"`),
   `issue transition --to` (key `"to"`), `bulk move --queue`,
   `bulk update --field` (key `"values"`, which needs at least one field) and

@@ -56,7 +56,7 @@ func TestBareRootNamesItsSubcommands(t *testing.T) {
 	// Pinned in full, not by Contains: the list has to be the one `ytr --help`
 	// advertises, down to `help`, which cobra's IsAvailableCommand leaves out.
 	want := `{"code":"user_error","message":"\"ytr\" needs a subcommand: auth, bulk, checklist, comment, ` +
-		`component, field, help, issue, issuetype, link, priority, queue, resolution, status, user, version, ` +
+		`field, help, issue, issuetype, link, priority, queue, resolution, status, user, version, ` +
 		`worklog","suggestion":"Run \"ytr --help\" for details."}` + "\n"
 	if got.Stderr != want {
 		t.Errorf("stderr = %q, want %q", got.Stderr, want)
@@ -123,6 +123,25 @@ func TestCompletionIsAnUnknownCommand(t *testing.T) {
 			t.Errorf("%s: message = %q, want %q", label, doc.Message, `unknown command "completion" for "ytr"`)
 		}
 	}
+}
+
+// TestRemovedGroupsAreUnknownCommands pins that a removed group fails as any
+// unknown command does. The rows run signed in, so a group still registered
+// would send its request to a Tracker that expects none.
+func TestRemovedGroupsAreUnknownCommands(t *testing.T) {
+	t.Parallel()
+
+	refused := func(message string) []string {
+		return []string{`{"code":"user_error","message":"` + message + `",` +
+			`"suggestion":"Run \"ytr --help\" for details."}` + "\n"}
+	}
+
+	runLeafRows(t, []leafRow{
+		{
+			name: "component list", args: []string{"component", "list"},
+			code: ytrerrors.ExitUserError, stderr: refused(`unknown command \"component\" for \"ytr\"`),
+		},
+	})
 }
 
 // TestRootHelpIsForAgents wants root help to name its users and to list, once,
