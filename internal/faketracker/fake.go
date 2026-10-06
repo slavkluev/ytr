@@ -43,20 +43,16 @@ type failure struct {
 }
 
 // New returns a Fake serving exchanges, checked against t. It fails t at once
-// on an exchange that lacks a method or a path, on one that answers without a
-// valid status, and on one that sets Stall or Err beside a response or both.
+// on an exchange that lacks a method, a path or a valid status.
 func New(t testing.TB, exchanges []Exchange) *Fake {
 	t.Helper()
 
 	for i, ex := range exchanges {
-		response := ex.Status != 0 || ex.Header != nil || ex.Body != nil
 		switch {
 		case ex.Method == "" || ex.Path == "":
 			t.Fatalf("faketracker: exchange %d needs a method and a path: %+v", i, ex)
-		case ex.answers() && http.StatusText(ex.Status) == "":
+		case http.StatusText(ex.Status) == "":
 			t.Fatalf("faketracker: exchange %d needs a known status: %+v", i, ex)
-		case !ex.answers() && (response || ex.Stall && ex.Err != nil):
-			t.Fatalf("faketracker: exchange %d sets Stall or Err beside a response or both: %+v", i, ex)
 		}
 	}
 
@@ -105,13 +101,7 @@ func (f *Fake) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	rec := httptest.NewRecorder()
-	switch ex := f.serve(rec, got); {
-	case ex.Stall:
-		<-req.Context().Done()
-		return nil, req.Context().Err()
-	case ex.Err != nil:
-		return nil, ex.Err
-	}
+	f.serve(rec, got)
 
 	resp := rec.Result()
 	resp.Request = req
@@ -127,10 +117,7 @@ func (f *Fake) Requests() []Request {
 	return slices.Clone(f.requests)
 }
 
-// serve answers got into w, unless the exchange it matches stands for no
-// response: it returns that exchange for RoundTrip to play out, and the zero
-// Exchange otherwise.
-func (f *Fake) serve(w http.ResponseWriter, got Request) Exchange {
+func (f *Fake) serve(w http.ResponseWriter, got Request) {
 	f.mu.Lock()
 	f.requests = append(f.requests, got)
 	ex, ok := f.take(got)
@@ -138,7 +125,7 @@ func (f *Fake) serve(w http.ResponseWriter, got Request) Exchange {
 
 	if f.failure != nil {
 		writeError(w, f.failure.status, f.failure.message)
-		return Exchange{}
+		return
 	}
 
 	if !ok {
@@ -147,11 +134,7 @@ func (f *Fake) serve(w http.ResponseWriter, got Request) Exchange {
 		// Tracker's error shape makes the command fail the way it would on a
 		// real error instead of on a body it cannot decode.
 		writeError(w, http.StatusNotImplemented, "faketracker: "+unmatched)
-		return Exchange{}
-	}
-
-	if !ex.answers() {
-		return ex
+		return
 	}
 
 	for name, values := range ex.Header {
@@ -161,8 +144,6 @@ func (f *Fake) serve(w http.ResponseWriter, got Request) Exchange {
 	}
 	w.WriteHeader(ex.Status)
 	_, _ = w.Write(ex.Body)
-
-	return Exchange{}
 }
 
 func (f *Fake) take(got Request) (Exchange, bool) {

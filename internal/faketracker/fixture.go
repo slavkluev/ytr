@@ -32,20 +32,6 @@ type Exchange struct {
 	Status int             `json:"status"`
 	Header http.Header     `json:"header,omitempty"`
 	Body   json.RawMessage `json:"body,omitempty"`
-
-	// Stall and Err, which only code sets, stand in for the response. Stall
-	// makes the request wait until its context ends and fail with the
-	// context's error, as one does when Tracker is slower than the caller is
-	// willing to wait. Err fails the request at once with Err, as a transport
-	// failure does.
-	Stall bool  `json:"-"`
-	Err   error `json:"-"`
-}
-
-// answers reports whether ex stands for a response, not for a request that
-// gets none.
-func (ex Exchange) answers() bool {
-	return !ex.Stall && ex.Err == nil
 }
 
 // Secret is a value no fixture may contain, with the name a failed leak check

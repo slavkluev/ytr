@@ -27,7 +27,7 @@ const fixtureDir = "testdata/fixtures"
 // these names, or one of these whole paths.
 var (
 	readOnlyLeafNames = []string{"list", "view", "get", "changelog", "myself"}
-	readOnlyLeafPaths = []string{"ytr bulk status", "ytr auth status"}
+	readOnlyLeafPaths = []string{"ytr auth status"}
 )
 
 // TestRecordFixtures runs each invocation against the real Tracker and writes
@@ -111,7 +111,6 @@ func TestRecordAllowsOnlyReadOnlyLeaves(t *testing.T) {
 		{[]string{"field", "get"}, true},
 		{[]string{"issue", "changelog"}, true},
 		{[]string{"user", "myself"}, true},
-		{[]string{"bulk", "status"}, true},
 		{[]string{"auth", "status"}, true},
 		{[]string{"status"}, false},
 		{[]string{"issue", "create"}, false},
@@ -119,7 +118,6 @@ func TestRecordAllowsOnlyReadOnlyLeaves(t *testing.T) {
 		{[]string{"issue", "transition"}, false},
 		{[]string{"comment", "edit"}, false},
 		{[]string{"worklog", "delete"}, false},
-		{[]string{"bulk", "move"}, false},
 		{[]string{"auth", "login"}, false},
 		{[]string{"auth", "logout"}, false},
 	}

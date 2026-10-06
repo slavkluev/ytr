@@ -48,12 +48,6 @@ func TestWriteChecksShareOneWording(t *testing.T) {
 			message: "cannot combine --from-json with --checked"},
 		{args: []string{"link", "create", "PROJ-1", "--issue", "PROJ-2", "--type", "relates", "--from-json", `{}`},
 			message: "cannot combine --from-json with --type, --issue"},
-		{args: []string{"bulk", "update", "PROJ-1", "--field", "a=b", "--from-json", `{}`},
-			message: "cannot combine --from-json with --field"},
-		{args: []string{"bulk", "transition", "--field", "a=b", "--transition", "close", "--from-json", `{}`},
-			message: "cannot combine --from-json with --transition, --field"},
-		{args: []string{"bulk", "move", "--queue", "NEW", "--from-json", `{}`},
-			message: "cannot combine --from-json with --queue"},
 	}
 	for i := range conflicts {
 		conflicts[i].suggestion = bothSuggestion
@@ -134,41 +128,6 @@ func TestWriteChecksShareOneWording(t *testing.T) {
 			args:       []string{"link", "create", "PROJ-1", "--from-json", `{}`},
 			message:    "missing --type, --issue",
 			suggestion: `Pass them as flags, or as the keys "relationship", "issue" in --from-json`,
-		},
-		{
-			args:       []string{"bulk", "update", "PROJ-1"},
-			message:    "missing --field",
-			suggestion: `Pass it as a flag, or as the key "values" in --from-json`,
-		},
-		{
-			args:       []string{"bulk", "transition", "PROJ-1", "--field", "a=b"},
-			message:    "missing --transition",
-			suggestion: `Pass it as a flag, or as the key "transition" in --from-json`,
-		},
-		{
-			args:       []string{"bulk", "move", "PROJ-1"},
-			message:    "missing --queue",
-			suggestion: `Pass it as a flag, or as the key "queue" in --from-json`,
-		},
-		{
-			args:       []string{"bulk", "move", "--from-json", `{"issues": ["PROJ-1"]}`},
-			message:    "missing --queue",
-			suggestion: `Pass it as a flag, or as the key "queue" in --from-json`,
-		},
-		{
-			args:       []string{"bulk", "update", "--from-json", `{"issues": ["PROJ-1"]}`},
-			message:    "missing --field",
-			suggestion: `Pass it as a flag, or as the key "values" in --from-json`,
-		},
-		{
-			args:       []string{"bulk", "update", "--from-json", `{"issues": ["PROJ-1"], "values": {}}`},
-			message:    "missing --field",
-			suggestion: `Pass it as a flag, or as the key "values" in --from-json`,
-		},
-		{
-			args:       []string{"bulk", "transition", "--from-json", `{"issues": ["PROJ-1"], "values": {"a": "b"}}`},
-			message:    "missing --transition",
-			suggestion: `Pass it as a flag, or as the key "transition" in --from-json`,
 		},
 	}
 

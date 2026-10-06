@@ -42,7 +42,7 @@ and the description is kebab-case and meaningful on its own:
 
 ```
 feat/issue-search
-fix/bulk-exit-code
+fix/issue-exit-code
 docs/contribution-guidelines
 ```
 
@@ -60,7 +60,7 @@ type(scope): subject
 ```
 
 Common types are `feat`, `fix`, `docs`, `refactor`, `test`, and `chore`. The
-scope is the affected area (e.g. `bulk`, `checklist`, `output`). Examples:
+scope is the affected area (e.g. `issue`, `checklist`, `output`). Examples:
 
 ```
 feat(issue): add --query filter to issue list

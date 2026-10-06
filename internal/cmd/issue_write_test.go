@@ -59,6 +59,12 @@ func TestIssueCreate(t *testing.T) {
 			body:      `{"queue": "PROJ", "summary": "Fix login bug"}`, json: issueDetailJSON,
 		},
 		{
+			name:      "JSON keys in another case",
+			args:      create("--from-json", `{"QUEUE": "PROJ", "Summary": "x"}`, "--jq", ".key"),
+			exchanges: []faketracker.Exchange{trackerPOST(path, `{"key": "PROJ-7"}`)},
+			body:      `{"queue": "PROJ", "summary": "x"}`, stdout: "PROJ-7\n",
+		},
+		{
 			name: "JSON body on stdin", args: create("--from-json", "-"),
 			stdin:     `{"queue": "PROJ", "summary": "Fix login bug", "tags": ["backend"]}`,
 			exchanges: []faketracker.Exchange{created},

@@ -1,14 +1,9 @@
-version 31.0
+version 32.0
 command ytr
 command ytr auth
 command ytr auth login
 command ytr auth logout
 command ytr auth status
-command ytr bulk
-command ytr bulk move
-command ytr bulk status
-command ytr bulk transition
-command ytr bulk update
 command ytr checklist
 command ytr checklist create
 command ytr checklist delete
@@ -68,50 +63,6 @@ field ytr auth status org_type
 field ytr auth status status
 field ytr auth status token_source
 field ytr auth status user
-field ytr bulk move createdAt
-field ytr bulk move createdBy
-field ytr bulk move createdById
-field ytr bulk move executionChunkPercent
-field ytr bulk move executionIssuePercent
-field ytr bulk move id
-field ytr bulk move status
-field ytr bulk move statusText
-field ytr bulk move suggestion
-field ytr bulk move totalCompletedIssues
-field ytr bulk move totalIssues
-field ytr bulk status createdAt
-field ytr bulk status createdBy
-field ytr bulk status createdById
-field ytr bulk status executionChunkPercent
-field ytr bulk status executionIssuePercent
-field ytr bulk status id
-field ytr bulk status status
-field ytr bulk status statusText
-field ytr bulk status suggestion
-field ytr bulk status totalCompletedIssues
-field ytr bulk status totalIssues
-field ytr bulk transition createdAt
-field ytr bulk transition createdBy
-field ytr bulk transition createdById
-field ytr bulk transition executionChunkPercent
-field ytr bulk transition executionIssuePercent
-field ytr bulk transition id
-field ytr bulk transition status
-field ytr bulk transition statusText
-field ytr bulk transition suggestion
-field ytr bulk transition totalCompletedIssues
-field ytr bulk transition totalIssues
-field ytr bulk update createdAt
-field ytr bulk update createdBy
-field ytr bulk update createdById
-field ytr bulk update executionChunkPercent
-field ytr bulk update executionIssuePercent
-field ytr bulk update id
-field ytr bulk update status
-field ytr bulk update statusText
-field ytr bulk update suggestion
-field ytr bulk update totalCompletedIssues
-field ytr bulk update totalIssues
 field ytr checklist create assignee
 field ytr checklist create assigneeId
 field ytr checklist create checked
@@ -334,17 +285,6 @@ flag ytr --token string
 flag ytr auth login --org-id string
 flag ytr auth login --org-type string
 flag ytr auth login --token string
-flag ytr bulk move --field stringArray
-flag ytr bulk move --from-json string
-flag ytr bulk move --queue string
-flag ytr bulk move --timeout duration
-flag ytr bulk transition --field stringArray
-flag ytr bulk transition --from-json string
-flag ytr bulk transition --timeout duration
-flag ytr bulk transition --transition string
-flag ytr bulk update --field stringArray
-flag ytr bulk update --from-json string
-flag ytr bulk update --timeout duration
 flag ytr checklist create --assignee string
 flag ytr checklist create --from-json string
 flag ytr checklist create --text string

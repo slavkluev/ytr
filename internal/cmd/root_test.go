@@ -66,36 +66,6 @@ func TestWorklogAndChecklistRegistered(t *testing.T) {
 	}
 }
 
-func TestBulkRegistered(t *testing.T) {
-	t.Parallel()
-
-	root := cmd.RootCmd()
-
-	var bulkCmd *cobra.Command
-	for _, sub := range root.Commands() {
-		if sub.Name() == "bulk" {
-			bulkCmd = sub
-			break
-		}
-	}
-
-	if bulkCmd == nil {
-		t.Fatal("'bulk' not registered on root command")
-	}
-
-	// Verify bulk subcommands.
-	subNames := make(map[string]bool)
-	for _, sub := range bulkCmd.Commands() {
-		subNames[sub.Name()] = true
-	}
-
-	for _, name := range []string{"status", "move", "update", "transition"} {
-		if !subNames[name] {
-			t.Errorf("bulk subcommand %q not registered", name)
-		}
-	}
-}
-
 func TestQueueContextRegistered(t *testing.T) {
 	t.Parallel()
 

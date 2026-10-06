@@ -248,8 +248,8 @@ func TestShellCommands(t *testing.T) {
 		},
 		{
 			name: "pipe",
-			line: "echo X | ytr bulk update --field p=c",
-			want: [][]string{{"echo", "X"}, {"ytr", "bulk", "update", "--field", "p=c"}},
+			line: "echo X | ytr comment create K-1 --body x",
+			want: [][]string{{"echo", "X"}, {"ytr", "comment", "create", "K-1", "--body", "x"}},
 		},
 		{
 			name: "separators",

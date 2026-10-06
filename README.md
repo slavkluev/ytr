@@ -8,7 +8,6 @@ A command-line client for [Yandex Tracker](https://tracker.yandex.ru/) — Yande
 
 - Issue management (create, list, view, update, transition, changelog)
 - Comments, links, worklogs, checklists as sub-resources
-- Bulk operations (move, update, transition) with async polling
 - Reference data (statuses, priorities, resolutions, issue types)
 - Field discovery (global and queue-local fields)
 - Queue discovery (list, view, context)
@@ -50,10 +49,6 @@ ytr issue transition PROJ-123 --to "In Progress"
 # Comments and worklogs
 ytr comment create PROJ-123 --body "Working on this"
 ytr worklog create PROJ-123 --duration PT2H --start 2026-03-30T10:00:00Z
-
-# Bulk operations
-ytr bulk move PROJ-1 PROJ-2 PROJ-3 --queue TARGET
-printf 'PROJ-1\nPROJ-2\n' | ytr bulk update --field priority=critical
 
 # Reference data
 ytr status list --json key,name

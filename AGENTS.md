@@ -8,14 +8,14 @@ Yandex Tracker CLI for LLM agents; a person only runs `auth login`: Go 1.26, cob
 ## Policy
 
 - Commit freely; `git push` and any tag only after the user confirms — a `v*` tag publishes a GitHub release and the Homebrew formula. Same rule in `../go-yandex-tracker`.
-- The real Tracker is read-only for agents: run only `list`, `view`, `get`, `changelog`, `myself`, `bulk status`, `auth status`. Never run create, update, edit, delete, transition, move, or `auth login`/`logout` — a fake token still sends the request to the live API.
+- The real Tracker is read-only for agents: run only `list`, `view`, `get`, `changelog`, `myself`, `auth status`. Never run create, update, edit, delete, transition, or `auth login`/`logout` — a fake token still sends the request to the live API.
 - When the Tracker API allows something go-yandex-tracker does not, change the library in `../go-yandex-tracker`; never work around it in ytr.
 - No planning references in code, tests, or commit messages: no decision or requirement ids (`D-06`, `OUT-05`), review finding labels (`Finding: Medium 3`, `Info #4`), or task ids. State the reason itself.
 
 ## Where things are
 
 - New command: copy the declaration of its shape under `internal/cmd/` — `worklog/list.go` (`runner.List`; `status/list.go` when the endpoint pages, through `runner.Collect`), `queue/list.go` (`runner.Pages`, when the list takes `--limit`, `--cursor` and `--all`), `user/get.go` (`runner.Get`), `worklog/create.go` (`runner.Write` with `Required`), `worklog/edit.go` (`runner.Write` with `Update`), `worklog/delete.go` (`runner.Delete`); every `runner.Write` takes `--from-json`. A group file such as `worklog/worklog.go` holds only the group command.
-- Procedural, because no shape fits them: `auth`, `bulk`, `issue changelog`, `queue context`, `version`. Copy one only for a command no shape fits. All take shared pieces from `internal/cmd/runner/runner.go` (`Client`, `SetFields`, `ItemFields`, `SelectFields`, `PrintJSON`, `PrintPage`, `Collect`).
+- Procedural, because no shape fits them: `auth`, `issue changelog`, `queue context`, `version`. Copy one only for a command no shape fits. All take shared pieces from `internal/cmd/runner/runner.go` (`Client`, `SetFields`, `ItemFields`, `SelectFields`, `PrintJSON`, `PrintPage`, `Collect`).
 
 ## Running and verifying
 

@@ -1,6 +1,6 @@
 <!--
 Title should follow Conventional Commits, e.g.
-  fix(bulk): exit non-zero when a bulk operation fails
+  fix(issue): exit non-zero when an issue update fails
 -->
 
 ## What & why

@@ -247,46 +247,6 @@ func TestHandleInvocationError_JSONErrorSharesStderrWithDebug(t *testing.T) {
 	}
 }
 
-// TestHandleInvocationError_BulkFailedError checks that an error type which adds
-// fields to ExitError renders its own document. handleError matches the
-// JSONError interface rather than naming concrete types, so this is what keeps
-// a new type from being flattened to the generic user_error shape.
-func TestHandleInvocationError_BulkFailedError(t *testing.T) {
-	var buf bytes.Buffer
-	opts := output.Options{}
-
-	err := ytrerrors.NewBulkFailedError("op-1", "Operation FAILED", 7, 3)
-	code := opts.HandleInvocationError(&buf, err)
-
-	if code != ytrerrors.ExitUserError {
-		t.Errorf("HandleInvocationError(BulkFailedError) = %d, want %d", code, ytrerrors.ExitUserError)
-	}
-
-	var result map[string]any
-	if unmarshalErr := json.Unmarshal(buf.Bytes(), &result); unmarshalErr != nil {
-		t.Fatalf("HandleInvocationError JSON output is invalid: %v\nOutput: %q", unmarshalErr, buf.String())
-	}
-
-	if result["code"] != ytrerrors.CodeBulkFailed {
-		t.Errorf("JSON code = %v, want %q", result["code"], ytrerrors.CodeBulkFailed)
-	}
-	if result["operationId"] != "op-1" {
-		t.Errorf("JSON operationId = %v, want %q", result["operationId"], "op-1")
-	}
-	if result["statusText"] != "Operation FAILED" {
-		t.Errorf("JSON statusText = %v, want %q", result["statusText"], "Operation FAILED")
-	}
-	if result["totalIssues"] != float64(7) {
-		t.Errorf("JSON totalIssues = %v, want 7", result["totalIssues"])
-	}
-	if result["totalCompletedIssues"] != float64(3) {
-		t.Errorf("JSON totalCompletedIssues = %v, want 3", result["totalCompletedIssues"])
-	}
-	if suggestion, ok := result["suggestion"]; !ok || suggestion != "" {
-		t.Errorf("JSON suggestion = %v (present: %t), want \"\": the operation is final", suggestion, ok)
-	}
-}
-
 func TestHandleInvocationError_GenericError(t *testing.T) {
 	var buf bytes.Buffer
 	opts := output.Options{}

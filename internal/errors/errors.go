@@ -14,7 +14,6 @@ const (
 	CodeNotFound     = "not_found"
 	CodeRateLimited  = "rate_limited"
 	CodeInvalidField = "invalid_field"
-	CodeBulkFailed   = "bulk_failed"
 )
 
 // ExitError is an error with a semantic exit code, machine-readable code,
@@ -180,81 +179,5 @@ func NewUnknownFieldsError(fields, validFields []string) *InvalidFieldError {
 		},
 		InvalidFields: fields,
 		ValidFields:   validFields,
-	}
-}
-
-// BulkFailedError extends ExitError with what a bulk operation reported when
-// it finished in the FAILED state. A failed operation writes nothing to
-// stdout, so these counts are the only place an agent learns how much of the
-// change landed.
-type BulkFailedError struct {
-	ExitError
-
-	// OperationID is the bulk change the counts belong to.
-	OperationID string `json:"operationId"`
-
-	// StatusText is the API's own description of the failure, empty when it
-	// gave none.
-	StatusText string `json:"statusText"`
-
-	// TotalIssues and TotalCompletedIssues are the operation's final counts.
-	TotalIssues          int `json:"totalIssues"`
-	TotalCompletedIssues int `json:"totalCompletedIssues"`
-}
-
-// Unwrap exposes the embedded ExitError so errors.As/Is can traverse the
-// chain, for the same reason InvalidFieldError does.
-func (e *BulkFailedError) Unwrap() error {
-	return &e.ExitError
-}
-
-// JSONError returns JSON with the bulk_failed code and the operation's counts.
-func (e *BulkFailedError) JSONError() ([]byte, error) {
-	return jsonenc.Marshal(struct {
-		Code                 string `json:"code"`
-		Message              string `json:"message"`
-		OperationID          string `json:"operationId"`
-		StatusText           string `json:"statusText"`
-		TotalIssues          int    `json:"totalIssues"`
-		TotalCompletedIssues int    `json:"totalCompletedIssues"`
-		Suggestion           string `json:"suggestion"`
-	}{
-		Code:                 CodeBulkFailed,
-		Message:              e.Message,
-		OperationID:          e.OperationID,
-		StatusText:           e.StatusText,
-		TotalIssues:          e.TotalIssues,
-		TotalCompletedIssues: e.TotalCompletedIssues,
-		Suggestion:           e.Suggestion,
-	})
-}
-
-// NewBulkFailedError creates an error for a bulk operation that reached the
-// FAILED state. The message repeats the counts, so a reader that takes only
-// the message learns as much as one that reads the document's own keys. Its
-// suggestion is empty: the operation is final, and bulk status would only
-// repeat the failure.
-func NewBulkFailedError(
-	operationID, statusText string,
-	totalIssues, totalCompletedIssues int,
-) *BulkFailedError {
-	message := fmt.Sprintf("bulk operation %s failed", operationID)
-	if statusText != "" {
-		message += ": " + statusText
-	}
-	message += fmt.Sprintf(
-		" (%d of %d issues completed)", totalCompletedIssues, totalIssues,
-	)
-
-	return &BulkFailedError{
-		ExitError: ExitError{
-			ExitCode: ExitUserError,
-			Code:     CodeBulkFailed,
-			Message:  message,
-		},
-		OperationID:          operationID,
-		StatusText:           statusText,
-		TotalIssues:          totalIssues,
-		TotalCompletedIssues: totalCompletedIssues,
 	}
 }

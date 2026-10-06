@@ -55,8 +55,8 @@ func TestBareRootNamesItsSubcommands(t *testing.T) {
 
 	// Pinned in full, not by Contains: the list has to be the one `ytr --help`
 	// advertises, down to `help`, which cobra's IsAvailableCommand leaves out.
-	want := `{"code":"user_error","message":"\"ytr\" needs a subcommand: auth, bulk, checklist, comment, ` +
-		`field, help, issue, issuetype, link, priority, queue, resolution, status, user, version, ` +
+	want := `{"code":"user_error","message":"\"ytr\" needs a subcommand: auth, checklist, comment, field, ` +
+		`help, issue, issuetype, link, priority, queue, resolution, status, user, version, ` +
 		`worklog","suggestion":"Run \"ytr --help\" for details."}` + "\n"
 	if got.Stderr != want {
 		t.Errorf("stderr = %q, want %q", got.Stderr, want)
@@ -140,6 +140,10 @@ func TestRemovedGroupsAreUnknownCommands(t *testing.T) {
 		{
 			name: "component list", args: []string{"component", "list"},
 			code: ytrerrors.ExitUserError, stderr: refused(`unknown command \"component\" for \"ytr\"`),
+		},
+		{
+			name: "bulk status", args: []string{"bulk", "status", "x"},
+			code: ytrerrors.ExitUserError, stderr: refused(`unknown command \"bulk\" for \"ytr\"`),
 		},
 	})
 }

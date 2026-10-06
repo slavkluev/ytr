@@ -484,7 +484,7 @@ func TestBodyCheckNamesTheBodyTrackerNeverGets(t *testing.T) {
 	}{
 		{line: `ytr comment create PROJ-1 --from-json '{"text":"x"}' --json id`, ran: 1},
 		{line: "ytr comment create PROJ-1 --from-json @body.json"},
-		{line: "ytr issue list --all --jq '{issues:[.items[].key]}' | ytr bulk update --from-json -"},
+		{line: "ytr issue view PROJ-1 --jq '{text:.summary}' | ytr comment create PROJ-1 --from-json -"},
 		{line: "ytr comment create PROJ-1 --body x"},
 		{
 			line: `ytr comment create PROJ-1 --body x --from-json '{}'`, ran: 1,
@@ -547,11 +547,11 @@ func TestWriteFormCheckNamesTheFlagForm(t *testing.T) {
 			want:    "probe: ytr issue transition K-1 --to open gives the body as flags; write it as --from-json",
 		},
 		{
-			line:    "ytr issue list --jq '.items[].key' | ytr bulk update --field a=b",
+			line:    "ytr issue view K-1 --jq .summary | ytr comment create K-1 --body x",
 			checked: 1,
-			want:    "probe: ytr bulk update --field a=b gives the body as flags; write it as --from-json",
+			want:    "probe: ytr comment create K-1 --body x gives the body as flags; write it as --from-json",
 		},
-		{line: "ytr issue list --jq '{issues:[.items[].key]}' | ytr bulk update --from-json -", checked: 1},
+		{line: "ytr issue view K-1 --jq '{text:.summary}' | ytr comment create K-1 --from-json -", checked: 1},
 		{line: "ytr comment create K-1 --body x", rejected: true},
 		{line: "ytr comment delete K-1 5"},
 		{line: "ytr issue view K-1"},
@@ -601,7 +601,7 @@ func TestSkillCheckNamesWhyAnInvocationFails(t *testing.T) {
 		rejected bool
 		want     string
 	}{
-		{line: "echo X | ytr bulk update --field p=c"},
+		{line: "echo X | ytr comment create K-1 --body x"},
 		{line: `ytr user get "$(ytr comment list K-1 --json authorId)"`},
 		{line: "ytr help issue list"},
 		{line: "ytr issue list --json KEY,Summary"},

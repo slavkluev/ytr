@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/slavkluev/ytr/internal/cmd/auth"
-	"github.com/slavkluev/ytr/internal/cmd/bulk"
 	"github.com/slavkluev/ytr/internal/cmd/checklist"
 	"github.com/slavkluev/ytr/internal/cmd/comment"
 	"github.com/slavkluev/ytr/internal/cmd/field"
@@ -107,7 +106,6 @@ func registerSubcommands(rootCmd *cobra.Command) {
 		link.NewCmd(),
 		worklog.NewCmd(),
 		checklist.NewCmd(),
-		bulk.NewCmd(),
 		status.NewCmd(),
 		priority.NewCmd(),
 		resolution.NewCmd(),
