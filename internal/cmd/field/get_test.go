@@ -281,7 +281,7 @@ func TestGet(t *testing.T) {
 // field id that the Tracker API assigns to local fields.
 func localSizeDetailField() *tracker.Field {
 	return &tracker.Field{
-		ID:       testutil.FlexStringPtr("66fd07bba913292094b4403c--size"),
+		ID:       testutil.FlexStringPtr("5d0e4f1a2b3c4d5e6f708192--size"),
 		Key:      testutil.StrPtr("size"),
 		Name:     testutil.StrPtr("Size"),
 		Type:     testutil.StrPtr("local"),
@@ -326,7 +326,7 @@ func TestGetCardShowsFullFieldID(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	for _, want := range []string{"ID\t66fd07bba913292094b4403c--size"} {
+	for _, want := range []string{"ID\t5d0e4f1a2b3c4d5e6f708192--size"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("detail output missing %q; got:\n%s", want, out)
 		}
@@ -344,7 +344,7 @@ func TestGetJSONIncludesFullFieldID(t *testing.T) {
 	}
 
 	result := decodeDetail(t, out)
-	if result["id"] != "66fd07bba913292094b4403c--size" {
+	if result["id"] != "5d0e4f1a2b3c4d5e6f708192--size" {
 		t.Errorf("expected full field id, got %v", result["id"])
 	}
 }

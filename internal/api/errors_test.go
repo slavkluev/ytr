@@ -164,7 +164,7 @@ func newTrackerFieldError(statusCode int, fields map[string]string, messages ...
 
 func TestMapAPIError_FieldErrorsReachMessage(t *testing.T) {
 	apiErr := newTrackerFieldError(http.StatusUnprocessableEntity, map[string]string{
-		"66fd07bba913292094b4403c--size": "value is not allowed",
+		"5d0e4f1a2b3c4d5e6f708192--size": "value is not allowed",
 	})
 
 	err := api.MapAPIError(apiErr)
@@ -173,7 +173,7 @@ func TestMapAPIError_FieldErrorsReachMessage(t *testing.T) {
 	if !errors.As(err, &exitErr) {
 		t.Fatalf("error type = %T, want *ExitError", err)
 	}
-	want := "66fd07bba913292094b4403c--size: value is not allowed"
+	want := "5d0e4f1a2b3c4d5e6f708192--size: value is not allowed"
 	if exitErr.Message != want {
 		t.Errorf("Message = %q, want %q", exitErr.Message, want)
 	}
@@ -219,8 +219,8 @@ func TestMapAPIError_ServerMessageSurvivesStatusBranches(t *testing.T) {
 		message    string
 		wantCode   string
 	}{
-		{"not found", http.StatusNotFound, "Issue MTP-1 does not exist", ytrerrors.CodeNotFound},
-		{"forbidden", http.StatusForbidden, "No write access to queue MTP", ytrerrors.CodeAuthError},
+		{"not found", http.StatusNotFound, "Issue APP-1 does not exist", ytrerrors.CodeNotFound},
+		{"forbidden", http.StatusForbidden, "No write access to queue APP", ytrerrors.CodeAuthError},
 		{"rate limited", http.StatusTooManyRequests, "Too many requests, retry in 30s", ytrerrors.CodeRateLimited},
 	}
 

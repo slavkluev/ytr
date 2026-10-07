@@ -247,7 +247,7 @@ func TestList(t *testing.T) {
 // field id that the Tracker API assigns to local fields.
 func localSizeField() *tracker.Field {
 	return &tracker.Field{
-		ID:       testutil.FlexStringPtr("66fd07bba913292094b4403c--size"),
+		ID:       testutil.FlexStringPtr("5d0e4f1a2b3c4d5e6f708192--size"),
 		Key:      testutil.StrPtr("size"),
 		Name:     testutil.StrPtr("Size"),
 		Schema:   &tracker.FieldSchema{Type: testutil.StrPtr("string")},
@@ -281,7 +281,7 @@ func TestListTableShowsFullFieldID(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	for _, want := range []string{"ID", "66fd07bba913292094b4403c--size"} {
+	for _, want := range []string{"ID", "5d0e4f1a2b3c4d5e6f708192--size"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("table output missing %q; got:\n%s", want, out)
 		}
@@ -299,7 +299,7 @@ func TestListJSONIncludesFullFieldID(t *testing.T) {
 	}
 
 	items := decodeListItems(t, out)
-	if items[0]["id"] != "66fd07bba913292094b4403c--size" {
+	if items[0]["id"] != "5d0e4f1a2b3c4d5e6f708192--size" {
 		t.Errorf("expected full field id, got %v", items[0]["id"])
 	}
 }
@@ -387,7 +387,7 @@ const possibleSpamJSON = `{"self":"https://api.tracker.yandex.net/v3/fields/poss
 const perQueueFieldJSON = `{
 	"self": "https://api.tracker.yandex.net/v3/fields/stand",
 	"id": "stand",
-	"name": "Bench",
+	"name": "Board",
 	"version": 1361890459119,
 	"schema": {"type": "string", "required": false},
 	"readonly": false,

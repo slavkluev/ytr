@@ -484,17 +484,17 @@ func TestStrayPositionalOnFlagsOnlyLeaf(t *testing.T) {
 		{"user", "list"},
 	} {
 		label := "ytr " + strings.Join(path, " ")
-		got := runProbe(t, slices.Concat(path, []string{"MTP"}))
+		got := runProbe(t, slices.Concat(path, []string{"APP"}))
 
 		if got.code != ytrerrors.ExitUserError {
-			t.Errorf("%s MTP: exit = %d, want %d (stderr: %s)",
+			t.Errorf("%s APP: exit = %d, want %d (stderr: %s)",
 				label, got.code, ytrerrors.ExitUserError, got.stderr)
 		}
-		if !strings.Contains(got.stderr, "MTP") {
-			t.Errorf("%s MTP: stderr = %q, does not name the rejected argument", label, got.stderr)
+		if !strings.Contains(got.stderr, "APP") {
+			t.Errorf("%s APP: stderr = %q, does not name the rejected argument", label, got.stderr)
 		}
 		if got.stdout != "" {
-			t.Errorf("%s MTP: stdout = %q, want empty", label, got.stdout)
+			t.Errorf("%s APP: stdout = %q, want empty", label, got.stdout)
 		}
 	}
 }

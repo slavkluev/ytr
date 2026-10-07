@@ -422,7 +422,7 @@ func TestPrintJSONOffTTYIsOneLine(t *testing.T) {
 	output.SetTTY(false)
 
 	var buf bytes.Buffer
-	data := map[string]any{"key": "MTP-1", "labels": []string{"a", "b"}}
+	data := map[string]any{"key": "APP-1", "labels": []string{"a", "b"}}
 	if err := output.PrintJSON(&buf, data); err != nil {
 		t.Fatalf("PrintJSON() returned error: %v", err)
 	}
@@ -431,7 +431,7 @@ func TestPrintJSONOffTTYIsOneLine(t *testing.T) {
 	if strings.Count(got, "\n") != 1 || !strings.HasSuffix(got, "\n") {
 		t.Errorf("off-TTY JSON must be one line, got %q", got)
 	}
-	if !strings.Contains(got, `{"key":"MTP-1","labels":["a","b"]}`) {
+	if !strings.Contains(got, `{"key":"APP-1","labels":["a","b"]}`) {
 		t.Errorf("off-TTY JSON is not minified: %q", got)
 	}
 }
@@ -441,12 +441,12 @@ func TestPrintJSONOnTTYKeepsTheIndent(t *testing.T) {
 	output.SetTTY(true)
 
 	var buf bytes.Buffer
-	data := map[string]any{"key": "MTP-1"}
+	data := map[string]any{"key": "APP-1"}
 	if err := output.PrintJSON(&buf, data); err != nil {
 		t.Fatalf("PrintJSON() returned error: %v", err)
 	}
 
-	if got, want := buf.String(), "{\n  \"key\": \"MTP-1\"\n}\n"; got != want {
+	if got, want := buf.String(), "{\n  \"key\": \"APP-1\"\n}\n"; got != want {
 		t.Errorf("TTY JSON = %q, want %q", got, want)
 	}
 }

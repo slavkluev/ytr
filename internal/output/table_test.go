@@ -16,13 +16,13 @@ func TestTableOffTTYJoinsColumnsWithTabs(t *testing.T) {
 	var buf bytes.Buffer
 	tbl := output.NewTable(&buf)
 	tbl.AddHeader("KEY", "STATUS", "ASSIGNEE", "SUMMARY")
-	tbl.AddRow("MTP-1", "Open", "john.doe", "Fix login")
-	tbl.AddRow("MTP-2", "Closed", "jane.roe", "Ship it")
+	tbl.AddRow("APP-1", "Open", "john.doe", "Fix login")
+	tbl.AddRow("APP-2", "Closed", "jane.roe", "Ship it")
 	tbl.Render()
 
 	want := "KEY\tSTATUS\tASSIGNEE\tSUMMARY\n" +
-		"MTP-1\tOpen\tjohn.doe\tFix login\n" +
-		"MTP-2\tClosed\tjane.roe\tShip it\n"
+		"APP-1\tOpen\tjohn.doe\tFix login\n" +
+		"APP-2\tClosed\tjane.roe\tShip it\n"
 	if got := buf.String(); got != want {
 		t.Errorf("table = %q, want %q", got, want)
 	}
@@ -38,7 +38,7 @@ func TestTableOffTTYHasNoANSI(t *testing.T) {
 	var buf bytes.Buffer
 	tbl := output.NewTable(&buf)
 	tbl.AddHeader("KEY", "SUMMARY")
-	tbl.AddRow("MTP-1", "Fix login")
+	tbl.AddRow("APP-1", "Fix login")
 	tbl.Render()
 
 	if strings.Contains(buf.String(), "\x1b") {
@@ -53,8 +53,8 @@ func TestTableOnTTYPadsColumns(t *testing.T) {
 	var buf bytes.Buffer
 	tbl := output.NewTable(&buf)
 	tbl.AddHeader("KEY", "SUMMARY")
-	tbl.AddRow("MTP-1", "Fix login")
-	tbl.AddRow("MTP-1234", "Ship it")
+	tbl.AddRow("APP-1", "Fix login")
+	tbl.AddRow("APP-1234", "Ship it")
 	tbl.Render()
 
 	got := buf.String()
@@ -104,7 +104,7 @@ func TestTableOffTTYKeepsLongCellWhole(t *testing.T) {
 	var buf bytes.Buffer
 	tbl := output.NewTable(&buf)
 	tbl.AddHeader("KEY", "SUMMARY")
-	tbl.AddRow("MTP-1", summary)
+	tbl.AddRow("APP-1", summary)
 	tbl.Render()
 
 	got := buf.String()
@@ -129,14 +129,14 @@ func TestTableOffTTYKeepsForcedColor(t *testing.T) {
 	var buf bytes.Buffer
 	tbl := output.NewTable(&buf)
 	tbl.AddHeader("KEY", "STATUS")
-	tbl.AddRow("MTP-1", "\x1b[32mOpen\x1b[0m")
+	tbl.AddRow("APP-1", "\x1b[32mOpen\x1b[0m")
 	tbl.Render()
 
 	got := buf.String()
 	if !strings.Contains(got, "\x1b[32mOpen\x1b[0m") {
 		t.Errorf("forced color was dropped: %q", got)
 	}
-	if !strings.Contains(got, "MTP-1\t") {
+	if !strings.Contains(got, "APP-1\t") {
 		t.Errorf("forced color must not cost the tab separators: %q", got)
 	}
 }

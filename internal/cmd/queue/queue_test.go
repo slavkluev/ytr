@@ -55,24 +55,24 @@ func TestTrackerContextClientRequests(t *testing.T) {
 	testutil.ResetOutputFlags(t)
 	ctx := t.Context()
 
-	assertContextRequest(t, `{}`, "GET v3/queues/MTP?expand=issueTypesConfig", func(c queueContextClient) error {
-		_, _, err := c.GetQueue(ctx, "MTP", &tracker.QueueGetOptions{Expand: "issueTypesConfig"})
+	assertContextRequest(t, `{}`, "GET v3/queues/APP?expand=issueTypesConfig", func(c queueContextClient) error {
+		_, _, err := c.GetQueue(ctx, "APP", &tracker.QueueGetOptions{Expand: "issueTypesConfig"})
 		return err
 	})
-	assertContextRequest(t, `{}`, "GET v3/workflows/W207", func(c queueContextClient) error {
-		_, _, err := c.GetWorkflow(ctx, "W207")
+	assertContextRequest(t, `{}`, "GET v3/workflows/W200", func(c queueContextClient) error {
+		_, _, err := c.GetWorkflow(ctx, "W200")
 		return err
 	})
-	assertContextRequest(t, `[]`, "GET v3/queues/MTP/components?fields=name", func(c queueContextClient) error {
-		_, _, err := c.ListComponents(ctx, "MTP", &tracker.QueueComponentsListOptions{Fields: "name"})
+	assertContextRequest(t, `[]`, "GET v3/queues/APP/components?fields=name", func(c queueContextClient) error {
+		_, _, err := c.ListComponents(ctx, "APP", &tracker.QueueComponentsListOptions{Fields: "name"})
 		return err
 	})
-	assertContextRequest(t, `[]`, "GET v3/queues/MTP/fields", func(c queueContextClient) error {
-		_, _, err := c.ListQueueFields(ctx, "MTP")
+	assertContextRequest(t, `[]`, "GET v3/queues/APP/fields", func(c queueContextClient) error {
+		_, _, err := c.ListQueueFields(ctx, "APP")
 		return err
 	})
-	assertContextRequest(t, `[]`, "GET v3/queues/MTP/localFields", func(c queueContextClient) error {
-		_, _, err := c.ListLocalFields(ctx, "MTP")
+	assertContextRequest(t, `[]`, "GET v3/queues/APP/localFields", func(c queueContextClient) error {
+		_, _, err := c.ListLocalFields(ctx, "APP")
 		return err
 	})
 	assertContextRequest(t, `[]`, "GET v3/fields", func(c queueContextClient) error {

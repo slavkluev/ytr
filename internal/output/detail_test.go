@@ -16,13 +16,13 @@ func TestDetailOffTTYWritesTabSeparatedRows(t *testing.T) {
 
 	var buf bytes.Buffer
 	d := output.NewDetail(&buf)
-	d.Field("Key", "MTP-1")
+	d.Field("Key", "APP-1")
 	d.Field("Created", "2026-09-19T14:22:31+03:00")
 	if err := d.Err(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	want := "Key\tMTP-1\nCreated\t2026-09-19T14:22:31+03:00\n"
+	want := "Key\tAPP-1\nCreated\t2026-09-19T14:22:31+03:00\n"
 	if got := buf.String(); got != want {
 		t.Errorf("detail = %q, want %q", got, want)
 	}
@@ -35,12 +35,12 @@ func TestDetailOnTTYWritesLabeledRows(t *testing.T) {
 
 	var buf bytes.Buffer
 	d := output.NewDetail(&buf)
-	d.Field("Key", "MTP-1")
+	d.Field("Key", "APP-1")
 	if err := d.Err(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if got, want := buf.String(), "Key:  MTP-1\n"; got != want {
+	if got, want := buf.String(), "Key:  APP-1\n"; got != want {
 		t.Errorf("detail = %q, want %q", got, want)
 	}
 }
@@ -51,13 +51,13 @@ func TestDetailBlockKeepsItsShapeOffTTY(t *testing.T) {
 
 	var buf bytes.Buffer
 	d := output.NewDetail(&buf)
-	d.Field("Key", "MTP-1")
+	d.Field("Key", "APP-1")
 	d.Block("Description", "The login page returns 500.")
 	if err := d.Err(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	want := "Key\tMTP-1\n\nDescription:\n  The login page returns 500.\n"
+	want := "Key\tAPP-1\n\nDescription:\n  The login page returns 500.\n"
 	if got := buf.String(); got != want {
 		t.Errorf("detail = %q, want %q", got, want)
 	}
@@ -73,7 +73,7 @@ func TestDetailKeepsFirstWriteError(t *testing.T) {
 	output.SetTTY(false)
 
 	d := output.NewDetail(failingWriter{})
-	d.Field("Key", "MTP-1")
+	d.Field("Key", "APP-1")
 	d.Field("Name", "second row")
 	d.Block("Description", "third write")
 
@@ -89,13 +89,13 @@ func TestDetailOffTTYEscapesControlCharacters(t *testing.T) {
 	var buf bytes.Buffer
 	d := output.NewDetail(&buf)
 	d.Field("Summary", "first\nsecond\tthird\rfourth")
-	d.Field("Key", "MTP-1")
+	d.Field("Key", "APP-1")
 	if err := d.Err(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	got := buf.String()
-	want := "Summary\t" + `first\nsecond\tthird\rfourth` + "\nKey\tMTP-1\n"
+	want := "Summary\t" + `first\nsecond\tthird\rfourth` + "\nKey\tAPP-1\n"
 	if got != want {
 		t.Errorf("detail = %q, want %q", got, want)
 	}

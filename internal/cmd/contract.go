@@ -103,7 +103,7 @@ func hideDispatchOnlyUsageLine(rootCmd *cobra.Command) {
 
 // explainArgsRejection wraps a leaf's own Args validator so a rejected argument
 // carries a suggestion, as every other rejection the contract adds does.
-// Cobra's validators return a bare error: `ytr issue list MTP` named the
+// Cobra's validators return a bare error: `ytr issue list APP` named the
 // argument but left the caller nothing to run.
 func explainArgsRejection(validate cobra.PositionalArgs) cobra.PositionalArgs {
 	return func(cmd *cobra.Command, args []string) error {

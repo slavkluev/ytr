@@ -27,29 +27,29 @@ import (
 // /queues/{q}/localFields and /fields. They are decoded by the library, so the
 // tests see what the command sees at run time.
 
-const mtpQueueJSON = `{
-  "self": "https://api.tracker.yandex.net/v3/queues/MTP",
+const appQueueJSON = `{
+  "self": "https://api.tracker.yandex.net/v3/queues/APP",
   "id": 140,
-  "key": "MTP",
+  "key": "APP",
   "version": 5,
-  "name": "Metal trading platform",
+  "name": "Demo application",
   "defaultType": {"self": "https://api.tracker.yandex.net/v3/issuetypes/2", "id": "2", "key": "task", "display": "Задача"},
   "defaultPriority": {"self": "https://api.tracker.yandex.net/v3/priorities/3", "id": "3", "key": "normal", "display": "Средний"},
   "issueTypesConfig": [
     {"issueType": {"self": "https://api.tracker.yandex.net/v3/issuetypes/2", "id": "2", "key": "task", "display": "Задача"},
-     "workflow": {"self": "https://api.tracker.yandex.net/v3/workflows/W207", "id": "W207", "display": "W207"},
+     "workflow": {"self": "https://api.tracker.yandex.net/v3/workflows/W200", "id": "W200", "display": "W200"},
      "resolutions": [{"self": "https://api.tracker.yandex.net/v3/resolutions/1", "id": "1", "key": "fixed", "display": "Решен"}]},
     {"issueType": {"self": "https://api.tracker.yandex.net/v3/issuetypes/1", "id": "1", "key": "bug", "display": "Ошибка"},
-     "workflow": {"self": "https://api.tracker.yandex.net/v3/workflows/W207", "id": "W207", "display": "W207"}}
+     "workflow": {"self": "https://api.tracker.yandex.net/v3/workflows/W200", "id": "W200", "display": "W200"}}
   ]
 }`
 
-// w207JSON has a terminal step without actions, and two actions of the open
+// w200JSON has a terminal step without actions, and two actions of the open
 // step that lead to the same status.
-const w207JSON = `{
-  "self": "https://api.tracker.yandex.net/v3/workflows/W207",
-  "id": "W207",
-  "name": "W207",
+const w200JSON = `{
+  "self": "https://api.tracker.yandex.net/v3/workflows/W200",
+  "id": "W200",
+  "name": "W200",
   "version": 1,
   "steps": [
     {"status": {"self": "https://api.tracker.yandex.net/v3/statuses/1", "id": "1", "key": "open", "display": "Открыт"},
@@ -65,37 +65,37 @@ const w207JSON = `{
   ],
   "initialAction": {"id": "open", "name": "Open",
     "target": {"self": "https://api.tracker.yandex.net/v3/statuses/1", "id": "1", "key": "open", "display": "Открыт"}},
-  "queue": {"self": "https://api.tracker.yandex.net/v3/queues/MTP", "id": "140", "key": "MTP", "display": "Metal trading platform"},
+  "queue": {"self": "https://api.tracker.yandex.net/v3/queues/APP", "id": "140", "key": "APP", "display": "Demo application"},
   "created": "2026-08-11T14:37:06.356+0000",
   "updated": "2026-08-11T14:37:06.356+0000",
   "deleted": false,
   "type": "visual"
 }`
 
-const mtpComponentsJSON = `[
-  {"self": "https://api.tracker.yandex.net/v3/components/55", "id": 55, "name": "Expedite"}
+const appComponentsJSON = `[
+  {"self": "https://api.tracker.yandex.net/v3/components/55", "id": 55, "name": "Hotfix"}
 ]`
 
-// mtpQueueFieldsJSON pairs a required system field with a field that is not
+// appQueueFieldsJSON pairs a required system field with a field that is not
 // required and has per-queue values.
-const mtpQueueFieldsJSON = `[
+const appQueueFieldsJSON = `[
   {"self": "https://api.tracker.yandex.net/v3/fields/type", "id": "type", "name": "Тип", "key": "type", "version": 0,
    "schema": {"type": "issuetype", "required": true}, "readonly": false, "options": true, "suggest": true,
    "optionsProvider": {"type": "IssueTypeOptionsProvider"}, "order": 2, "type": "standard"},
-  {"self": "https://api.tracker.yandex.net/v3/fields/stand", "id": "stand", "name": "Bench", "version": 1361890459119,
+  {"self": "https://api.tracker.yandex.net/v3/fields/stand", "id": "stand", "name": "Board", "version": 1361890459119,
    "schema": {"type": "string", "required": false}, "readonly": false, "options": true, "suggest": false,
    "optionsProvider": {"type": "QueueFixedListOptionsProvider",
      "values": {"DIRECT": ["Not specified", "Test"]}, "defaults": ["Not specified", "Test"]},
    "order": 222}
 ]`
 
-const mtpLocalFieldsJSON = `[
-  {"self": "https://api.tracker.yandex.net/v3/queues/MTP/localFields/size",
-   "id": "66fd07bba913292094b4403c--size", "name": "Размер задачи", "key": "size", "version": 1,
+const appLocalFieldsJSON = `[
+  {"self": "https://api.tracker.yandex.net/v3/queues/APP/localFields/size",
+   "id": "5d0e4f1a2b3c4d5e6f708192--size", "name": "Размер", "key": "size", "version": 1,
    "schema": {"type": "string", "required": false}, "readonly": false, "options": false, "suggest": false,
    "optionsProvider": {"type": "FixedListOptionsProvider", "needValidation": true, "values": ["S", "M", "L"]},
    "queryProvider": {"type": "StringOptionalQueryProvider"}, "order": 3,
-   "queue": {"self": "https://api.tracker.yandex.net/v3/queues/MTP", "id": "140", "key": "MTP", "display": "Metal trading platform"},
+   "queue": {"self": "https://api.tracker.yandex.net/v3/queues/APP", "id": "140", "key": "APP", "display": "Demo application"},
    "type": "local"}
 ]`
 
@@ -109,33 +109,33 @@ const globalFieldsJSON = `[
    "type": "standard"}
 ]`
 
-const mtpFullDocument = `{
-  "key": "MTP",
-  "name": "Metal trading platform",
+const appFullDocument = `{
+  "key": "APP",
+  "name": "Demo application",
   "defaultType": "task",
   "defaultPriority": "normal",
   "issueTypes": [
-    {"key": "task", "name": "Задача", "workflow": "W207"},
-    {"key": "bug", "name": "Ошибка", "workflow": "W207"}
+    {"key": "task", "name": "Задача", "workflow": "W200"},
+    {"key": "bug", "name": "Ошибка", "workflow": "W200"}
   ],
   "statuses": [{"key": "open", "name": "Открыт"}, {"key": "closed", "name": "Закрыт"}],
-  "workflows": [{"id": "W207", "initialStatus": "open", "transitions": {"open": ["closed"], "closed": []}}],
-  "components": [{"id": "55", "name": "Expedite"}],
+  "workflows": [{"id": "W200", "initialStatus": "open", "transitions": {"open": ["closed"], "closed": []}}],
+  "components": [{"id": "55", "name": "Hotfix"}],
   "requiredFields": [{"id": "summary"}, {"id": "type", "default": "task"}],
   "localFields": [
-    {"id": "66fd07bba913292094b4403c--size", "key": "size", "name": "Размер задачи", "schema": "string",
+    {"id": "5d0e4f1a2b3c4d5e6f708192--size", "key": "size", "name": "Размер", "schema": "string",
      "readonly": false, "options": ["S", "M", "L"]}
   ],
   "globalFields": [{"key": "tags", "name": "Теги"}],
   "incomplete": []
 }`
 
-// w109JSON starts in its own status and then shares open and closed with
-// W207.
-const w109JSON = `{
-  "self": "https://api.tracker.yandex.net/v3/workflows/W109",
-  "id": "W109",
-  "name": "W109",
+// w100JSON starts in its own status and then shares open and closed with
+// W200.
+const w100JSON = `{
+  "self": "https://api.tracker.yandex.net/v3/workflows/W100",
+  "id": "W100",
+  "name": "W100",
   "version": 1,
   "steps": [
     {"status": {"self": "https://api.tracker.yandex.net/v3/statuses/5", "id": "5", "key": "new", "display": "Новый"},
@@ -154,14 +154,14 @@ const w109JSON = `{
     "target": {"self": "https://api.tracker.yandex.net/v3/statuses/5", "id": "5", "key": "new", "display": "Новый"}}
 }`
 
-// twoWorkflowQueueJSON is MTP with one issue type on W207 and one on W109.
+// twoWorkflowQueueJSON is APP with one issue type on W200 and one on W100.
 const twoWorkflowQueueJSON = `{
-  "self": "https://api.tracker.yandex.net/v3/queues/MTP", "id": 140, "key": "MTP", "name": "Metal trading platform",
+  "self": "https://api.tracker.yandex.net/v3/queues/APP", "id": 140, "key": "APP", "name": "Demo application",
   "issueTypesConfig": [
     {"issueType": {"self": "https://api.tracker.yandex.net/v3/issuetypes/2", "id": "2", "key": "task", "display": "Задача"},
-     "workflow": {"self": "https://api.tracker.yandex.net/v3/workflows/W207", "id": "W207", "display": "W207"}},
+     "workflow": {"self": "https://api.tracker.yandex.net/v3/workflows/W200", "id": "W200", "display": "W200"}},
     {"issueType": {"self": "https://api.tracker.yandex.net/v3/issuetypes/21", "id": "21", "key": "milestone", "display": "Веха"},
-     "workflow": {"self": "https://api.tracker.yandex.net/v3/workflows/W109", "id": "W109", "display": "W109"}}
+     "workflow": {"self": "https://api.tracker.yandex.net/v3/workflows/W100", "id": "W100", "display": "W100"}}
   ]
 }`
 
@@ -282,15 +282,15 @@ func decodeFixture[T any](t *testing.T, data string) T {
 	return v
 }
 
-// newMTPMock returns a mock whose every request succeeds with MTP-shaped data.
-func newMTPMock(t *testing.T) *mockContextClient {
+// newAPPMock returns a mock whose every request succeeds with APP-shaped data.
+func newAPPMock(t *testing.T) *mockContextClient {
 	t.Helper()
 	return &mockContextClient{
-		queue:        decodeFixture[*tracker.Queue](t, mtpQueueJSON),
-		workflows:    map[string]*tracker.Workflow{"W207": decodeFixture[*tracker.Workflow](t, w207JSON)},
-		components:   decodeFixture[[]*tracker.Component](t, mtpComponentsJSON),
-		queueFields:  decodeFixture[[]*tracker.Field](t, mtpQueueFieldsJSON),
-		localFields:  decodeFixture[[]*tracker.Field](t, mtpLocalFieldsJSON),
+		queue:        decodeFixture[*tracker.Queue](t, appQueueJSON),
+		workflows:    map[string]*tracker.Workflow{"W200": decodeFixture[*tracker.Workflow](t, w200JSON)},
+		components:   decodeFixture[[]*tracker.Component](t, appComponentsJSON),
+		queueFields:  decodeFixture[[]*tracker.Field](t, appQueueFieldsJSON),
+		localFields:  decodeFixture[[]*tracker.Field](t, appLocalFieldsJSON),
 		globalFields: decodeFixture[[]*tracker.Field](t, globalFieldsJSON),
 	}
 }
@@ -401,27 +401,27 @@ func assertCalls(t *testing.T, mock *mockContextClient, want ...string) {
 
 func TestQueueContextFull(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 
-	stdout, _, err := runContextCmd(t, mock, "MTP")
+	stdout, _, err := runContextCmd(t, mock, "APP")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	assertJSONEqual(t, stdout, mtpFullDocument)
+	assertJSONEqual(t, stdout, appFullDocument)
 
 	// The whole document keeps the part order.
 	if got := topLevelKeys(t, stdout); !slices.Equal(got, QueueContextFields) {
 		t.Errorf("parts = %q, want %q", got, QueueContextFields)
 	}
 
-	// W207 is fetched once, though two issue types follow it.
+	// W200 is fetched once, though two issue types follow it.
 	assertCalls(t, mock,
-		"GetQueue MTP expand=issueTypesConfig",
-		"GetWorkflow W207",
-		"ListComponents MTP fields=name",
-		"ListQueueFields MTP",
-		"ListLocalFields MTP",
+		"GetQueue APP expand=issueTypesConfig",
+		"GetWorkflow W200",
+		"ListComponents APP fields=name",
+		"ListQueueFields APP",
+		"ListLocalFields APP",
 		"ListGlobalFields",
 	)
 }
@@ -430,7 +430,7 @@ func TestQueueContextRequiredFieldsATS(t *testing.T) {
 	testutil.ResetOutputFlags(t)
 	mock := &mockContextClient{
 		queue: decodeFixture[*tracker.Queue](t, `{
-		  "self": "https://api.tracker.yandex.net/v3/queues/ATS", "id": "7", "key": "ATS", "name": "ATS",
+		  "self": "https://api.tracker.yandex.net/v3/queues/OPS", "id": "7", "key": "OPS", "name": "OPS",
 		  "defaultType": {"self": "https://api.tracker.yandex.net/v3/issuetypes/2", "id": "2", "key": "task", "display": "Задача"},
 		  "defaultPriority": {"self": "https://api.tracker.yandex.net/v3/priorities/3", "id": "3", "key": "normal", "display": "Средний"}
 		}`),
@@ -456,7 +456,7 @@ func TestQueueContextRequiredFieldsATS(t *testing.T) {
 		]`),
 	}
 
-	stdout, _, err := runContextCmd(t, mock, "ATS", "--json", "requiredFields")
+	stdout, _, err := runContextCmd(t, mock, "OPS", "--json", "requiredFields")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -470,15 +470,15 @@ func TestQueueContextRequiredFieldsATS(t *testing.T) {
 	  ],
 	  "incomplete": []
 	}`)
-	assertCalls(t, mock, "GetQueue ATS expand=issueTypesConfig", "ListQueueFields ATS")
+	assertCalls(t, mock, "GetQueue OPS expand=issueTypesConfig", "ListQueueFields OPS")
 }
 
 func TestQueueContextQueueFieldsEmpty(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 	mock.queueFields = decodeFixture[[]*tracker.Field](t, `[]`)
 
-	stdout, _, err := runContextCmd(t, mock, "RPA", "--json", "requiredFields")
+	stdout, _, err := runContextCmd(t, mock, "SUP", "--json", "requiredFields")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -493,24 +493,24 @@ func TestQueueContextQueueFieldsEmpty(t *testing.T) {
 
 func TestQueueContextQueueFieldsForbidden(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	const reason = "У вас недостаточно прав в очереди RECYCLEBIN."
-	mock := newMTPMock(t)
+	const reason = "У вас недостаточно прав в очереди RESTRICTED."
+	mock := newAPPMock(t)
 	mock.queue = decodeFixture[*tracker.Queue](t, `{
-	  "self": "https://api.tracker.yandex.net/v3/queues/RECYCLEBIN", "id": "9", "key": "RECYCLEBIN", "name": "Корзина",
+	  "self": "https://api.tracker.yandex.net/v3/queues/RESTRICTED", "id": "9", "key": "RESTRICTED", "name": "Закрытая",
 	  "defaultType": {"self": "https://api.tracker.yandex.net/v3/issuetypes/1", "id": "1", "key": "bug", "display": "Ошибка"},
 	  "defaultPriority": {"self": "https://api.tracker.yandex.net/v3/priorities/3", "id": "3", "key": "normal", "display": "Средний"},
 	  "issueTypesConfig": [
 	    {"issueType": {"self": "https://api.tracker.yandex.net/v3/issuetypes/21", "id": "21", "key": "milestone", "display": "Веха"},
-	     "workflow": {"self": "https://api.tracker.yandex.net/v3/workflows/W109", "id": "W109", "display": "W109"}}
+	     "workflow": {"self": "https://api.tracker.yandex.net/v3/workflows/W100", "id": "W100", "display": "W100"}}
 	  ]
 	}`)
-	w109 := decodeFixture[*tracker.Workflow](t, strings.ReplaceAll(w207JSON, "W207", "W109"))
-	mock.workflows = map[string]*tracker.Workflow{"W109": w109}
+	w100 := decodeFixture[*tracker.Workflow](t, strings.ReplaceAll(w200JSON, "W200", "W100"))
+	mock.workflows = map[string]*tracker.Workflow{"W100": w100}
 	mock.components = decodeFixture[[]*tracker.Component](t, `[]`)
 	mock.localFields = decodeFixture[[]*tracker.Field](t, `[]`)
 	mock.queueFieldsErr = newAPIError(http.StatusForbidden, reason)
 
-	stdout, _, err := runContextCmd(t, mock, "RECYCLEBIN")
+	stdout, _, err := runContextCmd(t, mock, "RESTRICTED")
 	if err != nil {
 		t.Fatalf("a failed part must not fail the command, got: %v", err)
 	}
@@ -524,16 +524,16 @@ func TestQueueContextQueueFieldsForbidden(t *testing.T) {
 	// Parts that were fetched but are empty stay [], unlike the failed one.
 	assertJSONEqual(t, string(doc["components"]), `[]`)
 	assertJSONEqual(t, string(doc["localFields"]), `[]`)
-	assertJSONEqual(t, string(doc["issueTypes"]), `[{"key": "milestone", "name": "Веха", "workflow": "W109"}]`)
+	assertJSONEqual(t, string(doc["issueTypes"]), `[{"key": "milestone", "name": "Веха", "workflow": "W100"}]`)
 }
 
 func TestQueueContextWorkflowFails(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 	mock.queue = decodeFixture[*tracker.Queue](t, twoWorkflowQueueJSON)
-	mock.workflowErrs = map[string]error{"W109": newAPIError(http.StatusNotFound, "Workflow W109 not found")}
+	mock.workflowErrs = map[string]error{"W100": newAPIError(http.StatusNotFound, "Workflow W100 not found")}
 
-	stdout, _, err := runContextCmd(t, mock, "MTP")
+	stdout, _, err := runContextCmd(t, mock, "APP")
 	if err != nil {
 		t.Fatalf("a failed part must not fail the command, got: %v", err)
 	}
@@ -545,19 +545,19 @@ func TestQueueContextWorkflowFails(t *testing.T) {
 	assertJSONEqual(t, string(doc["workflows"]), `null`)
 	assertJSONEqual(t, string(doc["statuses"]), `null`)
 	assertJSONEqual(t, string(doc["incomplete"]), `[
-	  {"part": "statuses", "reason": "workflow W109: Workflow W109 not found"},
-	  {"part": "workflows", "reason": "workflow W109: Workflow W109 not found"}
+	  {"part": "statuses", "reason": "workflow W100: Workflow W100 not found"},
+	  {"part": "workflows", "reason": "workflow W100: Workflow W100 not found"}
 	]`)
 	// The other parts are unaffected.
-	assertJSONEqual(t, string(doc["components"]), `[{"id": "55", "name": "Expedite"}]`)
+	assertJSONEqual(t, string(doc["components"]), `[{"id": "55", "name": "Hotfix"}]`)
 	assertJSONEqual(t, string(doc["globalFields"]), `[{"key": "tags", "name": "Теги"}]`)
 }
 
 func TestQueueContextStatusesOnly(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 
-	stdout, _, err := runContextCmd(t, mock, "MTP", "--json", "statuses")
+	stdout, _, err := runContextCmd(t, mock, "APP", "--json", "statuses")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -566,16 +566,16 @@ func TestQueueContextStatusesOnly(t *testing.T) {
 	  "statuses": [{"key": "open", "name": "Открыт"}, {"key": "closed", "name": "Закрыт"}],
 	  "incomplete": []
 	}`)
-	assertCalls(t, mock, "GetQueue MTP expand=issueTypesConfig", "GetWorkflow W207")
+	assertCalls(t, mock, "GetQueue APP expand=issueTypesConfig", "GetWorkflow W200")
 }
 
 func TestQueueContextWorkflowFailsUnderSelection(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 	mock.queue = decodeFixture[*tracker.Queue](t, twoWorkflowQueueJSON)
-	mock.workflowErrs = map[string]error{"W109": newAPIError(http.StatusNotFound, "Workflow W109 not found")}
+	mock.workflowErrs = map[string]error{"W100": newAPIError(http.StatusNotFound, "Workflow W100 not found")}
 
-	stdout, _, err := runContextCmd(t, mock, "MTP", "--json", "workflows")
+	stdout, _, err := runContextCmd(t, mock, "APP", "--json", "workflows")
 	if err != nil {
 		t.Fatalf("a failed part must not fail the command, got: %v", err)
 	}
@@ -583,20 +583,20 @@ func TestQueueContextWorkflowFailsUnderSelection(t *testing.T) {
 	// statuses was not selected, so incomplete does not name it.
 	assertJSONEqual(t, stdout, `{
 	  "workflows": null,
-	  "incomplete": [{"part": "workflows", "reason": "workflow W109: Workflow W109 not found"}]
+	  "incomplete": [{"part": "workflows", "reason": "workflow W100: Workflow W100 not found"}]
 	}`)
 }
 
 func TestQueueContextStatusesAcrossWorkflows(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 	mock.queue = decodeFixture[*tracker.Queue](t, twoWorkflowQueueJSON)
 	mock.workflows = map[string]*tracker.Workflow{
-		"W207": decodeFixture[*tracker.Workflow](t, w207JSON),
-		"W109": decodeFixture[*tracker.Workflow](t, w109JSON),
+		"W200": decodeFixture[*tracker.Workflow](t, w200JSON),
+		"W100": decodeFixture[*tracker.Workflow](t, w100JSON),
 	}
 
-	stdout, _, err := runContextCmd(t, mock, "MTP", "--json", "statuses,workflows")
+	stdout, _, err := runContextCmd(t, mock, "APP", "--json", "statuses,workflows")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -608,8 +608,8 @@ func TestQueueContextStatusesAcrossWorkflows(t *testing.T) {
 	    {"key": "new", "name": "Новый"}
 	  ],
 	  "workflows": [
-	    {"id": "W207", "initialStatus": "open", "transitions": {"open": ["closed"], "closed": []}},
-	    {"id": "W109", "initialStatus": "new", "transitions": {"new": ["open"], "open": ["closed"], "closed": []}}
+	    {"id": "W200", "initialStatus": "open", "transitions": {"open": ["closed"], "closed": []}},
+	    {"id": "W100", "initialStatus": "new", "transitions": {"new": ["open"], "open": ["closed"], "closed": []}}
 	  ],
 	  "incomplete": []
 	}`)
@@ -617,15 +617,15 @@ func TestQueueContextStatusesAcrossWorkflows(t *testing.T) {
 
 func TestQueueContextTerminalStep(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 
-	stdout, _, err := runContextCmd(t, mock, "MTP", "--json", "workflows")
+	stdout, _, err := runContextCmd(t, mock, "APP", "--json", "workflows")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	assertJSONEqual(t, stdout, `{
-	  "workflows": [{"id": "W207", "initialStatus": "open", "transitions": {"open": ["closed"], "closed": []}}],
+	  "workflows": [{"id": "W200", "initialStatus": "open", "transitions": {"open": ["closed"], "closed": []}}],
 	  "incomplete": []
 	}`)
 	if !strings.Contains(stdout, `"closed":[]`) {
@@ -639,35 +639,35 @@ func TestQueueContextTerminalStep(t *testing.T) {
 
 func TestQueueContextOptionTypes(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 	mock.localFields = decodeFixture[[]*tracker.Field](t, `[
-	  {"self": "https://api.tracker.yandex.net/v3/queues/MTP/localFields/flag", "id": "66fd07bba913292094b4403c--flag",
-	   "name": "Флаг", "key": "flag", "version": 1, "schema": {"type": "integer", "required": false}, "readonly": false,
+	  {"self": "https://api.tracker.yandex.net/v3/queues/APP/localFields/flag", "id": "5d0e4f1a2b3c4d5e6f708192--flag",
+	   "name": "Фича", "key": "flag", "version": 1, "schema": {"type": "integer", "required": false}, "readonly": false,
 	   "optionsProvider": {"type": "FixedListOptionsProvider", "values": [0, 1]}, "type": "local"},
-	  {"self": "https://api.tracker.yandex.net/v3/queues/MTP/localFields/stand", "id": "66fd07bba913292094b4403c--stand",
-	   "name": "Стенд", "key": "stand", "version": 1, "schema": {"type": "string", "required": false}, "readonly": false,
+	  {"self": "https://api.tracker.yandex.net/v3/queues/APP/localFields/stand", "id": "5d0e4f1a2b3c4d5e6f708192--stand",
+	   "name": "Среда", "key": "stand", "version": 1, "schema": {"type": "string", "required": false}, "readonly": false,
 	   "optionsProvider": {"type": "QueueFixedListOptionsProvider",
-	     "values": {"MTP": ["Test", "Beta"], "DIRECT": ["Production"]}, "defaults": ["Not specified"]},
+	     "values": {"APP": ["Test", "Beta"], "DIRECT": ["Production"]}, "defaults": ["Not specified"]},
 	   "type": "local"},
-	  {"self": "https://api.tracker.yandex.net/v3/queues/MTP/localFields/bench", "id": "66fd07bba913292094b4403c--bench",
-	   "name": "Бенч", "key": "bench", "version": 1, "schema": {"type": "string", "required": false}, "readonly": true,
+	  {"self": "https://api.tracker.yandex.net/v3/queues/APP/localFields/bench", "id": "5d0e4f1a2b3c4d5e6f708192--bench",
+	   "name": "База", "key": "bench", "version": 1, "schema": {"type": "string", "required": false}, "readonly": true,
 	   "optionsProvider": {"type": "QueueFixedListOptionsProvider",
 	     "values": {"DIRECT": ["Production"]}, "defaults": ["Not specified", "Trunk"]},
 	   "type": "local"}
 	]`)
 
-	stdout, _, err := runContextCmd(t, mock, "MTP", "--json", "localFields")
+	stdout, _, err := runContextCmd(t, mock, "APP", "--json", "localFields")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	assertJSONEqual(t, stdout, `{
 	  "localFields": [
-	    {"id": "66fd07bba913292094b4403c--flag", "key": "flag", "name": "Флаг", "schema": "integer",
+	    {"id": "5d0e4f1a2b3c4d5e6f708192--flag", "key": "flag", "name": "Фича", "schema": "integer",
 	     "readonly": false, "options": [0, 1]},
-	    {"id": "66fd07bba913292094b4403c--stand", "key": "stand", "name": "Стенд", "schema": "string",
+	    {"id": "5d0e4f1a2b3c4d5e6f708192--stand", "key": "stand", "name": "Среда", "schema": "string",
 	     "readonly": false, "options": ["Test", "Beta"]},
-	    {"id": "66fd07bba913292094b4403c--bench", "key": "bench", "name": "Бенч", "schema": "string",
+	    {"id": "5d0e4f1a2b3c4d5e6f708192--bench", "key": "bench", "name": "База", "schema": "string",
 	     "readonly": true, "options": ["Not specified", "Trunk"]}
 	  ],
 	  "incomplete": []
@@ -676,14 +676,14 @@ func TestQueueContextOptionTypes(t *testing.T) {
 
 func TestQueueContextOptionsByQueueID(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 	// Tracker accepts the queue id in place of its key, and the queue it
 	// returns carries the key that the per-queue option lists use.
 	mock.localFields = decodeFixture[[]*tracker.Field](t, `[
-	  {"self": "https://api.tracker.yandex.net/v3/queues/MTP/localFields/stand", "id": "66fd07bba913292094b4403c--stand",
-	   "name": "Стенд", "key": "stand", "version": 1, "schema": {"type": "string", "required": false}, "readonly": false,
+	  {"self": "https://api.tracker.yandex.net/v3/queues/APP/localFields/stand", "id": "5d0e4f1a2b3c4d5e6f708192--stand",
+	   "name": "Среда", "key": "stand", "version": 1, "schema": {"type": "string", "required": false}, "readonly": false,
 	   "optionsProvider": {"type": "QueueFixedListOptionsProvider",
-	     "values": {"MTP": ["Test", "Beta"], "DIRECT": ["Production"]}, "defaults": ["Not specified"]},
+	     "values": {"APP": ["Test", "Beta"], "DIRECT": ["Production"]}, "defaults": ["Not specified"]},
 	   "type": "local"}
 	]`)
 
@@ -694,7 +694,7 @@ func TestQueueContextOptionsByQueueID(t *testing.T) {
 
 	assertJSONEqual(t, stdout, `{
 	  "localFields": [
-	    {"id": "66fd07bba913292094b4403c--stand", "key": "stand", "name": "Стенд", "schema": "string",
+	    {"id": "5d0e4f1a2b3c4d5e6f708192--stand", "key": "stand", "name": "Среда", "schema": "string",
 	     "readonly": false, "options": ["Test", "Beta"]}
 	  ],
 	  "incomplete": []
@@ -704,12 +704,12 @@ func TestQueueContextOptionsByQueueID(t *testing.T) {
 
 func TestQueueContextSeveralPartsFail(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 	mock.componentsErr = newAPIError(http.StatusForbidden, "components denied")
 	mock.localFieldsErr = newAPIError(http.StatusNotFound, "local fields not found")
 	mock.globalFieldsErr = newAPIError(http.StatusInternalServerError, "global fields unavailable")
 
-	stdout, _, err := runContextCmd(t, mock, "MTP")
+	stdout, _, err := runContextCmd(t, mock, "APP")
 	if err != nil {
 		t.Fatalf("a failed part must not fail the command, got: %v", err)
 	}
@@ -732,63 +732,63 @@ func TestQueueContextSeveralPartsFail(t *testing.T) {
 
 func TestQueueContextSelectionIgnoresCase(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 
-	stdout, _, err := runContextCmd(t, mock, "MTP", "--json", "IssueTypes,COMPONENTS")
+	stdout, _, err := runContextCmd(t, mock, "APP", "--json", "IssueTypes,COMPONENTS")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	assertJSONEqual(t, stdout, `{
 	  "issueTypes": [
-	    {"key": "task", "name": "Задача", "workflow": "W207"},
-	    {"key": "bug", "name": "Ошибка", "workflow": "W207"}
+	    {"key": "task", "name": "Задача", "workflow": "W200"},
+	    {"key": "bug", "name": "Ошибка", "workflow": "W200"}
 	  ],
-	  "components": [{"id": "55", "name": "Expedite"}],
+	  "components": [{"id": "55", "name": "Hotfix"}],
 	  "incomplete": []
 	}`)
-	assertCalls(t, mock, "GetQueue MTP expand=issueTypesConfig", "ListComponents MTP fields=name")
+	assertCalls(t, mock, "GetQueue APP expand=issueTypesConfig", "ListComponents APP fields=name")
 }
 
 func TestQueueContextSelection(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 
-	stdout, _, err := runContextCmd(t, mock, "MTP", "--json", "issueTypes,components")
+	stdout, _, err := runContextCmd(t, mock, "APP", "--json", "issueTypes,components")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	assertJSONEqual(t, stdout, `{
 	  "issueTypes": [
-	    {"key": "task", "name": "Задача", "workflow": "W207"},
-	    {"key": "bug", "name": "Ошибка", "workflow": "W207"}
+	    {"key": "task", "name": "Задача", "workflow": "W200"},
+	    {"key": "bug", "name": "Ошибка", "workflow": "W200"}
 	  ],
-	  "components": [{"id": "55", "name": "Expedite"}],
+	  "components": [{"id": "55", "name": "Hotfix"}],
 	  "incomplete": []
 	}`)
-	assertCalls(t, mock, "GetQueue MTP expand=issueTypesConfig", "ListComponents MTP fields=name")
+	assertCalls(t, mock, "GetQueue APP expand=issueTypesConfig", "ListComponents APP fields=name")
 }
 
 func TestQueueContextJQ(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 
-	stdout, _, err := runContextCmd(t, mock, "MTP", "--jq", ".localFields[].id")
+	stdout, _, err := runContextCmd(t, mock, "APP", "--jq", ".localFields[].id")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if got, want := strings.TrimSpace(stdout), "66fd07bba913292094b4403c--size"; got != want {
+	if got, want := strings.TrimSpace(stdout), "5d0e4f1a2b3c4d5e6f708192--size"; got != want {
 		t.Errorf("jq output = %q, want %q", got, want)
 	}
 }
 
 func TestQueueContextQuiet(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 
-	stdout, _, err := runContextCmd(t, mock, "MTP", "--quiet")
+	stdout, _, err := runContextCmd(t, mock, "APP", "--quiet")
 
 	assertExitCode(t, err, ytrerrors.ExitUserError)
 	if stdout != "" {
@@ -799,7 +799,7 @@ func TestQueueContextQuiet(t *testing.T) {
 
 func TestQueueContextUnknownQueue(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 	mock.queueErr = newAPIError(http.StatusNotFound, "Очередь не существует.")
 
 	stdout, _, err := runContextCmd(t, mock, "NOPE")
@@ -816,7 +816,7 @@ func TestQueueContextUnknownQueue(t *testing.T) {
 
 func TestQueueContextEmptyArg(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 
 	stdout, _, err := runContextCmd(t, mock, "")
 
@@ -829,9 +829,9 @@ func TestQueueContextEmptyArg(t *testing.T) {
 
 func TestQueueContextInvalidField(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 
-	_, _, err := runContextCmd(t, mock, "MTP", "--json", "foo")
+	_, _, err := runContextCmd(t, mock, "APP", "--json", "foo")
 
 	var invalidField *ytrerrors.InvalidFieldError
 	if !errors.As(err, &invalidField) {
@@ -846,9 +846,9 @@ func TestQueueContextInvalidField(t *testing.T) {
 
 func TestQueueContextFieldHint(t *testing.T) {
 	testutil.ResetOutputFlags(t)
-	mock := newMTPMock(t)
+	mock := newAPPMock(t)
 
-	stdout, stderr, err := runContextCmd(t, mock, "MTP", "--json=")
+	stdout, stderr, err := runContextCmd(t, mock, "APP", "--json=")
 
 	assertExitCode(t, err, ytrerrors.ExitUserError)
 	if stdout != "" {
